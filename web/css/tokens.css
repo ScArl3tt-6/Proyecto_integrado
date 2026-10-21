@@ -1,0 +1,58 @@
+:root {
+  /* paleta base (no usar otros colores fuera de esta paleta y los de estado) */
+  --rosa-50:  #FFF7F8;
+  --rosa-100: #FCE8EC;
+  --rosa-200: #F6D2DA;
+  --rosa-400: #E8A3B2;
+  --rosa-600: #B5586B;
+  --rosa-700: #964658;
+  --cafe-50:  #FAF5F1;
+  --cafe-100: #F1E6DD;
+  --cafe-300: #D8C0AD;
+  --cafe-500: #A98368;
+  --cafe-700: #6F4E3C;
+  --cafe-900: #3E2C22;
+
+  /* estados: siempre con texto, nunca solo color */
+  --ok-bg: #E3EFE0;    --ok-tx: #2F5A2B;
+  --aviso-bg: #FBEBCF; --aviso-tx: #7A4F06;
+  --error-bg: #F9DCDC; --error-tx: #8C2230;
+
+  /* roles semánticos (modo claro) */
+  --color-fondo: var(--rosa-50);
+  --color-superficie: var(--cafe-50);
+  --color-superficie-destacada: var(--rosa-100);
+  --color-borde: var(--cafe-300);
+  --color-borde-suave: var(--rosa-200);
+  --color-texto: var(--cafe-900);
+  --color-texto-secundario: var(--cafe-700);
+  --color-acento: var(--rosa-600);
+  --color-acento-hover: var(--rosa-400);
+  --color-acento-presionado: var(--rosa-700);
+  --color-acento-texto: #FFFFFF;
+  --color-foco: var(--rosa-400);
+
+  --espacio-1: 8px;
+  --espacio-2: 16px;
+  --espacio-3: 24px;
+  --espacio-4: 32px;
+  --espacio-5: 40px;
+
+  --radio-tarjeta: 12px;
+  --radio-boton: 8px;
+  --sombra-suave: 0 1px 2px rgba(111, 78, 60, .08);
+
+  --fuente: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  --fuente-codigo: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+
+  --texto-12: .75rem;
+  --texto-14: .875rem;
+  --texto-16: 1rem;
+  --texto-20: 1.25rem;
+  --texto-28: 1.75rem;
+}
+
+/* Sin modo oscuro: el fondo siempre es el rosa pastel claro, pase lo que pase con el sistema
+   operativo de quien use la planta. El café oscuro de fondo se veía pesado y bajaba el contraste
+   de las tarjetas y chips (detectado en revisión visual real, no solo en la hoja de estilos). */
+:root { color-scheme: light; }

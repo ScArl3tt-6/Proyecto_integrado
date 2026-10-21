@@ -1,0 +1,11 @@
+src/config/entorno.js:5:17  aviso  security/detect-object-injection  Variable Assigned to Object Injection Sink
+src/dominio/archivosDiseno.js:14:74  aviso  security/detect-object-injection  Generic Object Injection Sink
+src/dominio/archivosDiseno.js:23:51  aviso  security/detect-object-injection  Generic Object Injection Sink
+src/dominio/flujoTrabajo.js:15:72  aviso  security/detect-object-injection  Generic Object Injection Sink
+src/dominio/permisos.js:13:65  aviso  security/detect-object-injection  Generic Object Injection Sink
+src/middleware/seguridad.js:12:19  aviso  security/detect-object-injection  Generic Object Injection Sink
+src/middleware/seguridad.js:48:18  aviso  security/detect-object-injection  Generic Object Injection Sink
+src/middleware/seguridad.js:61:41  aviso  security/detect-object-injection  Function Call Object Injection Sink
+src/middleware/seguridad.js:73:3  aviso  -  Unused eslint-disable directive (no problems were reported from 'no-unused-vars').
+src/modulos/usuarios/rutasUsuarios.js:18:36  error  no-unused-vars  'bitacora' is defined but never used. Allowed unused args must match /^_|^next$/u.
+Total: 1 errores, 9 avisos

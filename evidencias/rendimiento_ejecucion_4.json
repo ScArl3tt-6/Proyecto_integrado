@@ -1,0 +1,52 @@
+{
+  "fecha": "2026-10-15T01:35:13.818Z",
+  "entorno": "Node.js v24.16.0 - win32 - PostgreSQL embebido (PGlite) + MongoDB 8.3 local",
+  "umbral": "p97,5 < 500 ms, 0 errores y 0 respuestas fuera de 2xx",
+  "resultados": [
+    {
+      "escenario": "E1 Operarios consultan sus actividades (HU-04)",
+      "conexiones": 25,
+      "duracionSeg": 20,
+      "solicitudes": 2100,
+      "solicitudesPorSeg": 117,
+      "latenciaPromedioMs": 241.33,
+      "latenciaP50Ms": 239,
+      "latenciaP97_5Ms": 299,
+      "latenciaP99Ms": 383,
+      "latenciaMaxMs": 386,
+      "errores": 0,
+      "respuestasNo2xx": 0,
+      "cumple": true
+    },
+    {
+      "escenario": "E2 Administración consulta el panel general (HU-06)",
+      "conexiones": 10,
+      "duracionSeg": 20,
+      "solicitudes": 1140,
+      "solicitudesPorSeg": 60,
+      "latenciaPromedioMs": 176.47,
+      "latenciaP50Ms": 177,
+      "latenciaP97_5Ms": 196,
+      "latenciaP99Ms": 197,
+      "latenciaMaxMs": 200,
+      "errores": 0,
+      "respuestasNo2xx": 0,
+      "cumple": true
+    },
+    {
+      "escenario": "E3 Vendedores registran solicitudes (HU-01)",
+      "conexiones": 10,
+      "duracionSeg": 15,
+      "solicitudes": 1624,
+      "solicitudesPorSeg": 108,
+      "latenciaPromedioMs": 94.05,
+      "latenciaP50Ms": 93,
+      "latenciaP97_5Ms": 108,
+      "latenciaP99Ms": 133,
+      "latenciaMaxMs": 237,
+      "errores": 0,
+      "respuestasNo2xx": 0,
+      "cumple": true
+    }
+  ]
+}

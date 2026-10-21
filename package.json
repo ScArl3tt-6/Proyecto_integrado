@@ -1,0 +1,50 @@
+{
+  "name": "sst-kotoduo",
+  "version": "1.0.0",
+  "description": "SST Kotoduo - Sistema de Seguimiento y Trazabilidad de Trabajos Productivos (MVP)",
+  "main": "src/servidor.js",
+  "scripts": {
+    "inicio": "node src/servidor.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+    "pruebas": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --verbose --coverage",
+    "lint": "eslint src",
+    "rendimiento": "node rendimiento/carga.js",
+    "demo:sembrar": "node scripts/sembrar-demo.js",
+    "demo": "node scripts/arrancar-demo.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.10",
+    "argon2": "^0.45.1",
+    "cookie-parser": "^1.4.7",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.1",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongodb": "^7.7.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "autocannon": "^8.0.0",
+    "eslint": "^9.39.5",
+    "eslint-plugin-security": "^4.2.0",
+    "globals": "^17.13.0",
+    "jest": "^30.5.2",
+    "supertest": "^7.3.1"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 60000,
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/servidor.js"
+    ],
+    "coverageReporters": [
+      "text",
+      "text-summary"
+    ]
+  }
+}

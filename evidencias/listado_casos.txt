@@ -1,0 +1,35 @@
+
+tests/integracion/flujoTrabajo.test.js
+  ✓ CP-08 (HU-01) el vendedor registra una solicitud y queda en estado SOLICITADO (58 ms)
+  ✓ CP-09 (HU-02) diseño envía la propuesta: versión en PostgreSQL y documento en MongoDB (85 ms)
+  ✓ CP-10 (HU-03) producción rechaza con motivo y luego aprueba la versión 2 (147 ms)
+  ✓ CP-11 (HU-04) el operario de Bordado ve la actividad vigente y la siguiente (27 ms)
+  ✓ CP-12 (HU-05) completar las etapas actualiza el estado hasta TERMINADO (109 ms)
+  ✓ CP-13 (HU-06) el panel agrupa los trabajos por estado e identifica atrasos (71 ms)
+  ✓ CP-15 integración PostgreSQL-MongoDB: detalle del diseño y bitácora del trabajo (42 ms)
+  ✓ CP-14 (HU-07) el cambio de perfil revoca la sesión activa de inmediato (5460 ms)
+  ✓ CP-16 si MongoDB falla al guardar la propuesta, PostgreSQL revierte la transacción (5592 ms)
+
+tests/seguridad/seguridad.test.js
+  ✓ CP-17 inyección SQL: la entrada maliciosa se rechaza o se almacena como texto (46 ms)
+  ✓ CP-18 inyección NoSQL: operadores de MongoDB en lugar de texto se rechazan (10 ms)
+  ✓ CP-19 sin sesión o con token alterado no se accede a la API (26 ms)
+  ✓ CP-20 CSRF: una operación sin el token anti-CSRF se rechaza (25 ms)
+  ✓ CP-21 control de acceso por rol (RBAC) y separación de funciones (55 ms)
+  ✓ CP-22 un operario no puede avanzar etapas de otra área modificando la URL (20 ms)
+  ✓ CP-23 fuerza bruta: la cuenta se bloquea tras 5 intentos y los mensajes no revelan si el usuario existe (456 ms)
+  ✓ CP-24 asignación masiva: la solicitud rechaza datos de contacto o de pago del cliente (RF-01) (12 ms)
+  ✓ CP-25 XSS: el comentario se guarda como texto y la API envía cabeceras de protección (79 ms)
+  ✓ CP-26 carga de archivos: se rechazan SVG y archivos con firma falsa (53 ms)
+  ✓ CP-27 los errores no exponen detalles internos (25 ms)
+
+tests/unit/dominio.test.js
+  ✓ CP-01 permite las transiciones definidas en el flujo (3 ms)
+  ✓ CP-02 impide pasar a producción sin aprobación de diseño (11 ms)
+  ✓ CP-03 identifica la etapa vigente y la siguiente actividad (1 ms)
+  ✓ CP-04 calcula atraso según fecha comprometida y no marca trabajos terminados (1 ms)
+  ✓ CP-05 aplica la política de contraseñas (2 ms)
+  ✓ CP-06 la matriz RBAC deniega por defecto y separa funciones (1 ms)
+  ✓ CP-07 valida tipo, extensión, tamaño y firma de los archivos de diseño (2 ms)
+
+Total: 27 aprobadas de 27

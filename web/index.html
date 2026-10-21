@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SST Kotoduo</title>
+  <meta name="description" content="Seguimiento y trazabilidad de trabajos productivos de Kotoduo">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#B5586B">
+  <link rel="icon" href="/icons/icono.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/componentes.css">
+  <link rel="stylesheet" href="/css/pantallas.css">
+</head>
+<body>
+  <header class="cabecera" id="cabecera" hidden>
+    <div class="cabecera-contenido">
+      <span class="cabecera-marca">SST Kotoduo</span>
+      <nav class="cabecera-usuario" aria-label="Cuenta">
+        <span id="texto-usuario"></span>
+        <a href="#/mi-cuenta">Mi cuenta</a>
+        <button type="button" class="boton-enlace" id="boton-salir">Salir</button>
+      </nav>
+    </div>
+  </header>
+  <div class="diseno-app">
+    <nav class="nav-principal" id="nav-principal" aria-label="Secciones" hidden></nav>
+    <main id="app" tabindex="-1"></main>
+  </div>
+  <script type="module" src="/js/router.js"></script>
+</body>
+</html>

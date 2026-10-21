@@ -1,0 +1,14 @@
+{
+  "name": "SST Kotoduo",
+  "short_name": "Kotoduo",
+  "description": "Seguimiento y trazabilidad de trabajos productivos de Kotoduo",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "lang": "es-CL",
+  "background_color": "#FFF7F8",
+  "theme_color": "#B5586B",
+  "icons": [
+    { "src": "/icons/icono.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

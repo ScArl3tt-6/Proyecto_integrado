@@ -1,0 +1,29 @@
+.pantalla-ingreso {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espacio-2);
+  padding: var(--espacio-3);
+}
+.tarjeta-ingreso { width: 100%; max-width: 380px; }
+.tarjeta-ingreso h1 { font-size: var(--texto-20); margin-bottom: 4px; }
+.tarjeta-ingreso .subtitulo { color: var(--color-texto-secundario); margin-bottom: var(--espacio-3); font-size: var(--texto-14); }
+
+.mfa-proximamente {
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+  color: var(--color-texto-secundario);
+  font-size: var(--texto-14);
+  margin: 0;
+}
+
+.seccion-cuenta { max-width: 480px; }
+.lista-reglas { margin: 0 0 var(--espacio-2); padding-left: var(--espacio-3); color: var(--color-texto-secundario); font-size: var(--texto-14); }
+.lista-reglas li { margin-bottom: 4px; }
+
+@media (max-width: 759px) {
+  .pantalla-ingreso { padding: var(--espacio-2); align-items: flex-start; padding-top: var(--espacio-5); }
+}

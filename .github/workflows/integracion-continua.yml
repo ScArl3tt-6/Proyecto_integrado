@@ -1,0 +1,32 @@
+name: Integración continua SST Kotoduo
+
+on:
+  pull_request:
+    branches: [main, desarrollo]
+  push:
+    branches: [main]
+
+jobs:
+  calidad-y-pruebas:
+    runs-on: ubuntu-24.04
+    services:
+      mongo:
+        image: mongo:8
+        ports: ['27027:27017']
+    env:
+      SST_MONGO_URI: mongodb://127.0.0.1:27027
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Análisis estático con reglas de seguridad
+        run: npm run lint -- --max-warnings=0
+      - name: Revisión de dependencias de producción
+        run: npm audit --omit=dev --audit-level=moderate
+      - name: Búsqueda de secretos en el repositorio
+        uses: gitleaks/gitleaks-action@v2
+      - name: Pruebas unitarias, de integración y de seguridad con cobertura
+        run: npm run pruebas

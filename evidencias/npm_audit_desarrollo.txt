@@ -1,0 +1,4 @@
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force

@@ -1,0 +1,161 @@
+=== 6.3 BASE ESTRUCTURADA (PostgreSQL) ===
+
+-- Tablas creadas en el esquema public
+tabla            
+-----------------
+aprobacion_diseno
+area             
+diseno           
+etapa_plantilla  
+etapa_trabajo    
+material         
+rol              
+sesion           
+tipo_trabajo     
+trabajo          
+trabajo_material 
+usuario          
+
+-- Claves foráneas e integridad referencial
+tabla             | columna            | referencia      | al_eliminar
+------------------+--------------------+-----------------+------------
+aprobacion_diseno | id_aprobador       | usuario         | RESTRICT   
+aprobacion_diseno | id_diseno          | diseno          | RESTRICT   
+diseno            | id_disenador       | usuario         | RESTRICT   
+diseno            | id_trabajo         | trabajo         | RESTRICT   
+etapa_plantilla   | id_area            | area            | RESTRICT   
+etapa_plantilla   | id_tipo            | tipo_trabajo    | RESTRICT   
+etapa_trabajo     | id_etapa_plantilla | etapa_plantilla | RESTRICT   
+etapa_trabajo     | id_responsable     | usuario         | RESTRICT   
+etapa_trabajo     | id_trabajo         | trabajo         | RESTRICT   
+sesion            | id_usuario         | usuario         | CASCADE    
+trabajo           | id_tipo            | tipo_trabajo    | RESTRICT   
+trabajo           | id_vendedor        | usuario         | RESTRICT   
+trabajo_material  | id_material        | material        | RESTRICT   
+trabajo_material  | id_trabajo         | trabajo         | CASCADE    
+usuario           | id_area            | area            | RESTRICT   
+usuario           | id_rol             | rol             | RESTRICT   
+
+-- Consulta: estado, etapa vigente y siguiente actividad del trabajo
+codigo       | estado        | orden | etapa                            | estado_etapa | responsable  
+-------------+---------------+-------+----------------------------------+--------------+--------------
+KT-2026-0001 | EN_PRODUCCION | 1     | Preparación de matriz de bordado | COMPLETADA   | Luis Cárdenas
+KT-2026-0001 | EN_PRODUCCION | 2     | Bordado de prendas               | EN_CURSO     | NULL         
+KT-2026-0001 | EN_PRODUCCION | 3     | Control de calidad y embalaje    | PENDIENTE    | NULL         
+
+-- Consulta: trazabilidad de la aprobación del diseño (RF-03)
+codigo       | version | decision | aprobador       | decidido_en        
+-------------+---------+----------+-----------------+--------------------
+KT-2026-0001 | 1       | APROBADO | Marcela Fuentes | 2026-10-15 01:35:59
+
+-- Pruebas de restricciones (deben fallar)
+  [RECHAZADO] Etapa para un trabajo inexistente (FK): insert or update on table "etapa_trabajo" violates foreign key constraint "etapa_trabajo_id_trabajo_fkey"
+  [RECHAZADO] Cantidad igual a cero (CHECK): new row for relation "trabajo" violates check constraint "trabajo_cantidad_check"
+  [RECHAZADO] Estado fuera del dominio (CHECK): new row for relation "trabajo" violates check constraint "trabajo_estado_check"
+  [RECHAZADO] Rechazo sin motivo (CHECK): new row for relation "aprobacion_diseno" violates check constraint "aprobacion_diseno_check"
+  [RECHAZADO] Eliminar un trabajo con historial (RESTRICT): update or delete on table "trabajo" violates RESTRICT setting of foreign key constraint "etapa_trabajo_id_trabajo_fkey" on table "etapa_trabajo"
+  [RECHAZADO] Correo duplicado (UNIQUE): duplicate key value violates unique constraint "usuario_correo_key"
+
+=== 6.4 BASE NO ESTRUCTURADA (MongoDB) ===
+
+-- db.propuestas_diseno.findOne({ trabajoCodigo: "KT-2026-0001" })
+{
+  "_id": "6ad02dff543ab88dfefe7f3c",
+  "trabajoCodigo": "KT-2026-0001",
+  "idDiseno": 1,
+  "version": 1,
+  "archivos": [
+    {
+      "nombre": "escudo_aromos_v1.pdf",
+      "tipoMime": "application/pdf",
+      "tamanoBytes": 482133,
+      "sha256": "a37ded0c250be0267040b3c2702a072c91b2de4aaa897299dc1d9fbdadcf0889"
+    }
+  ],
+  "especificaciones": {
+    "tecnica": "Bordado",
+    "ubicacion": "Pecho izquierdo",
+    "medidas": "9 x 7 cm",
+    "colores": [
+      "Azul marino",
+      "Blanco"
+    ],
+    "puntadas": 11800
+  },
+  "comentarios": [
+    {
+      "autor": 3,
+      "rol": "DISENO",
+      "texto": "Se ajustó el escudo a 9 cm de ancho",
+      "fecha": "2026-10-15T01:35:59.229Z"
+    }
+  ],
+  "creadoEn": "2026-10-15T01:35:59.229Z"
+}
+
+-- Validador $jsonSchema: inserción de un SVG directamente en la colección (debe fallar)
+  [RECHAZADO] Document failed validation
+
+-- db.bitacora_eventos.find({ "entidad.codigo": "KT-2026-0001" }).sort({ fecha: 1 })
+tipo             | rol        | fecha               | detalle                     
+-----------------+------------+---------------------+-----------------------------
+TRABAJO_CREADO   | VENDEDOR   | 2026-10-15 01:35:59 | {}                          
+DISENO_INICIADO  | DISENO     | 2026-10-15 01:35:59 | {}                          
+DISENO_ENVIADO   | DISENO     | 2026-10-15 01:35:59 | {"version":1}               
+DISENO_APROBADO  | PRODUCCION | 2026-10-15 01:35:59 | {"idDiseno":1,"motivo":null}
+ETAPA_COMPLETADA | OPERARIO   | 2026-10-15 01:35:59 | {"orden":1}                 
+
+-- Agregación: eventos por tipo (aggregate)
+total | tipo            
+------+-----------------
+4     | ACCESO_EXITOSO  
+1     | DISENO_ENVIADO  
+1     | TRABAJO_CREADO  
+1     | DISENO_INICIADO 
+1     | DISENO_APROBADO 
+1     | ETAPA_COMPLETADA
+
+-- Índices de las colecciones
+  propuestas_diseno: {"_id":1}, {"trabajoCodigo":1,"version":-1}
+  bitacora_eventos: {"_id":1}, {"entidad.codigo":1,"fecha":-1}, {"tipo":1,"fecha":-1}
+
+=== 6.5 CONSULTA INTEGRADA (GET /api/disenos/:id) ===
+{
+  "id_diseno": 1,
+  "version": 1,
+  "estado": "APROBADO",
+  "ref_documento": "6ad02dff543ab88dfefe7f3c",
+  "codigo": "KT-2026-0001",
+  "propuesta": {
+    "trabajoCodigo": "KT-2026-0001",
+    "idDiseno": 1,
+    "version": 1,
+    "archivos": [
+      {
+        "nombre": "escudo_aromos_v1.pdf",
+        "tipoMime": "application/pdf",
+        "tamanoBytes": 482133,
+        "sha256": "a37ded0c250be0267040b3c2702a072c91b2de4aaa897299dc1d9fbdadcf0889"
+      }
+    ],
+    "especificaciones": {
+      "tecnica": "Bordado",
+      "ubicacion": "Pecho izquierdo",
+      "medidas": "9 x 7 cm",
+      "colores": [
+        "Azul marino",
+        "Blanco"
+      ],
+      "puntadas": 11800
+    },
+    "comentarios": [
+      {
+        "autor": 3,
+        "rol": "DISENO",
+        "texto": "Se ajustó el escudo a 9 cm de ancho",
+        "fecha": "2026-10-15T01:35:59.229Z"
+      }
+    ],
+    "creadoEn": "2026-10-15T01:35:59.229Z"
+  }
+}
