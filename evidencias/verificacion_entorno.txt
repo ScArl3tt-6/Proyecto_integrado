@@ -1,0 +1,17 @@
+=== Verificación del entorno SST Kotoduo ===
+
+[ OK ] Versión de Node.js — v24.16.0
+[ OK ] psql disponible — psql (PostgreSQL) 16.14
+[ OK ] mongod disponible — db version v8.3.2
+[ OK ] PostgreSQL: conexión con sst_app — PostgreSQL 16.14
+[ OK ] PostgreSQL: sst_app NO puede CREATE TABLE (mínimo privilegio)
+[ OK ] PostgreSQL: sst_app NO puede DROP TABLE (mínimo privilegio)
+[ OK ] PostgreSQL: escritura y lectura con sst_app (registro DEMO)
+[ OK ] PostgreSQL: limpieza del registro DEMO (con sst_propietario)
+[ OK ] MongoDB: conexión con sst_app
+[ OK ] MongoDB: sst_app NO puede dropDatabase (mínimo privilegio)
+[ OK ] MongoDB: escritura y lectura con sst_app (documento DEMO)
+[ OK ] MongoDB: limpieza del documento DEMO
+
+=== Resumen ===
+12 de 12 verificaciones en OK.

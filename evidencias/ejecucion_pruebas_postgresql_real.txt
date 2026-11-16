@@ -1,0 +1,53 @@
+(node:30636) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+---------------------------|---------|----------|---------|---------|------------------------
+File                       | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s      
+---------------------------|---------|----------|---------|---------|------------------------
+All files                  |   94.24 |    80.21 |   94.28 |    98.2 |                        
+ src                       |     100 |        0 |     100 |     100 |                        
+  app.js                   |     100 |        0 |     100 |     100 | 21                     
+ src/config                |       0 |        0 |       0 |       0 |                        
+  entorno.js               |       0 |        0 |       0 |       0 | 7-30                   
+ src/db                    |      96 |    71.42 |   83.33 |     100 |                        
+  mongo.js                 |   93.75 |       50 |      50 |     100 | 37-40                  
+  postgres.js              |   97.05 |       80 |      90 |     100 | 7-11                   
+ src/dominio               |   94.93 |    87.09 |     100 |     100 |                        
+  archivosDiseno.js        |      95 |    89.47 |     100 |     100 | 19,22                  
+  errores.js               |     100 |        0 |     100 |     100 | 4                      
+  flujoTrabajo.js          |     100 |     90.9 |     100 |     100 | 39                     
+  permisos.js              |     100 |      100 |     100 |     100 |                        
+  politicaContrasena.js    |    90.9 |    87.09 |     100 |     100 | 28-30,33,43            
+ src/middleware            |     100 |    97.43 |     100 |     100 |                        
+  seguridad.js             |     100 |    97.43 |     100 |     100 | 85                     
+ src/modulos/auditoria     |      90 |    71.42 |     100 |     100 |                        
+  servicioBitacora.js      |      90 |    71.42 |     100 |     100 | 10,28                  
+ src/modulos/auth          |   99.02 |    94.73 |   94.44 |     100 |                        
+  rutasAutenticacion.js    |     100 |       80 |     100 |     100 | 25,52                  
+  servicioAutenticacion.js |   98.27 |      100 |   88.88 |     100 |                        
+ src/modulos/catalogos     |     100 |      100 |     100 |     100 |                        
+  rutasCatalogos.js        |     100 |      100 |     100 |     100 |                        
+  servicioCatalogos.js     |     100 |      100 |     100 |     100 |                        
+ src/modulos/disenos       |   95.71 |    88.46 |   93.75 |     100 |                        
+  rutasDisenos.js          |     100 |      100 |     100 |     100 |                        
+  servicioDisenos.js       |   94.23 |     87.5 |      90 |     100 | 22,68,120              
+ src/modulos/panel         |   94.44 |    85.71 |     100 |     100 |                        
+  servicioPanel.js         |   94.44 |    85.71 |     100 |     100 | 23                     
+ src/modulos/trabajos      |   94.57 |    69.56 |     100 |     100 |                        
+  rutasTrabajos.js         |     100 |      100 |     100 |     100 |                        
+  servicioTrabajos.js      |   92.55 |    69.56 |     100 |     100 | 9-68,71,97,134-188,221 
+ src/modulos/usuarios      |   85.93 |    67.85 |   88.23 |   94.44 |                        
+  rutasUsuarios.js         |   95.65 |      100 |   85.71 |   95.65 | 27                     
+  servicioUsuarios.js      |   80.48 |    67.85 |      90 |   93.54 | 17-18                  
+---------------------------|---------|----------|---------|---------|------------------------
+
+=============================== Coverage summary ===============================
+Statements   : 94.24% ( 606/643 )
+Branches     : 80.21% ( 223/278 )
+Functions    : 94.28% ( 132/140 )
+Lines        : 98.2% ( 546/556 )
+================================================================================
+Test Suites: 11 passed, 11 total
+Tests:       47 passed, 47 total
+Snapshots:   0 total
+Time:        41.624 s
+Ran all test suites.

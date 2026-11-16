@@ -46,21 +46,21 @@ KT-2026-0001 | EN_PRODUCCION | 3     | Control de calidad y embalaje    | PENDIE
 -- Consulta: trazabilidad de la aprobación del diseño (RF-03)
 codigo       | version | decision | aprobador       | decidido_en        
 -------------+---------+----------+-----------------+--------------------
-KT-2026-0001 | 1       | APROBADO | Marcela Fuentes | 2026-10-15 01:35:59
+KT-2026-0001 | 1       | APROBADO | Marcela Fuentes | 2026-11-16 00:43:36
 
 -- Pruebas de restricciones (deben fallar)
-  [RECHAZADO] Etapa para un trabajo inexistente (FK): insert or update on table "etapa_trabajo" violates foreign key constraint "etapa_trabajo_id_trabajo_fkey"
-  [RECHAZADO] Cantidad igual a cero (CHECK): new row for relation "trabajo" violates check constraint "trabajo_cantidad_check"
-  [RECHAZADO] Estado fuera del dominio (CHECK): new row for relation "trabajo" violates check constraint "trabajo_estado_check"
-  [RECHAZADO] Rechazo sin motivo (CHECK): new row for relation "aprobacion_diseno" violates check constraint "aprobacion_diseno_check"
-  [RECHAZADO] Eliminar un trabajo con historial (RESTRICT): update or delete on table "trabajo" violates RESTRICT setting of foreign key constraint "etapa_trabajo_id_trabajo_fkey" on table "etapa_trabajo"
-  [RECHAZADO] Correo duplicado (UNIQUE): duplicate key value violates unique constraint "usuario_correo_key"
+  [RECHAZADO] Etapa para un trabajo inexistente (FK): inserción o actualización en la tabla «etapa_trabajo» viola la llave foránea «etapa_trabajo_id_trabajo_fkey»
+  [RECHAZADO] Cantidad igual a cero (CHECK): el nuevo registro para la relación «trabajo» viola la restricción «check» «trabajo_cantidad_check»
+  [RECHAZADO] Estado fuera del dominio (CHECK): el nuevo registro para la relación «trabajo» viola la restricción «check» «trabajo_estado_check»
+  [RECHAZADO] Rechazo sin motivo (CHECK): el nuevo registro para la relación «aprobacion_diseno» viola la restricción «check» «aprobacion_diseno_check»
+  [RECHAZADO] Eliminar un trabajo con historial (RESTRICT): update o delete en «trabajo» viola la llave foránea «etapa_trabajo_id_trabajo_fkey» en la tabla «etapa_trabajo»
+  [RECHAZADO] Correo duplicado (UNIQUE): llave duplicada viola restricción de unicidad «usuario_correo_key»
 
 === 6.4 BASE NO ESTRUCTURADA (MongoDB) ===
 
 -- db.propuestas_diseno.findOne({ trabajoCodigo: "KT-2026-0001" })
 {
-  "_id": "6ad02dff543ab88dfefe7f3c",
+  "_id": "6afa51b8a5f4125238d03577",
   "trabajoCodigo": "KT-2026-0001",
   "idDiseno": 1,
   "version": 1,
@@ -87,10 +87,10 @@ KT-2026-0001 | 1       | APROBADO | Marcela Fuentes | 2026-10-15 01:35:59
       "autor": 3,
       "rol": "DISENO",
       "texto": "Se ajustó el escudo a 9 cm de ancho",
-      "fecha": "2026-10-15T01:35:59.229Z"
+      "fecha": "2026-11-16T00:43:36.495Z"
     }
   ],
-  "creadoEn": "2026-10-15T01:35:59.229Z"
+  "creadoEn": "2026-11-16T00:43:36.495Z"
 }
 
 -- Validador $jsonSchema: inserción de un SVG directamente en la colección (debe fallar)
@@ -99,21 +99,21 @@ KT-2026-0001 | 1       | APROBADO | Marcela Fuentes | 2026-10-15 01:35:59
 -- db.bitacora_eventos.find({ "entidad.codigo": "KT-2026-0001" }).sort({ fecha: 1 })
 tipo             | rol        | fecha               | detalle                     
 -----------------+------------+---------------------+-----------------------------
-TRABAJO_CREADO   | VENDEDOR   | 2026-10-15 01:35:59 | {}                          
-DISENO_INICIADO  | DISENO     | 2026-10-15 01:35:59 | {}                          
-DISENO_ENVIADO   | DISENO     | 2026-10-15 01:35:59 | {"version":1}               
-DISENO_APROBADO  | PRODUCCION | 2026-10-15 01:35:59 | {"idDiseno":1,"motivo":null}
-ETAPA_COMPLETADA | OPERARIO   | 2026-10-15 01:35:59 | {"orden":1}                 
+TRABAJO_CREADO   | VENDEDOR   | 2026-11-16 00:43:36 | {}                          
+DISENO_INICIADO  | DISENO     | 2026-11-16 00:43:36 | {}                          
+DISENO_ENVIADO   | DISENO     | 2026-11-16 00:43:36 | {"version":1}               
+DISENO_APROBADO  | PRODUCCION | 2026-11-16 00:43:36 | {"idDiseno":1,"motivo":null}
+ETAPA_COMPLETADA | OPERARIO   | 2026-11-16 00:43:36 | {"orden":1}                 
 
 -- Agregación: eventos por tipo (aggregate)
 total | tipo            
 ------+-----------------
 4     | ACCESO_EXITOSO  
-1     | DISENO_ENVIADO  
+1     | DISENO_APROBADO 
 1     | TRABAJO_CREADO  
 1     | DISENO_INICIADO 
-1     | DISENO_APROBADO 
 1     | ETAPA_COMPLETADA
+1     | DISENO_ENVIADO  
 
 -- Índices de las colecciones
   propuestas_diseno: {"_id":1}, {"trabajoCodigo":1,"version":-1}
@@ -124,7 +124,7 @@ total | tipo
   "id_diseno": 1,
   "version": 1,
   "estado": "APROBADO",
-  "ref_documento": "6ad02dff543ab88dfefe7f3c",
+  "ref_documento": "6afa51b8a5f4125238d03577",
   "codigo": "KT-2026-0001",
   "propuesta": {
     "trabajoCodigo": "KT-2026-0001",
@@ -153,9 +153,9 @@ total | tipo
         "autor": 3,
         "rol": "DISENO",
         "texto": "Se ajustó el escudo a 9 cm de ancho",
-        "fecha": "2026-10-15T01:35:59.229Z"
+        "fecha": "2026-11-16T00:43:36.495Z"
       }
     ],
-    "creadoEn": "2026-10-15T01:35:59.229Z"
+    "creadoEn": "2026-11-16T00:43:36.495Z"
   }
 }
