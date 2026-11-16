@@ -1,11 +1,54 @@
 'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
 const crypto = require('node:crypto');
 const request = require('supertest');
+const { Client } = require('pg');
 const { crearBaseRelacional } = require('../src/db/postgres');
 const { crearBaseDocumental } = require('../src/db/mongo');
 const { crearApp } = require('../src/app');
+const { cargarEnv } = require('../scripts/cargarEnv');
 
-// Contexto aislado por suite: PostgreSQL en memoria y una base MongoDB propia que se elimina al terminar
+cargarEnv();
+
+function requerida(nombre) {
+  const valor = process.env[nombre];
+  if (!valor) throw new Error(`Falta ${nombre} en .env. Ejecuta "npm run db:crear" y "npm run mongo:iniciar" antes de correr las pruebas.`);
+  return valor;
+}
+
+// Base PostgreSQL real y temporal (sst_prueba_xxxx), creada con el rol sst_pruebas (CREATEDB, sin
+// superusuario) y destruida al terminar la suite. La contraseña del superusuario postgres nunca
+// se necesita para esto.
+async function crearBasePruebaPostgres() {
+  const urlPruebas = requerida('SST_PG_PRUEBAS_URL');
+  const nombreBase = `sst_prueba_${crypto.randomBytes(4).toString('hex')}`;
+
+  const administracion = new Client({ connectionString: urlPruebas });
+  await administracion.connect();
+  await administracion.query(`CREATE DATABASE ${nombreBase}`);
+  await administracion.end();
+
+  const urlBasePrueba = new URL(urlPruebas);
+  urlBasePrueba.pathname = `/${nombreBase}`;
+
+  const clienteEsquema = new Client({ connectionString: urlBasePrueba.toString() });
+  await clienteEsquema.connect();
+  await clienteEsquema.query(fs.readFileSync(path.join(__dirname, '..', 'src', 'db', 'esquema.sql'), 'utf8'));
+  await clienteEsquema.query(fs.readFileSync(path.join(__dirname, '..', 'src', 'db', 'semilla.sql'), 'utf8'));
+  await clienteEsquema.end();
+
+  async function destruir() {
+    const administracion2 = new Client({ connectionString: urlPruebas });
+    await administracion2.connect();
+    await administracion2.query(`DROP DATABASE IF EXISTS ${nombreBase} WITH (FORCE)`);
+    await administracion2.end();
+  }
+
+  return { url: urlBasePrueba.toString(), destruir };
+}
+
+// Contexto aislado por suite: PostgreSQL y MongoDB reales y propios, eliminados al terminar.
 async function crearContexto({ envolverMongo, entornoExtra = {} } = {}) {
   const entorno = {
     puerto: 0, produccion: false, secretoJwt: crypto.randomBytes(48).toString('hex'),
@@ -13,9 +56,14 @@ async function crearContexto({ envolverMongo, entornoExtra = {} } = {}) {
     limiteGeneral: 100000, // sin límite general en las pruebas, salvo que una prueba lo fije
     ...entornoExtra,
   };
-  const pg = await crearBaseRelacional();
-  const nombreBase = `sst_prueba_${crypto.randomBytes(4).toString('hex')}`;
-  const { cliente, db } = await crearBaseDocumental(process.env.SST_MONGO_URI || 'mongodb://127.0.0.1:27027', nombreBase);
+
+  const basePruebaPg = await crearBasePruebaPostgres();
+  const pgReal = await crearBaseRelacional(basePruebaPg.url);
+  // Los servicios solo conocen pg.close(): se envuelve para que además borre la base temporal.
+  const pg = { ...pgReal, close: async () => { await pgReal.close(); await basePruebaPg.destruir(); } };
+
+  const nombreBaseMongo = `sst_prueba_${crypto.randomBytes(4).toString('hex')}`;
+  const { cliente, db } = await crearBaseDocumental(requerida('SST_MONGO_PRUEBAS_URI'), nombreBaseMongo);
   const mongoDb = envolverMongo ? envolverMongo(db) : db;
   const registro = { error: () => {} };
   const { app, servicios } = crearApp({ entorno, pg, mongoDb, registro });

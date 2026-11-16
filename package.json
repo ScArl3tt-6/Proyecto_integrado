@@ -10,14 +10,18 @@
     "lint": "eslint src",
     "rendimiento": "node rendimiento/carga.js",
     "demo:sembrar": "node scripts/sembrar-demo.js",
-    "demo": "node scripts/arrancar-demo.js"
+    "demo": "node scripts/arrancar-demo.js",
+    "db:crear": "node scripts/db/crear-base-postgres.js",
+    "db:reiniciar": "node scripts/db/reiniciar-base-postgres.js",
+    "mongo:iniciar": "node scripts/db/mongo-iniciar.js",
+    "mongo:crear-usuarios": "node scripts/db/mongo-crear-usuarios.js",
+    "verificar": "node scripts/verificar-entorno.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@electric-sql/pglite": "^0.5.10",
     "argon2": "^0.45.1",
     "cookie-parser": "^1.4.7",
     "express": "^5.3.0",
@@ -25,6 +29,7 @@
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "mongodb": "^7.7.0",
+    "pg": "^8.23.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
