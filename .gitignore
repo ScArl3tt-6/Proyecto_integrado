@@ -4,4 +4,5 @@ datos/
 datos-demo/
 datos-mongo-dev/
 .demo-credenciales.txt
+.mongo-admin-credenciales.txt
 coverage/

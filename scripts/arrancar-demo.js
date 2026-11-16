@@ -1,66 +1,37 @@
 'use strict';
-// Arranque de demostración: genera .env si falta, levanta MongoDB local si hace falta
-// y deja la API escuchando. No imprime ni genera contraseñas (eso lo hace sembrar-demo.js).
+// Arranque de demostración: completa el secreto JWT en .env si falta, y deja la API escuchando.
+// Supone que ya se ejecutaron "npm run db:crear" (PostgreSQL) y "npm run mongo:iniciar" (MongoDB):
+// no inventa credenciales de base de datos, porque hacerlo ocultaría que falta ese paso.
 const fs = require('node:fs');
 const path = require('node:path');
-const net = require('node:net');
 const crypto = require('node:crypto');
-const { spawn } = require('node:child_process');
 const { cargarEnv } = require('./cargarEnv');
 
-function asegurarEnv() {
+function asegurarSecretoJwt() {
+  cargarEnv();
+  if (process.env.SST_JWT_SECRETO) return;
   const rutaEnv = path.join(__dirname, '..', '.env');
-  if (fs.existsSync(rutaEnv)) return;
-  const valores = {
-    NODE_ENV: 'development',
-    SST_PUERTO: '3000',
-    SST_JWT_SECRETO: crypto.randomBytes(48).toString('hex'),
-    SST_MONGO_URI: 'mongodb://127.0.0.1:27027',
-    SST_MONGO_BASE: 'sst_kotoduo_demo',
-    SST_PG_DIRECTORIO: './datos-demo/pg',
-  };
-  fs.writeFileSync(rutaEnv, `${Object.entries(valores).map(([k, v]) => `${k}=${v}`).join('\n')}\n`, 'utf8');
-  for (const [clave, valor] of Object.entries(valores)) if (!(clave in process.env)) process.env[clave] = valor;
-  console.log('Se generó .env con un secreto nuevo (no se sube al repositorio).');
+  const lineasPrevias = fs.existsSync(rutaEnv) ? fs.readFileSync(rutaEnv, 'utf8').split('\n').filter((l) => l.trim()) : [];
+  const secreto = crypto.randomBytes(48).toString('hex');
+  const basicas = lineasPrevias.length ? [] : ['NODE_ENV=development', 'SST_PUERTO=3000'];
+  fs.writeFileSync(rutaEnv, [...lineasPrevias, ...basicas, `SST_JWT_SECRETO=${secreto}`, ''].join('\n'), 'utf8');
+  process.env.SST_JWT_SECRETO = secreto;
+  console.log('Se agregó SST_JWT_SECRETO a .env (no se sube al repositorio).');
 }
 
-function puertoAbierto(puerto, host) {
-  return new Promise((resolve) => {
-    const socket = net.createConnection({ port: puerto, host });
-    socket.once('connect', () => { socket.destroy(); resolve(true); });
-    socket.once('error', () => { socket.destroy(); resolve(false); });
-  });
-}
-
-async function asegurarMongo(uri) {
-  const url = new URL(uri);
-  const puerto = Number(url.port || 27017);
-  if (await puertoAbierto(puerto, url.hostname)) {
-    console.log(`MongoDB ya está escuchando en el puerto ${puerto}.`);
-    return;
-  }
-  console.log(`Iniciando MongoDB local en el puerto ${puerto}...`);
-  const dbpath = path.join(__dirname, '..', 'datos-demo', 'mongo');
-  fs.mkdirSync(dbpath, { recursive: true });
-  const proceso = spawn('mongod', ['--port', String(puerto), '--dbpath', dbpath, '--bind_ip', '127.0.0.1'], {
-    detached: true, stdio: 'ignore',
-  });
-  proceso.on('error', () => {
-    console.error('No se encontró "mongod" en el PATH. Instala MongoDB 8 o indica un servidor ya activo con SST_MONGO_URI.');
-  });
-  proceso.unref();
-  for (let intento = 0; intento < 20; intento += 1) {
-    await new Promise((r) => setTimeout(r, 500));
-    if (await puertoAbierto(puerto, url.hostname)) return;
-  }
-  console.warn('MongoDB no respondió a tiempo; revisa que "mongod" esté disponible.');
+function requerirPreparacion() {
+  const faltan = ['SST_PG_URL', 'SST_MONGO_URI'].filter((variable) => !process.env[variable]);
+  if (!faltan.length) return;
+  console.error(`Falta ${faltan.join(' y ')} en .env.`);
+  if (faltan.includes('SST_PG_URL')) console.error('  Ejecuta primero: npm run db:crear');
+  if (faltan.includes('SST_MONGO_URI')) console.error('  Ejecuta primero: npm run mongo:iniciar');
+  process.exit(1);
 }
 
 async function principal() {
+  asegurarSecretoJwt();
   cargarEnv();
-  asegurarEnv();
-  cargarEnv();
-  await asegurarMongo(process.env.SST_MONGO_URI);
+  requerirPreparacion();
   console.log(`Abre http://localhost:${process.env.SST_PUERTO || 3000} en el navegador.`);
   require('../src/servidor');
 }
