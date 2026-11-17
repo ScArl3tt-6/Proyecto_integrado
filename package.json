@@ -15,7 +15,8 @@
     "db:reiniciar": "node scripts/db/reiniciar-base-postgres.js",
     "mongo:iniciar": "node scripts/db/mongo-iniciar.js",
     "mongo:crear-usuarios": "node scripts/db/mongo-crear-usuarios.js",
-    "verificar": "node scripts/verificar-entorno.js"
+    "verificar": "node scripts/verificar-entorno.js",
+    "docs:guia-bases": "node scripts/generar-guia-bases.js"
   },
   "keywords": [],
   "author": "",
@@ -34,6 +35,7 @@
   },
   "devDependencies": {
     "autocannon": "^8.0.0",
+    "docx": "^9.15.4",
     "eslint": "^9.39.5",
     "eslint-plugin-security": "^4.2.0",
     "globals": "^17.13.0",
