@@ -142,3 +142,66 @@ completa para el informe (sección de validación de resultados).
   verde con el servicio PostgreSQL real.
 - **Estado:** Corregido en el código del flujo; verificación en GitHub Actions pendiente de
   confirmar por el equipo tras subir este commit.
+
+## DEF-06 — El mínimo privilegio de MongoDB no se verifica en CI, solo en local
+
+- **Encontrado en:** al revisar, a pedido del equipo, cuáles de las 47 pruebas de
+  `npm run pruebas` comprueban que `sst_app` no pueda hacer operaciones administrativas en
+  MongoDB (p. ej. `dropDatabase`).
+- **Caso de prueba:** se revisó el código completo de `tests/` (no se supuso nada). Ninguna de
+  las 47 pruebas de Jest verifica privilegios de MongoDB; la única que existe es
+  `scripts/verificar-entorno.js` (`npm run verificar`), que no es parte de la suite de Jest ni del
+  flujo de GitHub Actions.
+- **Severidad:** Media. No hay pérdida de datos ni una vulnerabilidad explotable hoy, pero sí un
+  hueco real en la automatización: si alguien ampliara por error los permisos de `sst_app`, nada
+  en CI lo detectaría; solo lo notaría quien ejecutara `npm run verificar` a mano en su propio
+  equipo.
+- **Causa confirmada:** dos razones, verificadas directamente:
+  1. `npm run verificar` nunca se agregó como paso del flujo `.github/workflows/integracion-continua.yml`.
+  2. Aunque se agregara tal cual está, fallaría igual en CI: el servicio `mongo:8` del flujo corre
+     sin `--auth` (no se le pasa `MONGO_INITDB_ROOT_USERNAME`/`PASSWORD`), así que ninguna
+     restricción de rol se aplica de verdad ahí — cualquier conexión tiene privilegios completos,
+     diera o no el nombre de usuario "sst_app". El rechazo de `dropDatabase` que prueba
+     `verificar-entorno.js` solo es real cuando Mongo corre con autenticación habilitada, como en
+     el entorno de desarrollo (`npm run mongo:iniciar`, que sí arranca `mongod --auth`).
+- **Propuesta de corrección (la forma más simple identificada, sin implementar todavía):**
+  GitHub Actions no permite agregar argumentos de arranque (como `--auth`) a un servicio definido
+  en `services:`, así que no basta con agregarle variables de entorno al `mongo` actual. El camino
+  más simple es: en un paso del job (antes de las pruebas), levantar Mongo con
+  `docker run -d -p 27027:27017 -e MONGO_INITDB_ROOT_USERNAME=... -e MONGO_INITDB_ROOT_PASSWORD=... mongo:8 --auth`
+  (credenciales efímeras de CI, igual que las de PostgreSQL), crear ahí mismo un usuario
+  `sst_app_ci` con solo `readWrite` sobre una base de prueba (reusando la lógica de
+  `scripts/db/mongo-crear-usuarios.js`), y agregar una prueba nueva (p. ej.
+  `tests/seguridad/privilegioMongo.test.js`) que se conecte con esa URI restringida y confirme que
+  `dropDatabase()` y los comandos de administración son rechazados — el mismo chequeo que ya hace
+  `verificar-entorno.js`, pero como prueba automática de Jest, para que corra en cada PR.
+- **Estado:** Pendiente de corregir. Documentado para que el equipo lo priorice en la Fase 1 o en
+  las Fases 3-4 (pruebas y documentación), no se tocó código de pruebas ni del flujo de CI para
+  esto todavía.
+
+## DEF-07 — El paso de gitleaks seguía fallando en el PR #1 por el historial superficial del checkout, no por un secreto
+
+- **Encontrado en:** PR #1 (`feature/bases-reales`), después de corregir DEF-05 (que agregó
+  `GITHUB_TOKEN` al paso de `gitleaks-action@v2`): el chequeo `calidad-y-pruebas` seguía en rojo
+  en el paso de gitleaks.
+- **Caso de prueba:** ejecución del flujo sobre el PR, reportada por el equipo desde la pestaña
+  "Actions" de GitHub (esta sesión no tiene acceso directo a esos registros ni a Docker/GitHub
+  Actions, así que el diagnóstico de abajo se confirma contra el comportamiento documentado de
+  `actions/checkout@v4` y de `gitleaks-action@v2`, no viendo el log en vivo).
+- **Severidad:** Alta. Bloqueaba el chequeo obligatorio del PR, pero **no por una razón de
+  seguridad real**: no se encontró ningún secreto, el escaneo ni siquiera llegó a ejecutarse.
+- **Causa confirmada:** `actions/checkout@v4` trae, por defecto, `fetch-depth: 1` (una clonación
+  superficial con un solo commit, el de la punta de la rama). `gitleaks-action@v2` necesita
+  comparar contra el commit base del PR (en este caso `643ee5a`) para saber qué rango de
+  historial escanear; como ese commit nunca se descargó, git no lo encuentra y el paso falla con
+  un error de historial (commit no encontrado), antes de llegar a revisar ningún archivo. No es
+  un secreto filtrado: es que el escaneo no se pudo ejecutar.
+- **Corrección:** se agregó `with: fetch-depth: 0` al paso `actions/checkout@v4` de
+  `.github/workflows/integracion-continua.yml`, para que el runner traiga el historial completo
+  de la rama y gitleaks pueda encontrar el commit base.
+- **Nueva ejecución:** no ejecutado desde esta sesión (sin acceso a GitHub Actions ni a Docker
+  localmente). Queda pendiente que el equipo confirme, en la pestaña "Actions" del PR tras subir
+  este commit, que el paso de gitleaks ya no falla por el historial y, si encontrara algo, que sea
+  un hallazgo real y no este error de configuración.
+- **Estado:** Corregido en el código del flujo; verificación en GitHub Actions pendiente de
+  confirmar por el equipo.

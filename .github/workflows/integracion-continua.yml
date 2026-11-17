@@ -34,6 +34,11 @@ jobs:
       SST_PG_PRUEBAS_URL: postgresql://sst_ci:efimera_ci_sst@127.0.0.1:5432/postgres
     steps:
       - uses: actions/checkout@v4
+        with:
+          # gitleaks necesita el historial completo para comparar contra el commit base del PR;
+          # con la profundidad por defecto (1) solo trae el último commit y falla por eso, no por
+          # un secreto encontrado (ver DEF-07 en evidencias/defectos.md).
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 24
