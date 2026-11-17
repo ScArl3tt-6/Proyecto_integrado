@@ -18,7 +18,7 @@ function cargarEntorno() {
     secretoJwt,
     mongoUri: requerida('SST_MONGO_URI'),
     mongoBase: process.env.SST_MONGO_BASE || 'sst_kotoduo',
-    pgDirectorio: process.env.SST_PG_DIRECTORIO || undefined, // sin valor: base en memoria (pruebas)
+    pgUrl: requerida('SST_PG_URL'),
     minutosAcceso: 15,
     horasSesion: 8,
     limiteGeneral: Number(process.env.SST_LIMITE_GENERAL || 600), // solicitudes por minuto y por IP

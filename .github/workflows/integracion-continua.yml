@@ -13,10 +13,32 @@ jobs:
       mongo:
         image: mongo:8
         ports: ['27027:27017']
+      postgres:
+        image: postgres:16
+        env:
+          # Credenciales efímeras solo para este contenedor de CI: viven y mueren con el job,
+          # nadie se conecta a ellas desde fuera del runner. No son las de .env ni un secreto real.
+          POSTGRES_USER: sst_ci
+          POSTGRES_PASSWORD: efimera_ci_sst
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U sst_ci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     env:
-      SST_MONGO_URI: mongodb://127.0.0.1:27027
+      # Mismos nombres que exige tests/contexto.js (SST_PG_PRUEBAS_URL, SST_MONGO_PRUEBAS_URI):
+      # las pruebas crean y destruyen su propia base temporal en cada motor.
+      SST_MONGO_PRUEBAS_URI: mongodb://127.0.0.1:27027
+      SST_PG_PRUEBAS_URL: postgresql://sst_ci:efimera_ci_sst@127.0.0.1:5432/postgres
     steps:
       - uses: actions/checkout@v4
+        with:
+          # gitleaks necesita el historial completo para comparar contra el commit base del PR;
+          # con la profundidad por defecto (1) solo trae el último commit y falla por eso, no por
+          # un secreto encontrado (ver DEF-07 en evidencias/defectos.md).
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -28,5 +50,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=moderate
       - name: Búsqueda de secretos en el repositorio
         uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Pruebas unitarias, de integración y de seguridad con cobertura
         run: npm run pruebas

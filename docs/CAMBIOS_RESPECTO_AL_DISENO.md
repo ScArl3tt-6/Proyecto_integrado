@@ -1,0 +1,177 @@
+# Cambios respecto al diseño (Informe 2)
+
+Registro de todo lo que se desvía de lo documentado en el Informe 2, con qué cambió, por qué,
+el impacto y la fecha. No se borra nada de aquí aunque se vuelva a corregir después.
+
+> Este archivo se crea en la Fase 0 (bases de datos reales). Si hay desvíos de etapas anteriores
+> del proyecto que todavía no están documentados, agréguenlos arriba de esta sección con la fecha
+> real en la que ocurrieron; esta sesión de Claude Code no tenía el Informe 2 cargado para
+> compararlo línea por línea.
+
+---
+
+## Fase 0 — Bases de datos reales y entorno reproducible (14 y 15-11-2026)
+
+### 1. Motor de la base estructurada: PGlite → PostgreSQL real
+
+- **Qué cambió:** el Informe 2 documenta PostgreSQL como motor de la base estructurada. Durante
+  el desarrollo se había usado PGlite (una compilación de PostgreSQL a WebAssembly que corre
+  embebida dentro del propio proceso de Node, sin servidor aparte) para no depender de una
+  instalación local mientras se armaba la aplicación. A partir de esta fase se usa **PostgreSQL
+  16.14 real**, instalado como servicio de Windows, escuchando en `127.0.0.1:5432`.
+- **Por qué (sin restarle mérito a PGlite: es PostgreSQL de verdad, con sus mismas limitaciones
+  reales, no un simulador):**
+  - **No se puede inspeccionar con herramientas externas.** Al vivir dentro del mismo proceso de
+    Node, no expone un puerto de red al que pgAdmin 4 (ni ningún otro cliente) pueda conectarse.
+    La única forma de ver sus datos era a través del propio código de la aplicación.
+  - **Una sola conexión real a la vez.** PGlite no implementa el protocolo de conexiones
+    concurrentes de PostgreSQL: todo el acceso pasa por un único objeto en memoria dentro del
+    proceso que lo creó. Esto impedía, por ejemplo, abrir una segunda conexión para inspeccionar
+    datos mientras la aplicación seguía corriendo, o simular dos personas operando a la vez sobre
+    la misma base (necesario para las pruebas de concurrencia de la Fase 3).
+  - **No tiene roles ni privilegios reales.** Todo el código corría con un único "usuario"
+    implícito y con permisos completos sobre el esquema; no había forma de crear un rol como
+    `sst_app` y comprobar que, aunque algo salga mal, no pueda borrar una tabla. El indicador
+    3.1.3.5 (patrones de seguridad avanzados) pide demostrar justamente eso.
+  - El informe y la demostración en vivo necesitan mostrar la base real, con pgAdmin conectado,
+    delante de quien evalúa.
+- **Impacto en el código:** se reescribió `src/db/postgres.js` para usar el driver `pg` con un
+  `Pool` (máx. 10 conexiones), manteniendo exactamente la misma interfaz que ya usaban los
+  servicios (`query`, `transaction`, `exec`, `close`), para no tener que tocar `src/modulos/*`.
+  Se agregaron parsers de tipo (`pg` devuelve `BIGINT`/`NUMERIC` como texto y `DATE` como objeto
+  `Date`; se configuraron para que sigan llegando como número y como texto `AAAA-MM-DD`,
+  igual que antes).
+- **Impacto en el modelo de datos:** ninguno. `src/db/esquema.sql` no se modificó; es el mismo
+  esquema de 12 tablas y 16 relaciones del Informe 2.
+- **Dependencias:** se agregó `pg` (`^8.23`) y se quitó `@electric-sql/pglite` (ya no se usa en
+  ningún lugar del proyecto).
+
+### 2. Variables de entorno de PostgreSQL
+
+- **Qué cambió:** `SST_PG_DIRECTORIO` (ruta de la base embebida) se reemplazó por tres URL de
+  conexión, una por rol:
+  - `SST_PG_URL`: rol `sst_app` (la aplicación en marcha; privilegio mínimo).
+  - `SST_PG_PROPIETARIO_URL`: rol `sst_propietario` (dueño del esquema; solo scripts de
+    migración).
+  - `SST_PG_PRUEBAS_URL`: rol `sst_pruebas` (con `CREATEDB`, sin superusuario; crea y borra una
+    base temporal por cada ejecución de la suite automática).
+- **Por qué tres roles y no uno:** separación de privilegios. La idea original del Informe 2 no
+  especificaba roles de base de datos; se decidió este diseño para que la aplicación en marcha
+  nunca tenga permisos de `CREATE`/`DROP`/`ALTER`, y para que la contraseña del superusuario
+  `postgres` se use una sola vez (al ejecutar `npm run db:crear`) y nunca más se necesite ni se
+  guarde en ningún archivo del proyecto.
+- **Dónde queda documentado el detalle:** `docs/VER_LAS_BASES_DE_DATOS.md`.
+
+### 3. Privilegios mínimos por tabla (rol `sst_app`)
+
+- **Qué se hizo:** se revisó con `grep` cada `INSERT`/`UPDATE`/`DELETE` real de `src/modulos/*`
+  contra el esquema y se armó una lista exacta de permisos por tabla:
+  - Solo lectura: `rol`, `area`, `tipo_trabajo`, `etapa_plantilla`, `material`,
+    `trabajo_material` (la aplicación nunca escribe ahí; son catálogos sembrados una vez).
+  - Lectura y escritura (sin `DELETE`): `usuario`, `sesion`, `trabajo`, `etapa_trabajo`, `diseno`.
+  - Solo lectura e inserción (sin `UPDATE` ni `DELETE`): `aprobacion_diseno` (una decisión de
+    diseño es definitiva, nunca se modifica ni se borra).
+  - Ninguna tabla tiene `DELETE` para `sst_app`: el código de la aplicación nunca borra filas
+    (los trabajos, sesiones y usuarios se marcan con un estado en vez de eliminarse), así que no
+    hacía falta otorgarlo.
+- **Por qué importa para el informe:** es evidencia concreta y verificable de "mínimo privilegio"
+  (3.1.3.5) y de que el diseño de la base ya anticipaba esta separación (ningún `DELETE` en el
+  código, confirmado al revisarlo).
+
+### 4. Base documental: MongoDB sin autenticación → con autenticación
+
+- **Qué cambió:** MongoDB pasó a ejecutarse con `--auth`, con tres cuentas:
+  - `sst_admin`: rol `root` en `admin`, solo para inspección manual con MongoDB Compass.
+  - `sst_app`: rol `readWrite` **solo** sobre `sst_kotoduo` (la aplicación en marcha).
+  - `sst_pruebas`: roles `readWriteAnyDatabase` + `dbAdminAnyDatabase` en `admin`, para que la
+    suite automática de pruebas pueda crear y borrar una base temporal por cada ejecución.
+- **Por qué un tercer usuario de Mongo:** se detectó (ver `evidencias/defectos.md`, DEF-03) que
+  `sst_app`, al estar acotado a `sst_kotoduo`, no podía usarse para las bases de prueba
+  `sst_prueba_xxxx` sin ampliar sus permisos más allá de lo necesario para la aplicación real. Se
+  prefirió un usuario aparte, de alcance más amplio pero usado solo por la suite de pruebas, antes
+  que ampliar los permisos del usuario de producción.
+- **Variable nueva:** `SST_MONGO_PRUEBAS_URI`.
+
+### 5. Pruebas automatizadas contra motores reales
+
+- **Qué cambió:** `tests/contexto.js` ya no crea una base PostgreSQL en memoria; crea una base
+  PostgreSQL real y temporal (`sst_prueba_xxxx`) con el rol `sst_pruebas`, le aplica el esquema y
+  la semilla, y la destruye (`DROP DATABASE ... WITH (FORCE)`) al terminar cada suite. La base de
+  MongoDB de pruebas ahora se conecta con `sst_pruebas` en vez de reutilizar las credenciales de
+  `sst_app`, por la misma razón del punto 4.
+- **Resultado:** ver `evidencias/ejecucion_pruebas_postgresql_real.txt` (se completa al cerrar
+  esta fase).
+
+### 6. Script de siembra y de arranque de la demostración
+
+- **Qué cambió:** `scripts/sembrar-demo.js` usa `entorno.pgUrl` en vez de `entorno.pgDirectorio`.
+  `scripts/arrancar-demo.js` ya no intenta levantar MongoDB por su cuenta (eso ahora lo hace
+  `npm run mongo:iniciar`, con autenticación) ni genera una carpeta de PGlite; si falta
+  `SST_PG_URL` o `SST_MONGO_URI` en `.env`, el script lo dice claramente y no arranca, en vez de
+  inventar una configuración a medias.
+- **Orden de arranque nuevo** (ver `README.md`): `npm run db:crear` → `npm run mongo:iniciar` →
+  `npm run demo:sembrar` → `npm run demo`. A diferencia de la versión anterior con PGlite, ahora
+  **sí se puede** sembrar con el servidor ya corriendo (PostgreSQL real admite varias conexiones a
+  la vez, a diferencia del motor embebido anterior); se deja igual el orden recomendado por
+  prolijidad, pero ya no es obligatorio.
+
+### 7. Cobertura de pruebas: por qué se movió y dónde quedó al final
+
+Al terminar de migrar `src/db/postgres.js`, la primera corrida completa mostró
+**93,77 % de statements**, un número que a primera vista parece más bajo que el **98,15 %** que
+`CLAUDE.md` tenía anotado de antes. Comparar esos dos números directamente es comparar cosas
+distintas: 98,15 % era la cobertura de **líneas**, no de **statements** (son métricas distintas de
+Istanbul/Jest, casi siempre con valores diferentes entre sí). La comparación correcta,
+métrica por métrica, entre el estado anterior (PGlite, fin de la etapa de pantallas) y el final de
+esta fase (PostgreSQL real, con las pruebas agregadas en los puntos siguientes) es:
+
+| Métrica | Antes (PGlite) | Después (PostgreSQL real) |
+|---|---|---|
+| Statements | 94,05 % | **94,24 %** |
+| Branches | 79,19 % | **80,21 %** |
+| Functions | 94,65 % | **94,28 %** |
+| Lines | 98,15 % | **98,2 %** |
+
+Tres de las cuatro métricas quedaron un poco mejor que antes; "Functions" quedó 0,37 puntos por
+debajo, y se explica completo más abajo. No fue una caída real: fue una comparación entre dos
+métricas distintas, y ya quedó corregida con pruebas agregadas, no solo con una nota.
+
+**Qué pasó en el camino (con el detalle exacto, función por función, usando el reporte de Istanbul
+en `coverage/coverage-final.json`):**
+
+- El nuevo `src/db/postgres.js` creció de 25 a 67 líneas y agregó funciones que `PGlite` no
+  necesitaba (`query`, `transaction`, `exec`, `close` como funciones separadas, más los parsers de
+  tipo). Dos de ellas no las llamaba ninguna prueba al terminar la primera corrida:
+  - **`exec()`**: antes la usaba la propia `crearBaseRelacional` para aplicar `esquema.sql` y
+    `semilla.sql` la primera vez. Con PostgreSQL real, aplicar el esquema se movió a
+    `scripts/db/crear-base-postgres.js` y a `tests/contexto.js`, cada uno con su propia conexión
+    (porque esos pasos los hace el rol `sst_propietario` o `sst_pruebas`, nunca `sst_app`), así que
+    `exec()` quedó sin ningún llamador real dentro del código de la aplicación. **Se agregó la
+    prueba CP-47** (`tests/integracion/baseRelacional.test.js`), que la ejercita directamente con
+    varias sentencias DDL separadas por `;`, tal como la necesitan esos scripts.
+  - **La validación de la URL de conexión** (`if (!urlConexion) throw ...`): ninguna prueba
+    llamaba nunca a `crearBaseRelacional()` sin una URL. **Se agregó la prueba CP-48** para ese
+    caso.
+- Con esas dos pruebas agregadas, se revisó el detalle función por función y rama por rama (no
+  solo línea por línea) y quedan exactamente **dos** casos sin cubrir, ambos genuinos y difíciles
+  de forzar de forma natural, así que se documentan aquí en vez de agregar una prueba artificial
+  solo para subir el número:
+  1. **El parser de `BIGINT`** (rama `INT8` dentro de `getTypeParser`, `src/db/postgres.js` línea
+     11): ninguna consulta del código actual devuelve una columna `BIGINT` sin convertirla antes a
+     `INTEGER` (todos los `COUNT(*)` llevan `::int`), así que esa rama nunca se activa. Es
+     intencional: la conversión se dejó puesta por precaución, para el día en que alguna consulta
+     nueva use `COUNT()` sin convertir el resultado.
+  2. **El `catch` de seguridad dentro de `transaction()` cuando el propio `ROLLBACK` falla**
+     (`src/db/postgres.js` línea 46): la prueba CP-16 ya fuerza que una transacción falle (cuando
+     MongoDB rechaza guardar la propuesta) y confirma que el `ROLLBACK` se ejecuta y revierte todo
+     bien. Lo que no se prueba es el escenario de **doble falla**: que además ese mismo `ROLLBACK`
+     falle (por ejemplo, porque la conexión a PostgreSQL se cortó justo en ese instante). Forzar
+     eso de forma realista requeriría interceptar la conexión a mitad de una transacción, algo que
+     no se intentó por el riesgo de terminar probando el simulador en vez del código real. Queda
+     anotado aquí como limitación conocida, no resuelta.
+- Aparte de `postgres.js`, las columnas 37-40 de `src/db/mongo.js` (la rama que SALTA crear una
+  colección porque ya existe) y las líneas 7-30 de `src/config/entorno.js` (la función
+  `cargarEntorno()` en sí) ya estaban sin cubrir **antes** de esta fase, por motivos que no tienen
+  que ver con el cambio de motor (cada prueba crea una base nueva, así que esa colección nunca
+  existe de antemano; y las pruebas arman su propio objeto `entorno` a mano en vez de llamar a
+  `cargarEntorno()`). No se tocaron en esta fase.

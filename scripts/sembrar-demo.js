@@ -52,7 +52,7 @@ async function crearCuenta(servicios, { nombre, correo, rol, area }) {
 
 async function principal() {
   const entorno = cargarEntorno();
-  const pg = await crearBaseRelacional(entorno.pgDirectorio);
+  const pg = await crearBaseRelacional(entorno.pgUrl);
   const { cliente, db: mongoDb } = await crearBaseDocumental(entorno.mongoUri, entorno.mongoBase);
   const { servicios } = crearApp({ entorno, pg, mongoDb });
 

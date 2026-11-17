@@ -85,9 +85,19 @@ describe('Pruebas de seguridad: sesiones, cuentas y datos', () => {
     });
     expect((await aprobar(`/api/disenos/${idDiseno}/decision`, { decision: 'APROBADO' })).status).toBe(200);
 
+    // Un material real (cantidad NUMERIC): además de probar el alcance por área, confirma que esa
+    // columna sigue llegando como número de JavaScript con PostgreSQL real, no como texto.
+    await ctx.pg.query(
+      `INSERT INTO trabajo_material (id_trabajo, id_material, cantidad, medida)
+         SELECT id_trabajo, 1, 3.5, 'Azul marino' FROM trabajo WHERE codigo = $1`, [codigo],
+    );
+
     const luis = await ctx.iniciarSesion('luis');
     const camila = await ctx.iniciarSesion('camila');
-    expect((await luis.get(`/api/trabajos/${codigo}/materiales`)).status).toBe(200);
+    const materiales = await luis.get(`/api/trabajos/${codigo}/materiales`);
+    expect(materiales.status).toBe(200);
+    expect(materiales.body).toEqual([{ nombre: 'Hilo de bordar poliéster', unidad: 'cono', cantidad: 3.5, medida: 'Azul marino' }]);
+    expect(typeof materiales.body[0].cantidad).toBe('number');
     expect((await camila.get(`/api/trabajos/${codigo}/materiales`)).status).toBe(403);
     expect((await koto.get(`/api/trabajos/${codigo}/materiales`)).status).toBe(200); // administración consulta cualquier trabajo
   });
