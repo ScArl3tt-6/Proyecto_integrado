@@ -13,6 +13,7 @@ describe('Catálogos de referencia', () => {
     expect(res.status).toBe(200);
     expect(res.body.tipos).toEqual(expect.arrayContaining([expect.objectContaining({ nombre: 'Bordado' })]));
     expect(res.body.areas).toEqual(expect.arrayContaining([expect.objectContaining({ nombre: 'Ventas' })]));
+    expect(res.body.materiales).toEqual(expect.arrayContaining([expect.objectContaining({ nombre: 'Hilo de bordar poliéster', unidad: 'cono' })]));
 
     const sinSesion = await request(ctx.app).get('/api/catalogos');
     expect(sinSesion.status).toBe(401);

@@ -78,6 +78,80 @@ export function renderDetalleTrabajo(main, sesion, codigo) {
         d.decision ? el('p', { class: 'campo-ayuda' }, `Decisión: ${d.decision}${d.motivo ? ` — ${d.motivo}` : ''}`) : null,
       ))));
     }
+
+    if (tienePermiso(sesion.rol, 'MATERIAL_VER')) {
+      contenedor.appendChild(el('h2', {}, 'Materiales'));
+      const listaMateriales = el('ul', { class: 'lista-reglas' });
+      contenedor.appendChild(listaMateriales);
+      cargarMateriales(listaMateriales);
+      if (tienePermiso(sesion.rol, 'MATERIAL_REGISTRAR')) {
+        contenedor.appendChild(formularioMaterial(trabajo, listaMateriales));
+      }
+    }
+  }
+
+  async function cargarMateriales(listaMateriales) {
+    vaciar(listaMateriales);
+    try {
+      const materiales = await api.get(`/trabajos/${codigo}/materiales`);
+      if (!materiales.length) {
+        listaMateriales.appendChild(el('li', { class: 'campo-ayuda' }, 'Este trabajo no tiene materiales registrados.'));
+      } else {
+        for (const m of materiales) listaMateriales.appendChild(el('li', {}, `${m.nombre}: ${m.cantidad} ${m.unidad}${m.medida ? ` (${m.medida})` : ''}`));
+      }
+    } catch {
+      listaMateriales.appendChild(el('li', { class: 'campo-error' }, 'No pudimos cargar los materiales.'));
+    }
+  }
+
+  function formularioMaterial(trabajo, listaMateriales) {
+    const contenedorAviso = el('div');
+    const campoMaterial = el('select', { id: 'material', required: true }, el('option', { value: '' }, 'Selecciona un material'));
+    const campoCantidad = el('input', { id: 'cantidad-material', type: 'number', required: true, min: '0.01', step: '0.01', max: '100000' });
+    const campoMedida = el('input', { id: 'medida-material', type: 'text', maxlength: 60, placeholder: 'Opcional: color, talla, etc.' });
+    const botonGuardar = el('button', { type: 'submit', class: 'boton boton-secundario' }, 'Registrar material');
+
+    const form = el('form', { novalidate: true },
+      contenedorAviso,
+      el('div', { class: 'campo' }, el('label', { for: 'material' }, 'Material'), campoMaterial),
+      el('div', { class: 'campo' }, el('label', { for: 'cantidad-material' }, 'Cantidad'), campoCantidad),
+      el('div', { class: 'campo' }, el('label', { for: 'medida-material' }, 'Medida (opcional)'), campoMedida),
+      botonGuardar,
+    );
+
+    api.get('/catalogos').then((catalogos) => {
+      for (const m of catalogos.materiales) campoMaterial.appendChild(el('option', { value: m.id_material }, `${m.nombre} (${m.unidad})`));
+    }).catch(() => {
+      vaciar(contenedorAviso);
+      contenedorAviso.appendChild(aviso('error', 'No pudimos cargar el catálogo de materiales. Recarga la página.'));
+    });
+
+    form.addEventListener('submit', async (evento) => {
+      evento.preventDefault();
+      vaciar(contenedorAviso);
+      if (!campoMaterial.value) { contenedorAviso.appendChild(aviso('error', 'Selecciona un material.')); return; }
+      if (!campoCantidad.value || Number(campoCantidad.value) <= 0) { contenedorAviso.appendChild(aviso('error', 'La cantidad debe ser mayor que cero.')); return; }
+
+      botonGuardar.disabled = true;
+      botonGuardar.textContent = 'Guardando…';
+      try {
+        await api.post(`/trabajos/${trabajo.codigo}/materiales`, {
+          idMaterial: Number(campoMaterial.value),
+          cantidad: Number(campoCantidad.value),
+          ...(campoMedida.value.trim() ? { medida: campoMedida.value.trim() } : {}),
+        });
+        campoCantidad.value = '';
+        campoMedida.value = '';
+        await cargarMateriales(listaMateriales);
+      } catch {
+        contenedorAviso.appendChild(aviso('error', 'No pudimos registrar el material. Inténtalo otra vez.'));
+      } finally {
+        botonGuardar.disabled = false;
+        botonGuardar.textContent = 'Registrar material';
+      }
+    });
+
+    return form;
   }
 
   function botonDetenerReanudar(trabajo) {

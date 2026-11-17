@@ -216,13 +216,37 @@ function crearServicioTrabajos({ pg, bitacora }) {
     return rows;
   }
 
+  // RF-08: Producción registra qué material, cantidad y medida (por ejemplo, un color) se usa en
+  // un trabajo. Es un "upsert": registrar de nuevo el mismo material corrige la cantidad o la medida
+  // anterior en vez de duplicar la fila (la tabla ya tiene PRIMARY KEY (id_trabajo, id_material)).
+  async function registrarMaterial(usuario, codigo, { idMaterial, cantidad, medida }) {
+    const trabajo = await obtenerPorCodigo(codigo);
+    const { rows: materialRows } = await pg.query('SELECT nombre, unidad FROM material WHERE id_material = $1', [idMaterial]);
+    const material = materialRows[0];
+    if (!material) throw new ErrorNegocio('Material no válido', 400);
+
+    await pg.query(
+      `INSERT INTO trabajo_material (id_trabajo, id_material, cantidad, medida)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (id_trabajo, id_material) DO UPDATE SET cantidad = EXCLUDED.cantidad, medida = EXCLUDED.medida`,
+      [trabajo.id_trabajo, idMaterial, cantidad, medida || null],
+    );
+    await bitacora.registrar({
+      tipo: 'MATERIAL_REGISTRADO', usuario, entidad: { tipo: 'trabajo', codigo }, detalle: { idMaterial, cantidad, medida: medida || null },
+    });
+    return { nombre: material.nombre, unidad: material.unidad, cantidad, medida: medida || null };
+  }
+
   async function obtenerPorCodigo(codigo) {
     const { rows } = await pg.query('SELECT * FROM trabajo WHERE codigo = $1', [codigo]);
     if (!rows[0]) throw new ErrorNegocio('Trabajo no encontrado', 404);
     return rows[0];
   }
 
-  return { registrarSolicitud, tomarParaDiseno, actividadesDeMiArea, completarEtapa, materiales, obtenerPorCodigo, listar, detalle, detener, reanudar };
+  return {
+    registrarSolicitud, tomarParaDiseno, actividadesDeMiArea, completarEtapa, materiales, registrarMaterial,
+    obtenerPorCodigo, listar, detalle, detener, reanudar,
+  };
 }
 
 module.exports = { crearServicioTrabajos };

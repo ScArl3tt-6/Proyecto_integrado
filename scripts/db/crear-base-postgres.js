@@ -21,8 +21,9 @@ const RUTA_ENV = path.join(__dirname, '..', '..', '.env');
 // Privilegios mínimos por tabla: solo lo que src/modulos ejecuta hoy (verificado con grep sobre
 // INSERT/UPDATE/DELETE). Ninguna tabla tiene DELETE porque el código nunca borra filas: los trabajos,
 // sesiones y usuarios se marcan con un estado en vez de eliminarse.
-const SOLO_LECTURA = ['rol', 'area', 'tipo_trabajo', 'etapa_plantilla', 'material', 'trabajo_material'];
-const LECTURA_ESCRITURA = ['usuario', 'sesion', 'trabajo', 'etapa_trabajo', 'diseno'];
+const SOLO_LECTURA = ['rol', 'area', 'tipo_trabajo', 'etapa_plantilla', 'material'];
+// trabajo_material pasó a lectura y escritura en la Fase 1: Producción registra materiales (RF-08).
+const LECTURA_ESCRITURA = ['usuario', 'sesion', 'trabajo', 'etapa_trabajo', 'diseno', 'trabajo_material'];
 const SOLO_INSERCION = ['aprobacion_diseno']; // nunca se actualiza: una decisión es definitiva (UNIQUE + CP-10)
 const SECUENCIAS_APP = [
   'usuario_id_usuario_seq', 'trabajo_id_trabajo_seq', 'etapa_trabajo_id_etapa_trabajo_seq',

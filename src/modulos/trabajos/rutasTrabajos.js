@@ -25,6 +25,11 @@ const esquemaListado = z.strictObject({
   limite: z.coerce.number().int().min(1).max(50).default(20),
 });
 const esquemaMotivo = z.strictObject({ motivo: z.string().trim().min(5).max(300) });
+const esquemaMaterial = z.strictObject({
+  idMaterial: z.number().int().positive(),
+  cantidad: z.number().positive().max(100000),
+  medida: z.string().trim().min(1).max(60).optional(),
+});
 const esquemaParamsTrabajo =z.strictObject({ codigo: codigoTrabajo });
 const esquemaParamsEtapa = z.strictObject({ codigo: codigoTrabajo, orden: z.coerce.number().int().min(1).max(20) });
 const PERMISOS_VER_TRABAJOS = ['TRABAJO_VER_PROPIOS', 'TRABAJO_VER_DISENO', 'TRABAJO_VER_TODOS'];
@@ -67,6 +72,10 @@ function rutasTrabajos({ trabajos }) {
 
   r.get('/:codigo/materiales', autorizar('MATERIAL_VER'), validar(esquemaParamsTrabajo, 'params'), async (req, res) => {
     res.json(await trabajos.materiales(req.usuario, req.datos.params.codigo));
+  });
+
+  r.post('/:codigo/materiales', autorizar('MATERIAL_REGISTRAR'), validar(esquemaParamsTrabajo, 'params'), validar(esquemaMaterial), async (req, res) => {
+    res.status(201).json(await trabajos.registrarMaterial(req.usuario, req.datos.params.codigo, req.datos.body));
   });
 
   return r;

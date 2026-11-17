@@ -3,11 +3,12 @@
 // Catálogos de referencia (tipos de trabajo activos y áreas) para los formularios del front-end
 function crearServicioCatalogos({ pg }) {
   async function obtener() {
-    const [tipos, areas] = await Promise.all([
+    const [tipos, areas, materiales] = await Promise.all([
       pg.query('SELECT id_tipo, nombre FROM tipo_trabajo WHERE activo ORDER BY nombre'),
       pg.query('SELECT id_area, nombre FROM area ORDER BY nombre'),
+      pg.query('SELECT id_material, nombre, unidad FROM material ORDER BY nombre'),
     ]);
-    return { tipos: tipos.rows, areas: areas.rows };
+    return { tipos: tipos.rows, areas: areas.rows, materiales: materiales.rows };
   }
 
   return { obtener };

@@ -31,10 +31,17 @@ de cada fase, no reescribir desde cero.
 
 Estado real de cada punto, revisado directamente en el código (no por memoria):
 
-- **Materiales:** parcial. Existe la tabla `trabajo_material` y el endpoint de solo lectura
-  `GET /api/trabajos/:codigo/materiales` (probado en CP-31). **Falta** el endpoint para asociar o
-  registrar materiales a un trabajo (hoy solo se puede insertar esa fila a mano por SQL, como hace
-  la propia prueba).
+- **Materiales:** ✅ terminado. `POST /api/trabajos/:codigo/materiales` (solo Producción,
+  permiso `MATERIAL_REGISTRAR`), con pantalla en el detalle del trabajo, pruebas CP-49 a CP-51 y
+  PM-09. En el camino se encontraron y corrigieron dos defectos reales al probar contra la base
+  real (no solo con las pruebas de Jest): DEF-08 (`src/servidor.js` seguía usando el nombre de
+  campo de PGlite y el servidor real nunca arrancaba desde la Fase 0) y DEF-09 (`sst_app` no tenía
+  permiso de escritura sobre `trabajo_material`). Detalle en `evidencias/defectos.md` y
+  `evidencias/fase1_materiales.txt`.
+- **Riesgo abierto (de DEF-09):** las pruebas de Jest corren con el rol dueño del esquema, no con
+  `sst_app`, así que no pueden detectar un permiso real que falte en una tabla nueva. Revisar en
+  las Fases 3-4 si conviene que `tests/contexto.js` use `sst_app` para las operaciones de la
+  aplicación.
 - **Archivos reales (GridFS):** no empezado. Hoy `src/dominio/archivosDiseno.js` solo valida la
   firma, el tamaño y el nombre del archivo recibido; ni el archivo ni su contenido se guardan en
   ningún lado (ni GridFS ni disco). Falta el almacenamiento real.

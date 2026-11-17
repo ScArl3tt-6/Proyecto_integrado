@@ -1,0 +1,59 @@
+=== Fase 1 — Materiales (RF-08): evidencia de pruebas automáticas y manual (PM-09) ===
+
+--- Pruebas automáticas (CP-49, CP-50, CP-51, y CP-34 actualizada) ---
+$ node --experimental-vm-modules node_modules/jest/bin/jest.js tests/integracion/materiales.test.js tests/integracion/catalogos.test.js --runInBand --verbose
+
+Test Suites: 2 passed, 2 total
+Tests:       4 passed, 4 total
+  CP-49 Producción registra un material y queda visible en el listado de materiales
+  CP-50 rechaza material inexistente, trabajo inexistente, cantidad inválida y a quien no tiene el permiso
+  CP-51 (borde) registrar de nuevo el mismo material corrige la cantidad y la medida en vez de duplicar la fila
+  CP-34 cualquier perfil autenticado obtiene los tipos de trabajo activos y las áreas (ahora también materiales)
+
+--- Suite completa tras el cambio ---
+Test Suites: 12 passed, 12 total
+Tests:       50 passed, 50 total
+Statements   : 94.49% ( 618/654 )
+Branches     : 80.06% ( 229/286 )
+Functions    : 94.36% ( 134/142 )
+Lines        : 98.23% ( 556/566 )
+
+--- PM-09, verificación manual en navegador real (Playwright, headless, contra npm run demo) ---
+
+Dos defectos reales encontrados y corregidos ANTES de que la verificación manual pasara (quedan
+registrados en evidencias/defectos.md como DEF-08 y DEF-09; no se omiten aquí):
+
+1) DEF-08: src/servidor.js llamaba a crearBaseRelacional(entorno.pgDirectorio) (nombre de campo de
+   PGlite); con PostgreSQL real ese campo no existe y el servidor no arrancaba. Corregido a
+   entorno.pgUrl.
+2) DEF-09: sst_app (el rol real de la aplicación) no tenía permiso de escritura sobre
+   trabajo_material (se había clasificado como solo lectura en la Fase 0, antes de que existiera
+   este endpoint). Las 50 pruebas de Jest no lo detectaron porque corren con el rol dueño del
+   esquema, no con sst_app. Error real visto en el servidor:
+     permiso denegado a la tabla trabajo_material
+   Corregido otorgando SELECT, INSERT, UPDATE sobre trabajo_material a sst_app
+   (scripts/db/crear-base-postgres.js) y aplicando el GRANT a la base real existente.
+
+Verificación manual, ya con ambos defectos corregidos, como marcela (Producción) sobre KT-2026-0005:
+
+  Titulo pantalla (Produccion): KT-2026-0005
+  Seccion Materiales visible (Produccion): true
+  Formulario de registro visible (Produccion): true
+  Opciones del select: [
+    'Selecciona un material',
+    'Hilo de bordar poliéster (cono)',
+    'Papel transfer (hoja)',
+    'Placa MDF 3 mm (unidad)',
+    'Tinta sublimación (ml)',
+    'Vinilo adhesivo (m2)'
+  ]
+  Lista de materiales tras registrar: Hilo de bordar poliéster: 3.5 cono (Azul marino)
+
+Como koto (Administrador), mismo trabajo:
+
+  Administrador ve seccion Materiales: true | ve formulario de registro (NO debe): false
+  Lista que ve Administrador: Hilo de bordar poliéster: 3.5 cono (Azul marino)
+
+Qué debe verse: Producción ve la lista Y el formulario; Administración y Operario ven solo la
+lista (ningún campo para registrar); registrar el mismo material dos veces corrige la fila en vez
+de duplicarla (confirmado también por CP-51).

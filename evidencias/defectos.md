@@ -205,3 +205,74 @@ completa para el informe (sección de validación de resultados).
   un hallazgo real y no este error de configuración.
 - **Estado:** Corregido en el código del flujo; verificación en GitHub Actions pendiente de
   confirmar por el equipo.
+
+## DEF-08 — El servidor real nunca pudo arrancar desde la Fase 0: `src/servidor.js` seguía usando el nombre de campo de PGlite
+
+- **Encontrado en:** Fase 1 (funcionalidad de materiales), al levantar `npm run demo` para probar
+  en el navegador la pantalla nueva de materiales.
+- **Caso de prueba:** `npm run demo:sembrar` seguido de `npm run demo`, con `SST_PG_URL` y
+  `SST_MONGO_URI` ya presentes en `.env`.
+- **Severidad:** Alta. El servidor real (`npm run inicio` y `npm run demo`, es decir la aplicación
+  de verdad, no las pruebas) no podía arrancar **desde que se migró a PostgreSQL real en la Fase
+  0**, y nadie lo había notado: las 50 pruebas de Jest pasan igual porque usan su propio contexto
+  (`tests/contexto.js`), que llama a `crearBaseRelacional` directamente con su URL, sin pasar por
+  `src/servidor.js`. Ese archivo además está explícitamente excluido de la medición de cobertura
+  (`"!src/servidor.js"` en `package.json`), así que tampoco había ninguna señal ahí.
+- **Causa confirmada:** `src/config/entorno.js` se actualizó en la Fase 0 para exponer
+  `entorno.pgUrl` en vez de `entorno.pgDirectorio` (el nombre que tenía con PGlite), pero
+  `src/servidor.js` se quedó llamando a `crearBaseRelacional(entorno.pgDirectorio)`. Como ese
+  campo ya no existe, `crearBaseRelacional` recibía `undefined` y rechazaba con su propio mensaje
+  de guarda. Error real, literal:
+  ```
+  No fue posible iniciar el servicio: crearBaseRelacional necesita una URL de conexión (SST_PG_URL)
+  ```
+- **Corrección:** se cambió esa línea a `crearBaseRelacional(entorno.pgUrl)` (`src/servidor.js`).
+- **Nueva ejecución:** `npm run demo:sembrar` y luego `npm run demo` (con el fix aplicado):
+  ```
+  Abre http://localhost:3000 en el navegador.
+  SST Kotoduo API escuchando en el puerto 3000
+  ```
+  Confirmado además con una solicitud real: `curl http://localhost:3000/` responde `200`.
+- **Estado:** Corregido.
+- **Lección para el protocolo de pruebas:** este defecto demuestra que "las pruebas automáticas
+  pasan" no es lo mismo que "la aplicación arranca de verdad" cuando el punto de entrada de
+  producción no está cubierto por ninguna prueba ni por la cobertura. Antes de dar por terminada
+  cualquier fase, conviene además levantar `npm run demo` una vez y abrir la aplicación en un
+  navegador real, no solo correr `npm run pruebas`.
+
+## DEF-09 — `sst_app` no tenía permiso de escritura sobre `trabajo_material`, y las pruebas de Jest no podían detectarlo
+
+- **Encontrado en:** Fase 1 (funcionalidad de materiales), en la misma verificación manual en
+  navegador que encontró DEF-08, al intentar registrar un material como Producción.
+- **Caso de prueba:** `POST /api/trabajos/KT-2026-0005/materiales` como `marcela` (Producción),
+  contra la base real (`npm run demo`, rol `sst_app`).
+- **Severidad:** Alta. La funcionalidad nueva de materiales no funcionaba en absoluto contra la
+  base real, aunque las 50 pruebas automáticas (incluidas las 3 nuevas de esta función, CP-49 a
+  CP-51) pasaban en verde.
+- **Causa confirmada:** en la Fase 0, `scripts/db/crear-base-postgres.js` clasificó
+  `trabajo_material` como de **solo lectura** para `sst_app` (`SOLO_LECTURA`), porque en ese
+  momento ningún endpoint escribía ahí. Al agregar el registro de materiales en la Fase 1, nadie
+  actualizó esa clasificación. Error real del servidor:
+  ```
+  { idIncidente: '...', ruta: '/api/trabajos/KT-2026-0005/materiales', mensaje: 'permiso denegado a la tabla trabajo_material' }
+  ```
+  Las pruebas de Jest no lo detectaron por una razón estructural: `tests/contexto.js` aplica el
+  esquema y ejecuta la aplicación usando la conexión de `sst_pruebas` (el rol que crea la base de
+  prueba y por lo tanto es su propio dueño), **no** la de `sst_app`. Es decir, hoy ninguna prueba
+  de Jest ejercita de verdad los privilegios mínimos de `sst_app` sobre una tabla nueva; solo lo
+  hace `scripts/verificar-entorno.js`, y solo sobre las dos tablas que ya comprobaba antes
+  (`usuario` y la colección de Mongo), no sobre `trabajo_material`.
+- **Corrección:** se movió `trabajo_material` de `SOLO_LECTURA` a `LECTURA_ESCRITURA` en
+  `scripts/db/crear-base-postgres.js`, y se aplicó el `GRANT SELECT, INSERT, UPDATE ON
+  trabajo_material TO sst_app` directamente con el rol `sst_propietario` sobre la base real ya
+  existente (sin usar ni pedir la contraseña del superusuario, que no hacía falta para este
+  `GRANT`).
+- **Nueva ejecución:** con el permiso corregido, la misma prueba manual en navegador registró el
+  material sin error (ver `evidencias/fase1_materiales.txt`).
+- **Estado:** Corregido.
+- **Riesgo que queda abierto:** el mismo patrón puede repetirse con cualquier tabla nueva o
+  columna nueva que una futura fase necesite escribir, porque las pruebas de Jest nunca ejercitan
+  el rol real `sst_app`. Quedó anotado en `docs/PLAN_FASES.md` como algo a revisar en las Fases
+  3-4 (por ejemplo, haciendo que `tests/contexto.js` use `sst_app` para las operaciones de la
+  aplicación y un rol aparte solo para preparar el esquema), no se implementó ese cambio mayor en
+  esta sesión para no desviarse del orden de la Fase 1 acordado con el equipo.

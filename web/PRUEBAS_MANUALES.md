@@ -14,6 +14,7 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-06 | Formularios con campos vacíos, textos largos, caracteres especiales y `<script>`: se muestran como texto y los errores aparecen junto al campo | |
 | PM-07 | Uso en celular (390 px): botones, lectura y la pantalla del operario | |
 | PM-08 | Cambio de contraseña y cierre de las otras sesiones | |
+| PM-09 | Producción registra materiales de un trabajo; otros perfiles solo los consultan | |
 
 ## Pasos detallados
 
@@ -66,3 +67,11 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 2. En uno de los dos, ve a «Mi cuenta» y cambia la contraseña (cumpliendo la política mostrada en pantalla).
 3. **Esperado:** aparece «Listo. Cerramos tus otras sesiones por seguridad.»; en el otro navegador, la próxima acción devuelve a la pantalla de ingreso.
 4. Verifica que con la contraseña antigua ya no se puede ingresar, y que con la nueva sí.
+
+### PM-09 — Registrar materiales de un trabajo (RF-08)
+1. Ingresa como `marcela` (Producción) y abre el detalle de un trabajo en producción (por ejemplo `KT-2026-0005`).
+2. En la sección «Materiales», completa el formulario: elige un material del listado, escribe una cantidad y, si quieres, una medida (por ejemplo un color), y presiona «Registrar material».
+3. **Esperado:** el material aparece de inmediato en la lista de arriba, con su unidad.
+4. Vuelve a registrar el mismo material con otra cantidad u otra medida. **Esperado:** la lista sigue mostrando una sola fila para ese material, con los valores nuevos (no se duplica).
+5. Intenta registrar con la cantidad en 0 o en blanco: el formulario muestra el error antes de llamar a la API.
+6. Ingresa como `koto` (Administrador) o `luis` (Operario de esa área, desde «Mis actividades» → «Ver materiales y medidas») y confirma que ambos ven la lista de materiales, pero ninguno tiene el formulario para registrar uno nuevo.
