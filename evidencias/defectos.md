@@ -100,3 +100,45 @@ completa para el informe (sección de validación de resultados).
 - **Nueva ejecución:** ver `evidencias/ejecucion_pruebas_postgresql_real.txt` — 45 de 45 pruebas
   aprobadas.
 - **Estado:** Corregido.
+
+## DEF-05 — El flujo de GitHub Actions quedó desactualizado tras migrar a bases de datos reales
+
+- **Encontrado en:** PR #1 (`feature/bases-reales`), al revisar por qué el chequeo
+  `calidad-y-pruebas` fallaba en GitHub Actions aunque localmente todo pasaba.
+- **Caso de prueba:** ejecución del flujo `.github/workflows/integracion-continua.yml` en GitHub
+  Actions sobre el PR.
+- **Severidad:** Alta. El chequeo obligatorio del PR fallaba siempre, por dos causas
+  independientes:
+  1. El paso `gitleaks/gitleaks-action@v2` fallaba porque esa acción necesita la variable de
+     entorno `GITHUB_TOKEN` para consultar la API de GitHub; no se trataba de ningún secreto
+     filtrado en el código.
+  2. El flujo seguía preparado para el diseño anterior (PGlite + Mongo sin autenticación): solo
+     levantaba un servicio `mongo:8` y definía `SST_MONGO_URI`. Desde la migración de la Fase 0,
+     `tests/contexto.js` y `tests/integracion/baseRelacional.test.js` exigen `SST_PG_PRUEBAS_URL`
+     (para crear y destruir su propia base PostgreSQL temporal) y `SST_MONGO_PRUEBAS_URI` (incluso
+     el nombre de la variable de Mongo había cambiado); el flujo no tenía ningún servicio
+     PostgreSQL y seguía usando el nombre de variable antiguo de Mongo.
+- **Causa confirmada:** el flujo de CI no se actualizó junto con el cambio de `tests/contexto.js`
+  en la Fase 0. Se revisó el código de las pruebas (no se asumió nada): ninguna prueba de
+  `npm run pruebas` comprueba que MongoDB exija autenticación, así que no era necesario levantar
+  Mongo con `--auth` en CI; sí era indispensable un servicio PostgreSQL real, porque las pruebas
+  ejecutan `CREATE DATABASE` / `DROP DATABASE ... WITH (FORCE)` contra él.
+- **Corrección:**
+  - Se agregó `env: GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}` al paso de `gitleaks-action@v2`.
+  - Se agregó un servicio `postgres:16` al job, con un usuario y una contraseña **efímeros,
+    definidos directamente en el propio archivo del flujo** (no son los de `.env` ni ningún
+    secreto real: el contenedor se crea y se destruye con cada ejecución del job, y no es
+    alcanzable desde fuera del runner).
+  - Se corrigieron los nombres de las variables de entorno del job a los que exige
+    `tests/contexto.js`: `SST_PG_PRUEBAS_URL` (apuntando al nuevo servicio PostgreSQL) y
+    `SST_MONGO_PRUEBAS_URI` (mismo servicio Mongo de antes, sin autenticación, que es lo único que
+    las pruebas necesitan).
+- **Nueva ejecución:** no fue posible ejecutar GitHub Actions ni Docker desde esta sesión (sin
+  Docker disponible localmente), así que no se pudo reproducir el flujo completo tal cual corre en
+  el runner. Sí se confirmó, en local, contra PostgreSQL y MongoDB reales: `npm run lint
+  --max-warnings=0` sin errores ni advertencias, y `npm run pruebas` con 47 de 47 pruebas
+  aprobadas (mismo comando que ejecuta el flujo). Falta que, al abrir el PR con este commit, el
+  equipo confirme en la pestaña "Actions" de GitHub que el job `calidad-y-pruebas` termina en
+  verde con el servicio PostgreSQL real.
+- **Estado:** Corregido en el código del flujo; verificación en GitHub Actions pendiente de
+  confirmar por el equipo tras subir este commit.
