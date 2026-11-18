@@ -20,4 +20,30 @@ describe('Listado de cuentas de Administración', () => {
 
     expect((await jorge.get('/api/usuarios')).status).toBe(403);
   });
+
+  test('CP-73 crear cuenta por la ruta HTTP real: solo Administración, valida la política de contraseña y rechaza un correo repetido', async () => {
+    const sinPermiso = await jorge.post('/api/usuarios', {
+      nombre: 'Cuenta de prueba', correo: 'cuenta-prueba-cp73@kotoduo.test', contrasena: 'Una frase larga válida 2026', rol: 'VENDEDOR',
+    });
+    expect(sinPermiso.status).toBe(403);
+
+    const contrasenaDebil = await koto.post('/api/usuarios', {
+      nombre: 'Cuenta de prueba', correo: 'cuenta-prueba-cp73@kotoduo.test', contrasena: 'corta', rol: 'VENDEDOR',
+    });
+    expect(contrasenaDebil.status).toBe(400);
+
+    const creada = await koto.post('/api/usuarios', {
+      nombre: 'Cuenta de prueba', correo: 'cuenta-prueba-cp73@kotoduo.test', contrasena: 'Una frase larga válida 2026', rol: 'VENDEDOR',
+    });
+    expect(creada.status).toBe(201);
+    expect(creada.body.idUsuario).toBeGreaterThan(0);
+
+    const repetida = await koto.post('/api/usuarios', {
+      nombre: 'Segunda persona', correo: 'cuenta-prueba-cp73@kotoduo.test', contrasena: 'Una frase larga distinta 2026', rol: 'VENDEDOR',
+    });
+    expect(repetida.status).toBe(409);
+
+    const listado = await koto.get('/api/usuarios');
+    expect(listado.body.find((u) => u.id_usuario === creada.body.idUsuario)).toMatchObject({ nombre: 'Cuenta de prueba', rol: 'VENDEDOR', activo: true });
+  });
 });

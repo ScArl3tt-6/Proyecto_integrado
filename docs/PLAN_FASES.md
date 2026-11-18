@@ -11,7 +11,7 @@ de cada fase, no reescribir desde cero.
 | Fechas | Fase | Tema | Estado al 17-11-2026 |
 |---|---|---|---|
 | 14 al 16 de noviembre | Fase 0 | PostgreSQL y MongoDB reales | ✅ Terminada y verificada |
-| 16 al 19 de noviembre | Fase 1 | Materiales, archivos reales, MFA, restablecimiento | 🔶 En curso |
+| 16 al 19 de noviembre | Fase 1 | Materiales, archivos reales, MFA, restablecimiento | ✅ Terminada (18-11), con dos preguntas abiertas del equipo sin implementar (ver abajo) |
 | 18 al 21 de noviembre | Fase 2 | Rediseño con la marca Kotoduo | ⬜ No iniciada |
 | 20 al 24 de noviembre | Fases 3 y 4 | Pruebas ejecutadas, documentación, respaldo | ⬜ No iniciada |
 | 24 al 26 de noviembre | Cierre | Informe, guion de la demo y ensayo de preguntas | ⬜ No iniciada |
@@ -27,7 +27,7 @@ de cada fase, no reescribir desde cero.
   DEF-05) y `docs/BITACORA_DE_SESIONES.md`.
 - Rama: `feature/bases-reales`, PR #1 abierto, sin fusionar a `main` todavía.
 
-## Fase 1 — Materiales, archivos reales, MFA, restablecimiento (en curso)
+## Fase 1 — Materiales, archivos reales, MFA, restablecimiento (terminada, 18-11-2026)
 
 Estado real de cada punto, revisado directamente en el código (no por memoria):
 
@@ -64,12 +64,14 @@ Estado real de cada punto, revisado directamente en el código (no por memoria):
   bandejas. Se auditó el código de cada consulta de lista de la aplicación (ninguna puede
   duplicar filas) y se probó en vivo sin reproducir el fallo; se agregaron pruebas de regresión
   (CP-57, CP-58) que lo detectarían si ocurre de verdad. Detalle en `evidencias/defectos.md`.
-- **Etapa 2 (en curso) — "Ver archivo" con vista previa:** la pantalla de aprobación ahora muestra
-  cada archivo en una tarjeta con un botón claro ("📄 Ver archivo completo") y una vista previa
-  real en la misma pantalla (`<img>` para PNG/JPG, `<iframe>` para PDF), verificado con Playwright
-  contra el servidor real. Falta el resto de la Etapa 2: asteriscos de campo obligatorio,
-  ejemplos visibles por campo, y traducir los errores del servidor a mensajes por campo en TODAS
-  las pantallas (hoy solo se corrigió el caso puntual de "página desactualizada" en DEF-11).
+- **Etapa 2 — "Ver archivo" con vista previa y formularios:** ✅ terminado. La pantalla de
+  aprobación muestra cada archivo en una tarjeta con un botón claro ("📄 Ver archivo completo") y
+  una vista previa real en la misma pantalla (`<img>` para PNG/JPG, `<iframe>` para PDF),
+  verificado con Playwright contra el servidor real. Ejemplos visibles por campo y mensajes del
+  servidor traducidos por campo (`describirErrorApi()`), aplicados en los 8 formularios reales.
+  Revisión posterior del equipo: los campos obligatorios ya no se marcan con un asterisco (no
+  todo el mundo conoce esa convención); ahora se marca lo opcional con "(opcional)" y un campo
+  obligatorio vacío muestra su propio mensaje junto al campo (ver DEF-15, revisado, y DEF-21).
 - **Base de demostración:** se agregó `scripts/db/mongo-limpiar-demo.js` para vaciar las
   colecciones de MongoDB de la demostración sin tocar usuarios ni roles. Procedimiento completo de
   limpieza (Postgres + Mongo) documentado en `evidencias/fase1_def12_y_ux.txt`.
@@ -119,12 +121,15 @@ Estado real de cada punto, revisado directamente en el código (no por memoria):
   minutos) desde la última; el aviso en pantalla distingue este caso («Tu sesión se cerró por
   inactividad. Ingresa de nuevo.») del de una sesión revocada o expirada por otra razón. Pruebas
   CP-60 y CP-61 y PM-11. El evento queda en la bitácora como `SESION_INACTIVIDAD`.
-- **Matriz HU-pantalla-endpoint:** no existe. No hay ningún documento de trazabilidad entre
-  historias de usuario, pantallas y endpoints en el repositorio. Es lo único que falta de toda la
-  Fase 1 (Funcionalidad 6).
-- **Pruebas manuales (PM):** `web/PRUEBAS_MANUALES.md` ya tiene PM-09 a PM-13 (materiales, archivos
-  reales, cierre por inactividad, restablecimiento de contraseña y MFA). Falta solo la de la
-  matriz HU-pantalla-endpoint (PM-14), cuando se escriba ese documento.
+- **Matriz HU-pantalla-endpoint:** ✅ terminada (`docs/MATRIZ_HU_PANTALLA_ENDPOINT.md`). Construida
+  leyendo directamente el código (14 pantallas reales, 35 endpoints reales), no de memoria; donde
+  el Informe 2 no estaba cargado en esta sesión para citar la numeración oficial de HU, la columna
+  describe el requisito en palabras en vez de inventar un número (el equipo debe cotejarla contra
+  su copia real del informe). Al construirla se encontró un hueco real: `POST /api/usuarios`
+  (crear cuenta) no tenía ninguna prueba automática contra la ruta HTTP real ni un PM propio; se
+  cerró en el momento agregando CP-73 y PM-14. Estado final: 35/35 endpoints "Implementada", 0
+  "Parcial", 0 "Pendiente".
+- **Pruebas manuales (PM):** `web/PRUEBAS_MANUALES.md` tiene PM-01 a PM-14 completas.
 
 ## Fase 2 — Rediseño con la marca Kotoduo (no iniciada)
 

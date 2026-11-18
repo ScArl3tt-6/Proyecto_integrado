@@ -19,6 +19,7 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-11 | Cierre de sesión por inactividad real: sin usar el sistema durante el límite, la próxima acción vuelve a Ingreso con el aviso correcto | |
 | PM-12 | Restablecimiento de contraseña: Administración genera el enlace y la persona lo usa, sin sesión, para crear una contraseña nueva | |
 | PM-13 | Verificación en dos pasos (MFA): activar con un código real, ingresar con el segundo paso, y desactivarla (propia y desde Administración) | |
+| PM-14 | Administración crea una cuenta nueva desde "Usuarios": aparece en el listado, puede ingresar con lo que se le entregó, y un correo repetido se rechaza con un aviso claro | |
 
 ## Pasos detallados
 
@@ -115,3 +116,10 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 9. Como `koto` (Administrador), activa el MFA de otra cuenta de prueba, ve a «Usuarios»: la fila debe mostrar el chip «2FA» y un botón «Desactivar 2FA» que no pide ninguna contraseña (para cubrir el caso de alguien que perdió su aplicación de autenticación). Tras usarlo, esa persona vuelve a ingresar directo.
 
 **Confirmado por el equipo, 18-11-2026:** prueba real con un teléfono físico (no solo con una librería calculando el código). El bloqueo tras equivocarse y el ingreso con el segundo paso funcionaron como se esperaba.
+
+### PM-14 — Crear una cuenta nueva desde "Usuarios"
+1. Ingresa como `koto` (Administrador), ve a «Usuarios» y completa «Crear cuenta» con un nombre, un correo que no exista todavía, un rol, y una contraseña inicial de 12 o más caracteres.
+2. **Esperado:** «Cuenta creada. Entrégale la contraseña inicial en mano; ella la cambiará desde "Mi cuenta".» y la cuenta nueva aparece de inmediato en la lista de abajo, con el rol y el área correctos.
+3. Cierra sesión e ingresa con el correo y la contraseña que acabas de crear. **Esperado:** entra con normalidad a la pantalla de inicio del rol asignado.
+4. Vuelve a crear una cuenta con el mismo correo que ya usaste. **Esperado:** aviso claro de que el correo ya está registrado, sin crear una segunda cuenta.
+5. Intenta crear una cuenta con una contraseña de menos de 12 caracteres o con el nombre repetido dentro de la contraseña: el error aparece junto al campo antes de llamar a la API (ver PM-06).
