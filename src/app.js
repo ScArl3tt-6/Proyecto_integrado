@@ -35,7 +35,9 @@ function crearApp({ entorno, pg, mongoDb, registro = console }) {
   app.disable('x-powered-by');
   app.set('trust proxy', 1); // detrás de Nginx
   app.use(helmet({
-    contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], objectSrc: ["'none'"], frameAncestors: ["'none'"] } },
+    // imgSrc admite "data:" para el código QR del segundo factor (Funcionalidad 5), que se genera
+    // en el servidor como una imagen incrustada, sin subirla a ningún lado
+    contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], imgSrc: ["'self'", 'data:'], objectSrc: ["'none'"], frameAncestors: ["'none'"] } },
     strictTransportSecurity: { maxAge: 31536000, includeSubDomains: true },
   }));
   // Las respuestas de la API contienen datos de sesión y de trabajos: no deben quedar en cachés del navegador ni de intermediarios

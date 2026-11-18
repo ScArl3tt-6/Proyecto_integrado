@@ -42,6 +42,13 @@ function rutasUsuarios({ usuarios }) {
       res.status(201).json(await usuarios.generarEnlaceRestablecimiento(req.usuario, req.datos.params.id));
     });
 
+  // Vía de recuperación si la persona perdió el acceso a su aplicación de autenticación (Funcionalidad 5)
+  r.post('/:id/mfa/desactivar', validar(z.strictObject({ id: z.coerce.number().int().positive() }), 'params'),
+    async (req, res) => {
+      await usuarios.desactivarMfa(req.usuario, req.datos.params.id);
+      return res.status(204).end();
+    });
+
   return r;
 }
 

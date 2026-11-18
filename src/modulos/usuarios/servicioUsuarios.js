@@ -60,7 +60,7 @@ function crearServicioUsuarios({ pg, bitacora, autenticacion, entorno }) {
   // Lista de cuentas para Administración: sin hash de contraseña, con bloqueo vigente y último acceso
   async function listar() {
     const { rows } = await pg.query(
-      `SELECT u.id_usuario, u.nombre, u.correo, r.nombre AS rol, a.nombre AS area, u.activo,
+      `SELECT u.id_usuario, u.nombre, u.correo, r.nombre AS rol, a.nombre AS area, u.activo, u.mfa_habilitado,
               (u.bloqueado_hasta IS NOT NULL AND u.bloqueado_hasta > now()) AS bloqueado
          FROM usuario u
          JOIN rol r ON r.id_rol = u.id_rol
@@ -89,7 +89,19 @@ function crearServicioUsuarios({ pg, bitacora, autenticacion, entorno }) {
     return { token, minutos: entorno.minutosRestablecimiento };
   }
 
-  return { crear, cambiarPerfil, cambiarEstado, listar, generarEnlaceRestablecimiento };
+  // Vía de recuperación si la persona perdió el acceso a su aplicación de autenticación: solo
+  // Administración, nunca la propia persona sin pasar antes el segundo factor (si pudiera
+  // desactivarlo ella misma sin él, el MFA no protegería nada).
+  async function desactivarMfa(admin, idUsuario) {
+    const { rows } = await pg.query(
+      'UPDATE usuario SET mfa_habilitado = FALSE, mfa_secreto = NULL, mfa_ultimo_paso = NULL WHERE id_usuario = $1 RETURNING id_usuario',
+      [idUsuario],
+    );
+    if (!rows[0]) throw new ErrorNegocio('Usuario no encontrado', 404);
+    await bitacora.registrar({ tipo: 'MFA_DESACTIVADO_ADMIN', usuario: admin, entidad: { tipo: 'usuario', codigo: String(idUsuario) } });
+  }
+
+  return { crear, cambiarPerfil, cambiarEstado, listar, generarEnlaceRestablecimiento, desactivarMfa };
 }
 
 module.exports = { crearServicioUsuarios };

@@ -2,10 +2,16 @@
 const crypto = require('node:crypto');
 const argon2 = require('argon2');
 const jwt = require('jsonwebtoken');
+const { generateSecret, verify: verificarCodigoMfa, generateURI } = require('otplib');
+const QRCode = require('qrcode');
 const { validarContrasena } = require('../../dominio/politicaContrasena');
 const { ErrorNegocio } = require('../../dominio/errores');
 
 const OPCIONES_ARGON2 = { type: argon2.argon2id, memoryCost: 19456, timeCost: 2, parallelism: 1 };
+const EMISOR_MFA = 'SST Kotoduo';
+// La verificación en dos pasos es, por ahora, para los dos roles con las acciones más sensibles
+// (gestión de cuentas y aprobación de diseños); ver la pantalla de Ingreso y PLAN_FASES.md.
+const ROLES_CON_MFA = new Set(['ADMINISTRADOR', 'PRODUCCION']);
 
 function crearServicioAutenticacion({ pg, entorno, bitacora }) {
   // Hash simulado para igualar tiempos cuando el correo no existe (evita enumeración de usuarios)
@@ -21,9 +27,32 @@ function crearServicioAutenticacion({ pg, entorno, bitacora }) {
     });
   }
 
+  // Cola común de "contraseña ya verificada, falta crear la sesión": la usan tanto el ingreso
+  // directo (sin MFA) como el segundo paso del ingreso con MFA.
+  async function crearSesion(usuario, ip) {
+    const idSesion = crypto.randomUUID();
+    const tokenRenovacion = crypto.randomBytes(32).toString('base64url');
+    await pg.query(
+      `INSERT INTO sesion (id_sesion, id_usuario, hash_token, expira_en)
+       VALUES ($1, $2, $3, now() + ($4 || ' hours')::interval)`,
+      [idSesion, usuario.id_usuario, sha256(tokenRenovacion), String(entorno.horasSesion)],
+    );
+    const tokenAcceso = firmarAcceso(idSesion, usuario.id_usuario);
+    await bitacora.registrar({ tipo: 'ACCESO_EXITOSO', usuario: { id: usuario.id_usuario, rol: usuario.rol }, entidad: { tipo: 'usuario', codigo: String(usuario.id_usuario) }, ip });
+    return { tokenAcceso, tokenRenovacion, csrf: crypto.randomBytes(24).toString('base64url'), rol: usuario.rol };
+  }
+
+  // Un "desafío" firmado y de corta duración: prueba que la contraseña ya se verificó, sin ser
+  // un token de acceso real (issuer/claim propios) ni crear ninguna sesión todavía.
+  function firmarDesafioMfa(idUsuario) {
+    return jwt.sign({ paso: 'mfa', sub: String(idUsuario) }, entorno.secretoJwt, {
+      algorithm: 'HS256', issuer: 'sst-kotoduo', expiresIn: `${entorno.minutosDesafioMfa}m`,
+    });
+  }
+
   async function iniciarSesion({ correo, contrasena, ip }) {
     const { rows } = await pg.query(
-      `SELECT u.id_usuario, u.hash_contrasena, u.activo, u.intentos_fallidos, u.bloqueado_hasta, r.nombre AS rol
+      `SELECT u.id_usuario, u.hash_contrasena, u.activo, u.mfa_habilitado, u.intentos_fallidos, u.bloqueado_hasta, r.nombre AS rol
          FROM usuario u JOIN rol r ON r.id_rol = u.id_rol WHERE u.correo = $1`,
       [correo.toLowerCase()],
     );
@@ -53,16 +82,99 @@ function crearServicioAutenticacion({ pg, entorno, bitacora }) {
     }
 
     await pg.query('UPDATE usuario SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id_usuario = $1', [usuario.id_usuario]);
-    const idSesion = crypto.randomUUID();
-    const tokenRenovacion = crypto.randomBytes(32).toString('base64url');
-    await pg.query(
-      `INSERT INTO sesion (id_sesion, id_usuario, hash_token, expira_en)
-       VALUES ($1, $2, $3, now() + ($4 || ' hours')::interval)`,
-      [idSesion, usuario.id_usuario, sha256(tokenRenovacion), String(entorno.horasSesion)],
+
+    // La contraseña ya es correcta: si la cuenta tiene MFA activado, todavía no se crea la sesión
+    if (usuario.mfa_habilitado) {
+      return { ok: true, requiereMfa: true, desafio: firmarDesafioMfa(usuario.id_usuario) };
+    }
+    return { ok: true, ...(await crearSesion(usuario, ip)) };
+  }
+
+  // Segundo paso del ingreso cuando la cuenta tiene MFA: el "desafío" prueba que la contraseña ya
+  // se verificó; un código incorrecto o repetido cuenta como intento fallido, igual que una
+  // contraseña incorrecta (mismo contador y el mismo bloqueo de la cuenta).
+  async function completarIngresoMfa({ desafio, codigo, ip }) {
+    let payload;
+    try {
+      payload = jwt.verify(desafio, entorno.secretoJwt, { algorithms: ['HS256'], issuer: 'sst-kotoduo' });
+      if (payload.paso !== 'mfa' || !payload.sub) throw new Error('paso inválido');
+    } catch {
+      return { ok: false };
+    }
+
+    const { rows } = await pg.query(
+      `SELECT u.id_usuario, u.activo, u.mfa_habilitado, u.mfa_secreto, u.mfa_ultimo_paso,
+              u.intentos_fallidos, u.bloqueado_hasta, r.nombre AS rol
+         FROM usuario u JOIN rol r ON r.id_rol = u.id_rol WHERE u.id_usuario = $1`,
+      [Number(payload.sub)],
     );
-    const tokenAcceso = firmarAcceso(idSesion, usuario.id_usuario);
-    await bitacora.registrar({ tipo: 'ACCESO_EXITOSO', usuario: { id: usuario.id_usuario, rol: usuario.rol }, entidad: { tipo: 'usuario', codigo: String(usuario.id_usuario) }, ip });
-    return { ok: true, tokenAcceso, tokenRenovacion, csrf: crypto.randomBytes(24).toString('base64url'), rol: usuario.rol };
+    const usuario = rows[0];
+    if (!usuario || !usuario.activo || !usuario.mfa_habilitado) return { ok: false };
+    if (usuario.bloqueado_hasta && new Date(usuario.bloqueado_hasta) > new Date()) return { ok: false, motivo: 'BLOQUEADO' };
+
+    const resultado = await verificarCodigoMfa({ secret: usuario.mfa_secreto, token: codigo });
+    const yaUsado = resultado.valid && usuario.mfa_ultimo_paso !== null && resultado.timeStep <= Number(usuario.mfa_ultimo_paso);
+    if (!resultado.valid || yaUsado) {
+      const intentos = usuario.intentos_fallidos + 1;
+      const bloquear = intentos >= entorno.intentosMaximos;
+      await pg.query(
+        `UPDATE usuario SET intentos_fallidos = $1,
+                bloqueado_hasta = CASE WHEN $2 THEN now() + ($3 || ' minutes')::interval ELSE bloqueado_hasta END
+          WHERE id_usuario = $4`,
+        [bloquear ? 0 : intentos, bloquear, String(entorno.minutosBloqueo), usuario.id_usuario],
+      );
+      await bitacora.registrar({ tipo: bloquear ? 'CUENTA_BLOQUEADA' : 'MFA_FALLIDO', usuario: { id: usuario.id_usuario, rol: usuario.rol }, entidad: { tipo: 'usuario', codigo: String(usuario.id_usuario) }, ip });
+      return { ok: false };
+    }
+
+    await pg.query(
+      'UPDATE usuario SET intentos_fallidos = 0, bloqueado_hasta = NULL, mfa_ultimo_paso = $1 WHERE id_usuario = $2',
+      [String(resultado.timeStep), usuario.id_usuario],
+    );
+    return { ok: true, ...(await crearSesion(usuario, ip)) };
+  }
+
+  // Activación de MFA (Funcionalidad 5), en dos pasos: generar el secreto no lo activa todavía;
+  // hace falta un código válido para confirmar que la persona configuró bien su aplicación.
+  async function iniciarMfa(usuarioSesion) {
+    if (!ROLES_CON_MFA.has(usuarioSesion.rol)) {
+      throw new ErrorNegocio('La verificación en dos pasos está disponible para Administración y Producción.', 403);
+    }
+    const { rows } = await pg.query('SELECT correo, mfa_habilitado FROM usuario WHERE id_usuario = $1', [usuarioSesion.id]);
+    const u = rows[0];
+    if (u.mfa_habilitado) throw new ErrorNegocio('La verificación en dos pasos ya está activada en tu cuenta.', 409);
+
+    const secreto = await generateSecret();
+    await pg.query('UPDATE usuario SET mfa_secreto = $1, mfa_ultimo_paso = NULL WHERE id_usuario = $2', [secreto, usuarioSesion.id]);
+    const otpauth = generateURI({ issuer: EMISOR_MFA, label: u.correo, secret: secreto });
+    const qr = await QRCode.toDataURL(otpauth, { width: 220 });
+    return { secreto, otpauth, qr };
+  }
+
+  async function confirmarMfa(usuarioSesion, codigo) {
+    const { rows } = await pg.query('SELECT mfa_secreto, mfa_habilitado, mfa_ultimo_paso FROM usuario WHERE id_usuario = $1', [usuarioSesion.id]);
+    const u = rows[0];
+    if (!u.mfa_secreto || u.mfa_habilitado) {
+      throw new ErrorNegocio('No hay ninguna activación en curso. Vuelve a empezar desde "Mi cuenta".', 409);
+    }
+    const resultado = await verificarCodigoMfa({ secret: u.mfa_secreto, token: codigo });
+    const yaUsado = resultado.valid && u.mfa_ultimo_paso !== null && resultado.timeStep <= Number(u.mfa_ultimo_paso);
+    if (!resultado.valid || yaUsado) {
+      throw new ErrorNegocio('Código incorrecto o vencido. Genera uno nuevo desde tu aplicación y vuelve a intentarlo.', 400);
+    }
+    await pg.query('UPDATE usuario SET mfa_habilitado = TRUE, mfa_ultimo_paso = $1 WHERE id_usuario = $2', [String(resultado.timeStep), usuarioSesion.id]);
+    await bitacora.registrar({ tipo: 'MFA_ACTIVADO', usuario: usuarioSesion, entidad: { tipo: 'usuario', codigo: String(usuarioSesion.id) } });
+  }
+
+  // Exige la contraseña actual, igual que cambiarContrasena: evita que una sesión robada por
+  // un rato pueda quitar la segunda verificación sin saber la contraseña.
+  async function desactivarMfaPropio(usuarioSesion, contrasenaActual) {
+    const { rows } = await pg.query('SELECT hash_contrasena FROM usuario WHERE id_usuario = $1', [usuarioSesion.id]);
+    if (!rows[0] || !(await argon2.verify(rows[0].hash_contrasena, contrasenaActual))) {
+      throw new ErrorNegocio('La contraseña actual no es correcta', 401);
+    }
+    await pg.query('UPDATE usuario SET mfa_habilitado = FALSE, mfa_secreto = NULL, mfa_ultimo_paso = NULL WHERE id_usuario = $1', [usuarioSesion.id]);
+    await bitacora.registrar({ tipo: 'MFA_DESACTIVADO', usuario: usuarioSesion, entidad: { tipo: 'usuario', codigo: String(usuarioSesion.id) } });
   }
 
   // Renovación con rotación: cada token de renovación sirve una sola vez; el anterior queda inválido
@@ -136,7 +248,10 @@ function crearServicioAutenticacion({ pg, entorno, bitacora }) {
     return { ok: true };
   }
 
-  return { hashContrasena, iniciarSesion, renovarSesion, cambiarContrasena, cerrarSesion, restablecerContrasena };
+  return {
+    hashContrasena, iniciarSesion, completarIngresoMfa, renovarSesion, cambiarContrasena, cerrarSesion,
+    restablecerContrasena, iniciarMfa, confirmarMfa, desactivarMfaPropio,
+  };
 }
 
 function sha256(valor) {

@@ -124,6 +124,7 @@ export function renderUsuarios(main, sesion, irA) {
     const celdaEstado = el('td', {},
       el('span', { class: `chip ${usuario.activo ? 'chip-ok' : 'chip-error'}` }, usuario.activo ? 'Activa' : 'Inactiva'),
       usuario.bloqueado ? el('span', { class: 'chip chip-error' }, 'Bloqueada') : null,
+      usuario.mfa_habilitado ? el('span', { class: 'chip chip-ok' }, '2FA') : null,
     );
 
     const acciones = el('td', { class: 'celda-acciones' }, botonPerfil);
@@ -131,6 +132,25 @@ export function renderUsuarios(main, sesion, irA) {
       const botonRestablecer = el('button', { type: 'button', class: 'boton boton-secundario' }, 'Generar enlace');
       botonRestablecer.addEventListener('click', () => abrirDialogoRestablecimiento(usuario));
       acciones.appendChild(botonRestablecer);
+    }
+    if (usuario.mfa_habilitado) {
+      const botonMfa = el('button', { type: 'button', class: 'boton boton-secundario' }, 'Desactivar 2FA');
+      botonMfa.addEventListener('click', async () => {
+        const confirmado = await abrirDialogoConfirmacion({
+          titulo: 'Desactivar verificación en dos pasos',
+          mensaje: `¿Desactivar la verificación en dos pasos de ${usuario.nombre}? Útil si perdió el acceso a su aplicación de autenticación.`,
+          textoConfirmar: 'Desactivar',
+          peligro: true,
+        });
+        if (!confirmado) return;
+        try {
+          await api.post(`/usuarios/${usuario.id_usuario}/mfa/desactivar`, {});
+          cargar();
+        } catch {
+          listaNodo.prepend(aviso('error', 'No pudimos desactivar la verificación en dos pasos.'));
+        }
+      });
+      acciones.appendChild(botonMfa);
     }
     if (!esUnoMismo) {
       const botonEstado = el('button', { type: 'button', class: usuario.activo ? 'boton boton-peligro' : 'boton boton-secundario' }, usuario.activo ? 'Desactivar' : 'Activar');

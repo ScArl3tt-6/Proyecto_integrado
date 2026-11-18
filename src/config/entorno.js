@@ -23,6 +23,7 @@ function cargarEntorno() {
     horasSesion: 8,
     minutosInactividad: 30, // sin ninguna solicitud autenticada real en este tiempo, la sesión se cierra sola
     minutosRestablecimiento: 30, // vigencia del enlace de restablecimiento de contraseña generado por Administración
+    minutosDesafioMfa: 5, // tiempo para escribir el código de verificación en dos pasos tras la contraseña correcta
     limiteGeneral: Number(process.env.SST_LIMITE_GENERAL || 600), // solicitudes por minuto y por IP
     intentosMaximos: 5,
     minutosBloqueo: 15,

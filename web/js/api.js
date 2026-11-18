@@ -3,7 +3,7 @@
 
 // Rutas donde un 401 es una respuesta de negocio (credenciales o contraseña actual incorrectas),
 // no una sesión expirada: en estas nunca se intenta renovar.
-const RUTAS_SIN_RENOVACION = new Set(['/auth/login', '/auth/renovar', '/auth/cambiar-contrasena']);
+const RUTAS_SIN_RENOVACION = new Set(['/auth/login', '/auth/login/verificar', '/auth/renovar', '/auth/cambiar-contrasena', '/auth/restablecer']);
 
 export class ApiError extends Error {
   constructor(status, cuerpo, retryAfter) {

@@ -23,6 +23,13 @@ CREATE TABLE usuario (
   id_area           SMALLINT REFERENCES area(id_area) ON UPDATE CASCADE ON DELETE RESTRICT,
   activo            BOOLEAN NOT NULL DEFAULT TRUE,
   mfa_habilitado    BOOLEAN NOT NULL DEFAULT FALSE,
+  -- Secreto TOTP (RFC 6238), en claro: hay que poder volver a calcular el código, no solo
+  -- comparar un hash (a diferencia de la contraseña). La protección es el acceso a la base, igual
+  -- que para el resto de columnas sensibles de esta tabla. Ver Funcionalidad 5.
+  mfa_secreto       VARCHAR(64),
+  -- Último paso de 30 segundos ya usado para iniciar sesión o activar el MFA: evita reutilizar el
+  -- mismo código dos veces (p. ej. si alguien lo interceptó) dentro de su propia ventana de validez.
+  mfa_ultimo_paso   BIGINT,
   intentos_fallidos SMALLINT NOT NULL DEFAULT 0 CHECK (intentos_fallidos >= 0),
   bloqueado_hasta   TIMESTAMPTZ,
   creado_en         TIMESTAMPTZ NOT NULL DEFAULT now()

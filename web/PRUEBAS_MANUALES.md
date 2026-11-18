@@ -18,6 +18,7 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-10 | Diseño adjunta el archivo real de una propuesta y Producción puede verlo/descargarlo antes de decidir | |
 | PM-11 | Cierre de sesión por inactividad real: sin usar el sistema durante el límite, la próxima acción vuelve a Ingreso con el aviso correcto | |
 | PM-12 | Restablecimiento de contraseña: Administración genera el enlace y la persona lo usa, sin sesión, para crear una contraseña nueva | |
+| PM-13 | Verificación en dos pasos (MFA): activar con un código real, ingresar con el segundo paso, y desactivarla (propia y desde Administración) | |
 
 ## Pasos detallados
 
@@ -101,3 +102,14 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 6. Intenta abrir el mismo enlace otra vez y guardar otra contraseña. **Esperado:** «Este enlace ya no es válido: venció, ya se usó o no existe. Pídele a Administración que te genere uno nuevo.».
 7. Genera un enlace nuevo para la misma cuenta sin usar el anterior: el enlace viejo debe dejar de servir apenas se genera el nuevo.
 8. Si la cuenta tenía otra sesión abierta en otro navegador, confirma que esa sesión también se cierra al completar el restablecimiento (igual que al cambiar la contraseña desde «Mi cuenta»).
+
+### PM-13 — Verificación en dos pasos por TOTP (Funcionalidad 5)
+1. Ingresa como `marcela` (Producción) o `koto` (Administrador) y ve a «Mi cuenta» → «Activar verificación en dos pasos».
+2. **Esperado:** aparece un código QR y, debajo, la clave en texto para ingresarla a mano si no se puede escanear. Escanéalo con Google Authenticator, Authy o similar (o calcula el código a mano con la clave).
+3. Escribe el código de 6 dígitos que muestra la aplicación y presiona «Confirmar y activar». **Esperado:** «Verificación en dos pasos activada.» y el estado pasa a mostrar el chip «Activada».
+4. Cierra sesión e ingresa de nuevo con el mismo correo y contraseña. **Esperado:** después de la contraseña correcta aparece un segundo paso, «Escribe el código de 6 dígitos de tu aplicación de verificación», sin entrar todavía a ninguna pantalla interna.
+5. Escribe un código incorrecto. **Esperado:** aviso claro de código incorrecto, sigue en el segundo paso (no vuelve a pedir la contraseña). Repetir 5 veces en total (contraseña + códigos) bloquea la cuenta 15 minutos, igual que con la contraseña (PM-02).
+6. Escribe el código real de la aplicación. **Esperado:** entra con normalidad a la pantalla de inicio de su rol.
+7. Intenta entrar con un correo o perfil que no tenga permiso de MFA (por ejemplo `jorge`, Vendedor): en «Mi cuenta» no debe aparecer la opción de activarlo.
+8. Vuelve a «Mi cuenta» y presiona «Desactivar verificación en dos pasos»: pide la contraseña actual; con la incorrecta no desactiva, con la correcta sí, y el ingreso vuelve a ser directo (sin segundo paso).
+9. Como `koto` (Administrador), activa el MFA de otra cuenta de prueba, ve a «Usuarios»: la fila debe mostrar el chip «2FA» y un botón «Desactivar 2FA» que no pide ninguna contraseña (para cubrir el caso de alguien que perdió su aplicación de autenticación). Tras usarlo, esa persona vuelve a ingresar directo.

@@ -16,7 +16,7 @@ function autenticar({ entorno, pg, bitacora }) {
     try {
       const datos = jwt.verify(token, entorno.secretoJwt, { algorithms: ['HS256'], issuer: 'sst-kotoduo' });
       const { rows } = await pg.query(
-        `SELECT s.revocada, s.expira_en, s.ultima_actividad, u.activo, r.nombre AS rol, u.id_area
+        `SELECT s.revocada, s.expira_en, s.ultima_actividad, u.activo, u.mfa_habilitado, r.nombre AS rol, u.id_area
            FROM sesion s JOIN usuario u ON u.id_usuario = s.id_usuario JOIN rol r ON r.id_rol = u.id_rol
           WHERE s.id_sesion = $1 AND s.id_usuario = $2`,
         [datos.sid, Number(datos.sub)],
@@ -37,7 +37,7 @@ function autenticar({ entorno, pg, bitacora }) {
       }
       await pg.query('UPDATE sesion SET ultima_actividad = now() WHERE id_sesion = $1', [datos.sid]);
       // El rol y el área se toman de la base, no del token, para que un cambio de perfil rija de inmediato
-      req.usuario = { id: Number(datos.sub), sid: datos.sid, rol: sesion.rol, idArea: sesion.id_area };
+      req.usuario = { id: Number(datos.sub), sid: datos.sid, rol: sesion.rol, idArea: sesion.id_area, mfaHabilitado: sesion.mfa_habilitado };
       return next();
     } catch {
       return res.status(401).json({ error: 'Sesión no válida' });

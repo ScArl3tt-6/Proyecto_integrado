@@ -73,8 +73,26 @@ Estado real de cada punto, revisado directamente en el código (no por memoria):
 - **Base de demostración:** se agregó `scripts/db/mongo-limpiar-demo.js` para vaciar las
   colecciones de MongoDB de la demostración sin tocar usuarios ni roles. Procedimiento completo de
   limpieza (Postgres + Mongo) documentado en `evidencias/fase1_def12_y_ux.txt`.
-- **MFA (TOTP):** no empezado. Solo existe la columna `mfa_habilitado` en `usuario`
-  (`src/db/esquema.sql`), siempre en `FALSE`; no hay ninguna lógica de TOTP en `src/`.
+- **MFA (TOTP):** ✅ terminado, para Administración y Producción (como ya anunciaba el texto de
+  Ingreso). Se agregaron `usuario.mfa_secreto` (en claro: hace falta poder recalcular el código,
+  no solo compararlo, a diferencia de la contraseña) y `usuario.mfa_ultimo_paso` (evita reutilizar
+  el mismo código dos veces). Activación en dos pasos desde "Mi cuenta"
+  (`POST /api/auth/mfa/iniciar` genera el secreto y un código QR —librería `qrcode`—, sin activar
+  todavía; `POST /api/auth/mfa/confirmar` exige un código real para activarlo de verdad). El
+  ingreso (`POST /api/auth/login`) ahora puede devolver `{ requiereMfa, desafio }` en vez de la
+  sesión, cuando la cuenta tiene MFA; un segundo endpoint
+  (`POST /api/auth/login/verificar`) consume ese "desafío" junto con el código y recién ahí crea la
+  sesión real. Un código incorrecto en ese paso cuenta como el mismo intento fallido que una
+  contraseña incorrecta (mismo contador, mismo bloqueo de 15 minutos). Desactivación propia exige
+  la contraseña actual (`POST /api/auth/mfa/desactivar`); Administración puede desactivarlo sin
+  ella para alguien que perdió el acceso a su aplicación de autenticación
+  (`POST /api/usuarios/:id/mfa/desactivar`), con chip "2FA" visible en "Usuarios". El texto
+  "Próximamente verificación en dos pasos" de Ingreso ya no existe: ahora es el segundo paso real
+  del formulario. CSP: se agregó `imgSrc: ["'self'", 'data:']` para que el código QR (una imagen
+  incrustada, generada en el servidor) se pueda mostrar. Pruebas CP-66 a CP-69 y PM-13; verificado
+  con un recorrido real en navegador (activar con un código real calculado con la librería,
+  ingresar con el segundo paso, un código incorrecto no deja pasar, y las dos vías de
+  desactivación).
 - **Restablecimiento de contraseña:** ✅ terminado. Como no hay infraestructura de correo en este
   prototipo, el camino real es: Administración genera un enlace de un solo uso desde «Usuarios» →
   «Generar enlace» (`POST /api/usuarios/:id/restablecimiento`, solo `USUARIO_GESTIONAR`) y se lo
@@ -102,10 +120,11 @@ Estado real de cada punto, revisado directamente en el código (no por memoria):
   inactividad. Ingresa de nuevo.») del de una sesión revocada o expirada por otra razón. Pruebas
   CP-60 y CP-61 y PM-11. El evento queda en la bitácora como `SESION_INACTIVIDAD`.
 - **Matriz HU-pantalla-endpoint:** no existe. No hay ningún documento de trazabilidad entre
-  historias de usuario, pantallas y endpoints en el repositorio.
-- **Pruebas manuales (PM):** `web/PRUEBAS_MANUALES.md` ya tiene PM-09 (materiales) y PM-10
-  (archivos reales). Faltan las de MFA, restablecimiento de contraseña, cierre por inactividad y
-  la matriz HU-pantalla-endpoint, a medida que se implementen.
+  historias de usuario, pantallas y endpoints en el repositorio. Es lo único que falta de toda la
+  Fase 1 (Funcionalidad 6).
+- **Pruebas manuales (PM):** `web/PRUEBAS_MANUALES.md` ya tiene PM-09 a PM-13 (materiales, archivos
+  reales, cierre por inactividad, restablecimiento de contraseña y MFA). Falta solo la de la
+  matriz HU-pantalla-endpoint (PM-14), cuando se escriba ese documento.
 
 ## Fase 2 — Rediseño con la marca Kotoduo (no iniciada)
 
