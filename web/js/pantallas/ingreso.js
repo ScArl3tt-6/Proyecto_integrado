@@ -134,8 +134,12 @@ export function renderIngreso(main, irA) {
     }
   });
 
-  if (consumirBanderaSesionExpirada()) {
-    contenedorAviso.appendChild(aviso('info', 'Tu sesión expiró. Ingresa de nuevo.'));
+  const sesionExpirada = consumirBanderaSesionExpirada();
+  if (sesionExpirada) {
+    const mensaje = sesionExpirada.motivo === 'INACTIVIDAD'
+      ? 'Tu sesión se cerró por inactividad. Ingresa de nuevo.'
+      : 'Tu sesión expiró. Ingresa de nuevo.';
+    contenedorAviso.appendChild(aviso('info', mensaje));
   }
 
   const seccionMfa = el('p', { class: 'mfa-proximamente' },

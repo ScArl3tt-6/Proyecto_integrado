@@ -29,12 +29,15 @@ CREATE TABLE usuario (
 );
 
 CREATE TABLE sesion (
-  id_sesion     UUID PRIMARY KEY,
-  id_usuario    INTEGER NOT NULL REFERENCES usuario(id_usuario) ON DELETE CASCADE,
-  hash_token    CHAR(64) NOT NULL UNIQUE,
-  expira_en     TIMESTAMPTZ NOT NULL,
-  revocada      BOOLEAN NOT NULL DEFAULT FALSE,
-  creada_en     TIMESTAMPTZ NOT NULL DEFAULT now()
+  id_sesion         UUID PRIMARY KEY,
+  id_usuario        INTEGER NOT NULL REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+  hash_token        CHAR(64) NOT NULL UNIQUE,
+  expira_en         TIMESTAMPTZ NOT NULL,
+  revocada          BOOLEAN NOT NULL DEFAULT FALSE,
+  creada_en         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Última solicitud autenticada real (no la renovación del token): permite cerrar la sesión por
+  -- inactividad aunque el token de acceso se siga renovando solo. Ver Funcionalidad 3.
+  ultima_actividad  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE tipo_trabajo (

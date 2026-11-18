@@ -78,8 +78,15 @@ Estado real de cada punto, revisado directamente en el código (no por memoria):
 - **Restablecimiento de contraseña:** no empezado. No existe ningún endpoint ni servicio para esto;
   hoy solo existe el cambio de contraseña estando con la sesión abierta
   (`POST /api/auth/cambiar-contrasena`).
-- **Cierre de sesión por inactividad:** no empezado. Hoy la sesión expira por un tiempo fijo
-  (`minutosAcceso`, `horasSesion`), no por inactividad.
+- **Cierre de sesión por inactividad:** ✅ terminado. Antes solo existía un temporizador en el
+  cliente (JavaScript, 30 minutos) que avisaba de la inactividad pero no cerraba nada en el
+  servidor: si el navegador seguía renovando el token de acceso solo, la sesión real podía durar
+  hasta `horasSesion` (8 horas) sin ninguna actividad genuina. Ahora `sesion.ultima_actividad`
+  (columna nueva) se actualiza en cada solicitud autenticada real (no en la renovación del token) y
+  `autenticar` revoca la sesión en el servidor si pasó más de `entorno.minutosInactividad` (30
+  minutos) desde la última; el aviso en pantalla distingue este caso («Tu sesión se cerró por
+  inactividad. Ingresa de nuevo.») del de una sesión revocada o expirada por otra razón. Pruebas
+  CP-60 y CP-61 y PM-11. El evento queda en la bitácora como `SESION_INACTIVIDAD`.
 - **Matriz HU-pantalla-endpoint:** no existe. No hay ningún documento de trazabilidad entre
   historias de usuario, pantallas y endpoints en el repositorio.
 - **Pruebas manuales (PM):** `web/PRUEBAS_MANUALES.md` ya tiene PM-09 (materiales) y PM-10

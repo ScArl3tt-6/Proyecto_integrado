@@ -12,10 +12,13 @@ const os = require('node:os');
 const { crearContexto, fechaEnDias } = require('../tests/contexto');
 
 const PUERTO = Number(process.env.PUERTO_VERIFICACION || 3100);
+// Solo para verificar a mano el cierre de sesión por inactividad sin esperar los minutos reales:
+// SST_MINUTOS_INACTIVIDAD=0.2 node scripts/entorno-efimero.js (no cambia el valor real de producción).
+const minutosInactividad = process.env.SST_MINUTOS_INACTIVIDAD ? Number(process.env.SST_MINUTOS_INACTIVIDAD) : undefined;
 
 async function principal() {
   console.log('Creando un entorno de verificación aislado (base de datos propia, no la real)...');
-  const ctx = await crearContexto();
+  const ctx = await crearContexto(minutosInactividad !== undefined ? { entornoExtra: { minutosInactividad } } : undefined);
 
   const u = (clave) => ({ id: ctx.usuarios[clave].idUsuario, rol: ctx.usuarios[clave].rol });
   const jorge = u('jorge');

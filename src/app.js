@@ -47,7 +47,7 @@ function crearApp({ entorno, pg, mongoDb, registro = console }) {
   }));
   app.use(cookieParser());
 
-  const sesion = autenticar({ entorno, pg });
+  const sesion = autenticar({ entorno, pg, bitacora });
   // Diseños sube archivos reales en base64 (hasta 15 MB cada uno, ver TAMANO_MAXIMO): necesita un
   // límite de cuerpo mayor que el resto de la API. Se monta ANTES del express.json() genérico de
   // abajo para que ese límite más chico no intercepte primero la solicitud (Express ya no vuelve

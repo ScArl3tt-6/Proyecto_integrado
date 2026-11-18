@@ -16,6 +16,7 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-08 | Cambio de contraseña y cierre de las otras sesiones | |
 | PM-09 | Producción registra materiales de un trabajo; otros perfiles solo los consultan | |
 | PM-10 | Diseño adjunta el archivo real de una propuesta y Producción puede verlo/descargarlo antes de decidir | |
+| PM-11 | Cierre de sesión por inactividad real: sin usar el sistema durante el límite, la próxima acción vuelve a Ingreso con el aviso correcto | |
 
 ## Pasos detallados
 
@@ -82,3 +83,10 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 2. Ingresa como `marcela` (Producción), ve a «Aprobaciones» → «Ver y decidir» sobre esa propuesta.
 3. **Esperado:** junto al nombre, el tipo y el tamaño del archivo aparece un enlace «Ver archivo». Al hacer clic, se abre en una pestaña nueva y el navegador muestra el PDF o la imagen real que Diseño adjuntó (no un error ni una página en blanco).
 4. Ingresa como `jorge` (Vendedor) o cualquier perfil sin el permiso `DISENO_VER` y confirma que no puede llegar a esa pantalla ni al enlace (403 si se intenta a mano por la API).
+
+### PM-11 — Cierre de sesión por inactividad real (RNF, Funcionalidad 3)
+1. Ingresa con cualquier cuenta y no toques nada (ni clics, ni teclado, ni scroll) durante 30 minutos reales.
+2. Pasado ese tiempo, intenta cualquier acción (por ejemplo abrir un enlace del menú).
+3. **Esperado:** la pantalla vuelve a `#/ingreso` con el aviso «Tu sesión se cerró por inactividad. Ingresa de nuevo.» (distinto del aviso genérico de PM-03). La sesión queda cerrada de verdad en el servidor, no solo en esta pestaña: si quedó abierta en otra pestaña o dispositivo, la siguiente acción ahí también la cierra.
+4. Para no esperar 30 minutos reales al probar esto: lanza el entorno aislado con un límite corto, por ejemplo `SST_MINUTOS_INACTIVIDAD=0.2 node scripts/entorno-efimero.js` (12 segundos), nunca contra `npm run demo` ni la base real.
+5. Nota aparte: usar el sistema con normalidad (ir cambiando de pantalla, registrar algo) antes de los 30 minutos no debe cerrar la sesión aunque pase mucho tiempo total desde el ingreso — cada acción real reinicia el conteo.

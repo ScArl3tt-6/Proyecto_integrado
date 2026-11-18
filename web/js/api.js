@@ -60,11 +60,17 @@ async function solicitud(metodo, ruta, cuerpo, { reintentando = false } = {}) {
   if (respuesta.ok) return datos;
 
   if (respuesta.status === 401 && !RUTAS_SIN_RENOVACION.has(ruta)) {
-    if (!reintentando) {
-      const renovada = await intentarRenovar();
-      if (renovada) return solicitud(metodo, ruta, cuerpo, { reintentando: true });
+    // Un 401 por inactividad ya cerró la sesión en el servidor: no tiene sentido intentar renovarla
+    // (eso solo renovaría el token de acceso, no la actividad real), así que se avisa directamente.
+    if (datos?.motivo === 'INACTIVIDAD') {
+      window.dispatchEvent(new CustomEvent('sst:sesion-expirada', { detail: { motivo: 'INACTIVIDAD' } }));
+    } else {
+      if (!reintentando) {
+        const renovada = await intentarRenovar();
+        if (renovada) return solicitud(metodo, ruta, cuerpo, { reintentando: true });
+      }
+      window.dispatchEvent(new CustomEvent('sst:sesion-expirada'));
     }
-    window.dispatchEvent(new CustomEvent('sst:sesion-expirada'));
   }
 
   const retryAfter = Number(respuesta.headers.get('retry-after')) || undefined;

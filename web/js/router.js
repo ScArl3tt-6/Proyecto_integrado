@@ -76,9 +76,9 @@ async function sesionVigente() {
   }
 }
 
-function expirarSesion() {
+function expirarSesion(motivo) {
   limpiarSesion();
-  marcarSesionExpirada();
+  marcarSesionExpirada(motivo);
   if (location.hash === '#/ingreso') enrutar();
   else location.hash = '#/ingreso';
 }
@@ -140,12 +140,14 @@ async function enrutar() {
 }
 
 window.addEventListener('hashchange', enrutar);
-window.addEventListener('sst:sesion-expirada', expirarSesion);
+window.addEventListener('sst:sesion-expirada', (ev) => expirarSesion(ev.detail?.motivo));
 botonSalir.addEventListener('click', cerrarSesion);
 
+// Aviso temprano en el cliente (sin esperar la próxima llamada a la API): el servidor cierra la
+// sesión de verdad con el mismo límite (entorno.minutosInactividad) apenas llegue esa llamada.
 iniciarVigilanciaInactividad(async () => {
   try { await api.post('/auth/logout', {}); } catch { /* se limpia igual */ }
-  expirarSesion();
+  expirarSesion('INACTIVIDAD');
 });
 
 if ('serviceWorker' in navigator) {

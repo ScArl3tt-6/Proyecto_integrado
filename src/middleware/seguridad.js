@@ -6,15 +6,17 @@ const { tienePermiso } = require('../dominio/permisos');
 const COOKIE_ACCESO = 'sst_acceso';
 const COOKIE_CSRF = 'sst_csrf';
 
-// Autenticación: valida el token de acceso y que la sesión siga vigente (permite revocación inmediata)
-function autenticar({ entorno, pg }) {
+// Autenticación: valida el token de acceso y que la sesión siga vigente (permite revocación inmediata).
+// También cierra la sesión por inactividad real (Funcionalidad 3): renovar el token de acceso en
+// segundo plano NO cuenta como actividad, solo una solicitud autenticada a través de este middleware.
+function autenticar({ entorno, pg, bitacora }) {
   return async (req, res, next) => {
     const token = req.cookies?.sst_acceso;
     if (!token) return res.status(401).json({ error: 'Debe iniciar sesión' });
     try {
       const datos = jwt.verify(token, entorno.secretoJwt, { algorithms: ['HS256'], issuer: 'sst-kotoduo' });
       const { rows } = await pg.query(
-        `SELECT s.revocada, s.expira_en, u.activo, r.nombre AS rol, u.id_area
+        `SELECT s.revocada, s.expira_en, s.ultima_actividad, u.activo, r.nombre AS rol, u.id_area
            FROM sesion s JOIN usuario u ON u.id_usuario = s.id_usuario JOIN rol r ON r.id_rol = u.id_rol
           WHERE s.id_sesion = $1 AND s.id_usuario = $2`,
         [datos.sid, Number(datos.sub)],
@@ -23,6 +25,17 @@ function autenticar({ entorno, pg }) {
       if (!sesion || sesion.revocada || !sesion.activo || new Date(sesion.expira_en) < new Date()) {
         return res.status(401).json({ error: 'Sesión no válida' });
       }
+      const minutosInactiva = (Date.now() - new Date(sesion.ultima_actividad).getTime()) / 60000;
+      if (minutosInactiva > entorno.minutosInactividad) {
+        await pg.query('UPDATE sesion SET revocada = TRUE WHERE id_sesion = $1', [datos.sid]);
+        await bitacora.registrar({
+          tipo: 'SESION_INACTIVIDAD',
+          usuario: { id: Number(datos.sub), rol: sesion.rol },
+          entidad: { tipo: 'usuario', codigo: String(datos.sub) },
+        });
+        return res.status(401).json({ error: 'Tu sesión se cerró por inactividad. Ingresa de nuevo.', motivo: 'INACTIVIDAD' });
+      }
+      await pg.query('UPDATE sesion SET ultima_actividad = now() WHERE id_sesion = $1', [datos.sid]);
       // El rol y el área se toman de la base, no del token, para que un cambio de perfil rija de inmediato
       req.usuario = { id: Number(datos.sub), sid: datos.sid, rol: sesion.rol, idArea: sesion.id_area };
       return next();

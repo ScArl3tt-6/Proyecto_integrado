@@ -21,6 +21,7 @@ function cargarEntorno() {
     pgUrl: requerida('SST_PG_URL'),
     minutosAcceso: 15,
     horasSesion: 8,
+    minutosInactividad: 30, // sin ninguna solicitud autenticada real en este tiempo, la sesión se cierra sola
     limiteGeneral: Number(process.env.SST_LIMITE_GENERAL || 600), // solicitudes por minuto y por IP
     intentosMaximos: 5,
     minutosBloqueo: 15,

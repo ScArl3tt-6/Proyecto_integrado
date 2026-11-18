@@ -18,6 +18,7 @@
     "mongo:actualizar-validador": "node scripts/db/mongo-actualizar-validador-disenos.js",
     "mongo:limpiar-demo": "node scripts/db/mongo-limpiar-demo.js",
     "db:limpiar-trabajos-prueba": "node scripts/db/limpiar-trabajos-prueba.js",
+    "db:agregar-ultima-actividad": "node scripts/db/agregar-ultima-actividad.js",
     "verificar": "node scripts/verificar-entorno.js",
     "docs:guia-bases": "node scripts/generar-guia-bases.js",
     "entorno:verificacion": "node scripts/entorno-efimero.js"
