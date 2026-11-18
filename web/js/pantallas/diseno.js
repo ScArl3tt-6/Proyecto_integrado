@@ -1,6 +1,8 @@
 import { api, ApiError } from '../api.js';
-import { el, vaciar, aviso, abrirDialogoConfirmacion, enlaceVolver } from '../ui.js';
-import { tarjetaTrabajo, estadoVacio, estadoCarga, estadoError } from '../componentes.js';
+import { el, vaciar, aviso, abrirDialogoConfirmacion, enlaceVolver, etiquetaCampo, describirErrorApi } from '../ui.js';
+import { tarjetaTrabajo, estadoVacio, estadoCarga, estadoError, leyendaObligatorios } from '../componentes.js';
+
+const CAMPOS_PROPUESTA = { archivos: 'Archivos', 'archivos.0.nombre': 'Archivos', 'archivos.0.contenidoBase64': 'Archivos', comentario: 'Comentario' };
 
 const CABECERAS_FIRMA = {
   'application/pdf': [0x25, 0x50, 0x44, 0x46],
@@ -99,21 +101,22 @@ function archivoValido(archivo) {
 export function renderEnviarPropuesta(main, sesion, codigo, irA) {
   const contenedorAviso = el('div');
   const campoArchivos = el('input', { id: 'archivos', type: 'file', accept: '.pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg', multiple: true, required: true });
-  const campoTecnica = el('input', { id: 'tecnica', type: 'text', maxlength: 60 });
-  const campoUbicacion = el('input', { id: 'ubicacion', type: 'text', maxlength: 60 });
-  const campoMedidas = el('input', { id: 'medidas', type: 'text', maxlength: 60 });
-  const campoColores = el('input', { id: 'colores', type: 'text', maxlength: 200, placeholder: 'Separados por coma' });
+  const campoTecnica = el('input', { id: 'tecnica', type: 'text', maxlength: 60, placeholder: 'Ej.: bordado' });
+  const campoUbicacion = el('input', { id: 'ubicacion', type: 'text', maxlength: 60, placeholder: 'Ej.: pecho izquierdo' });
+  const campoMedidas = el('input', { id: 'medidas', type: 'text', maxlength: 60, placeholder: 'Ej.: 8 x 8 cm' });
+  const campoColores = el('input', { id: 'colores', type: 'text', maxlength: 200, placeholder: 'Ej.: morado, azul (separados por coma)' });
   const campoComentario = el('input', { id: 'comentario', type: 'text', maxlength: 500 });
   const boton = el('button', { type: 'submit', class: 'boton boton-primario' }, 'Enviar propuesta');
 
   const form = el('form', { novalidate: true },
     contenedorAviso,
-    el('div', { class: 'campo' }, el('label', { for: 'archivos' }, 'Archivos (PDF, PNG o JPG, hasta 15 MB)'), campoArchivos),
-    el('div', { class: 'campo' }, el('label', { for: 'tecnica' }, 'Técnica'), campoTecnica),
-    el('div', { class: 'campo' }, el('label', { for: 'ubicacion' }, 'Ubicación'), campoUbicacion),
-    el('div', { class: 'campo' }, el('label', { for: 'medidas' }, 'Medidas'), campoMedidas),
-    el('div', { class: 'campo' }, el('label', { for: 'colores' }, 'Colores'), campoColores),
-    el('div', { class: 'campo' }, el('label', { for: 'comentario' }, 'Comentario (opcional)'), campoComentario),
+    leyendaObligatorios(),
+    el('div', { class: 'campo' }, etiquetaCampo('Archivos (PDF, PNG o JPG, hasta 15 MB)', { for: 'archivos' }), campoArchivos),
+    el('div', { class: 'campo' }, etiquetaCampo('Técnica', { for: 'tecnica', opcional: true }), campoTecnica),
+    el('div', { class: 'campo' }, etiquetaCampo('Ubicación', { for: 'ubicacion', opcional: true }), campoUbicacion),
+    el('div', { class: 'campo' }, etiquetaCampo('Medidas', { for: 'medidas', opcional: true }), campoMedidas),
+    el('div', { class: 'campo' }, etiquetaCampo('Colores', { for: 'colores', opcional: true }), campoColores),
+    el('div', { class: 'campo' }, etiquetaCampo('Comentario (opcional)', { for: 'comentario', opcional: true }), campoComentario),
     boton,
   );
 
@@ -156,7 +159,7 @@ export function renderEnviarPropuesta(main, sesion, codigo, irA) {
       contenedorAviso.appendChild(aviso('exito', `Versión ${resultado.version} enviada.`));
       setTimeout(() => irA('#/bandeja-diseno'), 1200);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 400) mostrar('error', err.cuerpo?.error || 'Revisa los archivos y los datos ingresados.');
+      if (err instanceof ApiError && err.status === 400) mostrar('error', describirErrorApi(err, CAMPOS_PROPUESTA, 'Revisa los archivos y los datos ingresados.'));
       else mostrar('error', 'No pudimos enviar la propuesta. Revisa tu conexión e inténtalo otra vez.');
       boton.disabled = false;
       boton.textContent = 'Enviar propuesta';

@@ -1,6 +1,8 @@
 import { api, ApiError } from '../api.js';
-import { el, vaciar, aviso } from '../ui.js';
-import { tarjetaTrabajo, estadoVacio, estadoCarga, estadoError, paginador, TEXTO_ESTADO } from '../componentes.js';
+import { el, vaciar, aviso, etiquetaCampo, describirErrorApi } from '../ui.js';
+import { tarjetaTrabajo, estadoVacio, estadoCarga, estadoError, paginador, leyendaObligatorios, TEXTO_ESTADO } from '../componentes.js';
+
+const CAMPOS_NUEVA_SOLICITUD = { idTipo: 'Tipo de trabajo', descripcion: 'Descripción', cantidad: 'Cantidad', fechaCompromiso: 'Fecha comprometida' };
 
 export function renderMisSolicitudes(main, sesion, irA) {
   const filtroEstado = el('select', { id: 'filtro-estado' }, el('option', { value: '' }, 'Todos los estados'),
@@ -52,7 +54,7 @@ export function renderMisSolicitudes(main, sesion, irA) {
 export function renderNuevaSolicitud(main, sesion, irA) {
   const contenedorAviso = el('div');
   const campoTipo = el('select', { id: 'tipo', required: true }, el('option', { value: '' }, 'Selecciona un tipo'));
-  const campoDescripcion = el('input', { id: 'descripcion', type: 'text', required: true, minlength: 5, maxlength: 300 });
+  const campoDescripcion = el('input', { id: 'descripcion', type: 'text', required: true, minlength: 5, maxlength: 300, placeholder: 'Ej.: 40 poleras bordadas con logo del club' });
   const campoCantidad = el('input', { id: 'cantidad', type: 'number', required: true, min: 1, max: 100000, value: '1' });
   const hoy = new Date().toISOString().slice(0, 10);
   const campoFecha = el('input', { id: 'fecha', type: 'date', required: true, min: hoy });
@@ -60,10 +62,11 @@ export function renderNuevaSolicitud(main, sesion, irA) {
 
   const form = el('form', { novalidate: true },
     contenedorAviso,
-    el('div', { class: 'campo' }, el('label', { for: 'tipo' }, 'Tipo de trabajo'), campoTipo),
-    el('div', { class: 'campo' }, el('label', { for: 'descripcion' }, 'Descripción'), campoDescripcion),
-    el('div', { class: 'campo' }, el('label', { for: 'cantidad' }, 'Cantidad'), campoCantidad),
-    el('div', { class: 'campo' }, el('label', { for: 'fecha' }, 'Fecha comprometida'), campoFecha),
+    leyendaObligatorios(),
+    el('div', { class: 'campo' }, etiquetaCampo('Tipo de trabajo', { for: 'tipo' }), campoTipo),
+    el('div', { class: 'campo' }, etiquetaCampo('Descripción', { for: 'descripcion' }), campoDescripcion),
+    el('div', { class: 'campo' }, etiquetaCampo('Cantidad', { for: 'cantidad' }), campoCantidad),
+    el('div', { class: 'campo' }, etiquetaCampo('Fecha comprometida', { for: 'fecha' }), campoFecha),
     botonGuardar,
   );
 
@@ -100,7 +103,7 @@ export function renderNuevaSolicitud(main, sesion, irA) {
       });
       irA(`#/trabajos/${resultado.codigo}`);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 400) mostrar('error', 'Revisa los datos ingresados: ' + (err.cuerpo?.error || 'hay campos inválidos.'));
+      if (err instanceof ApiError && err.status === 400) mostrar('error', describirErrorApi(err, CAMPOS_NUEVA_SOLICITUD, 'Revisa los datos ingresados.'));
       else mostrar('error', 'No pudimos registrar la solicitud. Revisa tu conexión e inténtalo otra vez.');
       botonGuardar.disabled = false;
       botonGuardar.textContent = 'Registrar solicitud';

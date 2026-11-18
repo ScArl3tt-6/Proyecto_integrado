@@ -28,7 +28,7 @@
   background: none;
   border: none;
   padding: 0;
-  color: var(--color-acento);
+  color: var(--color-acento-texto-legible);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -53,6 +53,7 @@
 .campo input[aria-invalid="true"] { border-color: var(--error-tx); }
 .campo-error { color: var(--error-tx); font-size: var(--texto-14); margin: 0; }
 .campo-ayuda { color: var(--color-texto-secundario); font-size: var(--texto-14); margin: 0; }
+.campo-obligatorio { color: var(--error-tx); font-weight: 700; }
 
 .campo select {
   appearance: none;
@@ -199,7 +200,7 @@ dialog.dialogo::backdrop { background: rgba(62, 44, 34, .45); }
   margin: var(--espacio-1) 0;
 }
 .etapa-destacada-etiqueta { display: block; font-size: var(--texto-12); color: var(--color-texto-secundario); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
-.etapa-destacada-nombre { display: block; font-size: var(--texto-20); font-weight: 700; color: var(--color-acento); }
+.etapa-destacada-nombre { display: block; font-size: var(--texto-20); font-weight: 700; color: var(--color-acento-texto-legible); }
 .tarjeta-actividad .boton-grande { margin-top: var(--espacio-2); }
 .materiales-contenedor { margin: var(--espacio-1) 0; }
 

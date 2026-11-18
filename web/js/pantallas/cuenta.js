@@ -1,11 +1,12 @@
 import { api, ApiError } from '../api.js';
-import { el, vaciar, aviso, iniciarCuentaRegresiva } from '../ui.js';
+import { el, vaciar, aviso, iniciarCuentaRegresiva, etiquetaCampo, describirErrorApi } from '../ui.js';
+import { leyendaObligatorios } from '../componentes.js';
 import { cerrarSesion } from '../estado.js';
 import { ROL_TEXTO } from '../permisos.js';
 
-function campoContrasena(id, etiqueta) {
+function campoContrasena(id, texto) {
   const input = el('input', { id, type: 'password', autocomplete: 'new-password', required: true });
-  const contenedor = el('div', { class: 'campo' }, el('label', { for: id }, etiqueta), input);
+  const contenedor = el('div', { class: 'campo' }, etiquetaCampo(texto, { for: id }), input);
   return { input, contenedor };
 }
 
@@ -27,7 +28,8 @@ export function renderCuenta(main, sesion) {
 
   const form = el('form', { novalidate: true },
     contenedorAviso,
-    el('div', { class: 'campo' }, el('label', { for: 'contrasena-actual' }, 'Contraseña actual'), actual),
+    leyendaObligatorios(),
+    el('div', { class: 'campo' }, etiquetaCampo('Contraseña actual', { for: 'contrasena-actual' }), actual),
     contenedorNueva,
     contenedorRepetir,
     boton,
@@ -56,7 +58,7 @@ export function renderCuenta(main, sesion) {
       if (err instanceof ApiError && err.status === 401) {
         mostrarError('La contraseña actual no es correcta.');
       } else if (err instanceof ApiError && err.status === 400) {
-        mostrarError(err.cuerpo?.error || 'La contraseña nueva no cumple la política.');
+        mostrarError(describirErrorApi(err, { actual: 'Contraseña actual', nueva: 'Contraseña nueva' }, 'La contraseña nueva no cumple la política.'));
       } else if (err instanceof ApiError && err.status === 429) {
         boton.textContent = 'Cambiar contraseña';
         vaciar(contenedorAviso);

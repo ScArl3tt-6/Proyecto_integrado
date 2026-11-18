@@ -1,8 +1,8 @@
 // Detalle de un trabajo: mismo contenido para quien lo vea (vendedor, diseño, producción o
 // administración), con el alcance que ya decide el servidor (403 si el trabajo no corresponde).
 import { api, ApiError } from '../api.js';
-import { el, vaciar, aviso, abrirDialogoConfirmacion, abrirDialogoMotivo, enlaceVolver } from '../ui.js';
-import { chipEstado, chipAtrasado, listaEtapas, estadoCarga, estadoError } from '../componentes.js';
+import { el, vaciar, aviso, abrirDialogoConfirmacion, abrirDialogoMotivo, enlaceVolver, etiquetaCampo, describirErrorApi } from '../ui.js';
+import { chipEstado, chipAtrasado, listaEtapas, estadoCarga, estadoError, leyendaObligatorios } from '../componentes.js';
 import { tienePermiso, INICIO_POR_ROL } from '../permisos.js';
 
 const MOTIVOS_DETENER = [
@@ -107,15 +107,16 @@ export function renderDetalleTrabajo(main, sesion, codigo) {
   function formularioMaterial(trabajo, listaMateriales) {
     const contenedorAviso = el('div');
     const campoMaterial = el('select', { id: 'material', required: true }, el('option', { value: '' }, 'Selecciona un material'));
-    const campoCantidad = el('input', { id: 'cantidad-material', type: 'number', required: true, min: '0.01', step: '0.01', max: '100000' });
+    const campoCantidad = el('input', { id: 'cantidad-material', type: 'number', required: true, min: '0.01', step: '0.01', max: '100000', placeholder: 'Ej.: 2.5' });
     const campoMedida = el('input', { id: 'medida-material', type: 'text', maxlength: 60, placeholder: 'Opcional: color, talla, etc.' });
     const botonGuardar = el('button', { type: 'submit', class: 'boton boton-secundario' }, 'Registrar material');
 
     const form = el('form', { novalidate: true },
       contenedorAviso,
-      el('div', { class: 'campo' }, el('label', { for: 'material' }, 'Material'), campoMaterial),
-      el('div', { class: 'campo' }, el('label', { for: 'cantidad-material' }, 'Cantidad'), campoCantidad),
-      el('div', { class: 'campo' }, el('label', { for: 'medida-material' }, 'Medida (opcional)'), campoMedida),
+      leyendaObligatorios(),
+      el('div', { class: 'campo' }, etiquetaCampo('Material', { for: 'material' }), campoMaterial),
+      el('div', { class: 'campo' }, etiquetaCampo('Cantidad', { for: 'cantidad-material' }), campoCantidad),
+      el('div', { class: 'campo' }, etiquetaCampo('Medida (opcional)', { for: 'medida-material', opcional: true }), campoMedida),
       botonGuardar,
     );
 
@@ -143,8 +144,11 @@ export function renderDetalleTrabajo(main, sesion, codigo) {
         campoCantidad.value = '';
         campoMedida.value = '';
         await cargarMateriales(listaMateriales);
-      } catch {
-        contenedorAviso.appendChild(aviso('error', 'No pudimos registrar el material. Inténtalo otra vez.'));
+      } catch (err) {
+        const mensaje = err instanceof ApiError && err.status === 400
+          ? describirErrorApi(err, { idMaterial: 'Material', cantidad: 'Cantidad' }, 'Revisa los datos del material.')
+          : 'No pudimos registrar el material. Inténtalo otra vez.';
+        contenedorAviso.appendChild(aviso('error', mensaje));
       } finally {
         botonGuardar.disabled = false;
         botonGuardar.textContent = 'Registrar material';

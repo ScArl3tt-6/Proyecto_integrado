@@ -1,5 +1,6 @@
 import { api, ApiError } from '../api.js';
-import { el, vaciar, aviso, iniciarCuentaRegresiva } from '../ui.js';
+import { el, vaciar, aviso, iniciarCuentaRegresiva, etiquetaCampo } from '../ui.js';
+import { leyendaObligatorios } from '../componentes.js';
 import { guardarSesion, consumirBanderaSesionExpirada } from '../estado.js';
 
 const CORREO_PATRON = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -35,13 +36,14 @@ export function renderIngreso(main, irA) {
 
   const form = el('form', { novalidate: true },
     contenedorAviso,
+    leyendaObligatorios(),
     el('div', { class: 'campo' },
-      el('label', { for: 'correo' }, 'Correo'),
+      etiquetaCampo('Correo', { for: 'correo' }),
       campoCorreo,
       errorCorreo,
     ),
     el('div', { class: 'campo' },
-      el('label', { for: 'contrasena' }, 'Contraseña'),
+      etiquetaCampo('Contraseña', { for: 'contrasena' }),
       el('div', { class: 'campo-contrasena' }, campoContrasena, botonMostrar),
       errorContrasena,
     ),

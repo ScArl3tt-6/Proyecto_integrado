@@ -20,6 +20,27 @@ export function el(etiqueta, atributos = {}, ...hijos) {
   return nodo;
 }
 
+// Etiqueta de un campo de formulario, con un asterisco visible (y anunciado a lectores de
+// pantalla vía el atributo "required" del propio campo, no solo por el texto) cuando es
+// obligatorio. Usar junto con leyendaObligatorios() (componentes.js) al principio del formulario.
+export function etiquetaCampo(texto, { for: paraId, opcional = false } = {}) {
+  if (opcional) return el('label', { for: paraId }, texto);
+  return el('label', { for: paraId }, texto, el('span', { class: 'campo-obligatorio', 'aria-hidden': 'true' }, ' *'));
+}
+
+// Traduce una ApiError a un mensaje que diga, cuando se pueda saber, QUÉ campo falló, en vez de
+// dejar el genérico "Datos de entrada inválidos" (o cualquier otro) como única pista. mapaCampos
+// traduce el nombre técnico del campo (el que manda el servidor, por ejemplo "fechaCompromiso") a
+// como se llama en esta pantalla (por ejemplo "Fecha comprometida").
+export function describirErrorApi(err, mapaCampos = {}, generico = 'No pudimos guardar los datos. Inténtalo otra vez.') {
+  const campos = err?.cuerpo?.campos;
+  if (Array.isArray(campos) && campos.length) {
+    const nombres = campos.map((c) => mapaCampos[c] || c);
+    return `Revisa estos campos: ${nombres.join(', ')}.`;
+  }
+  return err?.cuerpo?.error || generico;
+}
+
 export function vaciar(nodo) {
   while (nodo.firstChild) nodo.removeChild(nodo.firstChild);
 }
@@ -117,7 +138,7 @@ export function abrirDialogoMotivo({ titulo, etiqueta = 'Motivo', minimo = 5, ma
 
     const dialogo = el('dialog', { class: 'dialogo' },
       el('h2', {}, titulo),
-      el('div', { class: 'campo' }, el('label', { for: 'motivo-dialogo' }, etiqueta), campo, error),
+      el('div', { class: 'campo' }, etiquetaCampo(etiqueta, { for: 'motivo-dialogo' }), campo, error),
       sugerenciasNodo,
       el('div', { class: 'dialogo-acciones' }, botonCancelar, botonConfirmar),
     );

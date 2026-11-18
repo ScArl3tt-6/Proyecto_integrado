@@ -459,13 +459,129 @@ completa para el informe (sección de validación de resultados).
   Parte B de esta sesión, en "Aprobaciones").
 - **Severidad:** Media (no se nota con pocas actividades; un operario con muchas etapas en curso a
   la vez no vería un aviso ni una forma de pedir más).
-- **Estado:** Pendiente de corregir (anotado, no implementado en esta sesión).
+- **Corrección:** `web/js/pantallas/operario.js` ahora pide `pagina`/`limite` y muestra el mismo
+  `paginador()` (Anterior/Página N/Siguiente) ya usado en "Mis solicitudes" y "Aprobaciones".
+- **Nueva ejecución:** recorrido real de Operario repetido tras el cambio: la pantalla sigue
+  funcionando igual (confirmación, materiales, etc.), ahora con el paginador visible al pie.
+- **Estado:** Corregido.
 
-## DEF-15 — Ningún formulario marca los campos obligatorios ("* obligatorio")
+## DEF-15 — Ningún formulario marca los campos obligatorios ("* obligatorio"), faltaban ejemplos y los errores del servidor no decían qué campo
 
 - **Encontrado en:** Parte C, revisión de "Mi cuenta"; es el mismo patrón en todos los formularios
   de la aplicación (Nueva solicitud, Enviar propuesta, Registrar material, Cambiar contraseña,
-  etc.), no un error de una sola pantalla.
+  Crear cuenta, Bitácora), no un error de una sola pantalla.
 - **Severidad:** Media.
-- **Estado:** Pendiente de corregir. Se deja para resolver de una sola vez (una convención
-  compartida) en la continuación de la Parte C, en vez de parchear pantalla por pantalla.
+- **Corrección, en tres partes:**
+  1. **Asterisco y leyenda:** `etiquetaCampo()` (nuevo, en `web/js/ui.js`) agrega un asterisco
+     visible a la etiqueta de un campo obligatorio; `leyendaObligatorios()` (nuevo, en
+     `web/js/componentes.js`) agrega la leyenda "* Campo obligatorio" una vez por formulario.
+     Aplicado en los 7 formularios reales de la aplicación (ingreso, nueva solicitud, enviar
+     propuesta, registrar material, cambiar contraseña, crear cuenta, bitácora, y el diálogo de
+     motivo de rechazo/detención). El color del asterisco (`--error-tx`) se verificó aparte: pasa
+     7.5:1 o más de contraste contra los fondos del sistema.
+  2. **Ejemplos:** se agregaron los placeholders que el equipo pidió explícitamente antes en esta
+     sesión y que todavía no se habían aplicado: Técnica "Ej.: bordado", Medidas "Ej.: 8 x 8 cm",
+     Colores "Ej.: morado, azul (separados por coma)", más Ubicación, Descripción, Nombre, Correo
+     y Cantidad de material (antes sin ningún ejemplo).
+  3. **Mensajes por campo:** `describirErrorApi()` (nuevo, en `web/js/ui.js`) usa el arreglo
+     `campos` que el servidor ya venía devolviendo en cada error de validación (`src/middleware/seguridad.js`),
+     y arma "Revisa estos campos: X, Y." en vez de mostrar solo el genérico. Aplicado en los
+     formularios de creación/edición (nueva solicitud, enviar propuesta, registrar material, crear
+     cuenta, cambiar contraseña). De paso se corrigió un descuido real en
+     `detalleTrabajo.js`: el formulario de materiales ocultaba CUALQUIER error del servidor
+     (incluido uno específico como "Material no válido") detrás de un genérico fijo; ahora sí lo
+     muestra cuando el servidor lo da.
+- **Nueva ejecución:** verificado con Playwright, con el entorno aislado: asteriscos y leyenda
+  visibles (capturas en `evidencias/capturas/revision_def15_*.png`), placeholders presentes con el
+  texto exacto pedido, y un error real de servidor (correo duplicado al crear una cuenta) mostrado
+  tal cual lo da el servidor ("El correo ya está registrado"), sin pasar por el genérico. 0
+  violaciones de accesibilidad en las pantallas con el cambio.
+- **Lo que no se cubrió:** el diálogo de "Cambiar rol o área" (Rol/Área de un usuario ya existente)
+  no se marcó como obligatorio a propósito: el Rol siempre tiene un valor (no hay estado vacío
+  real que impedir) y el Área puede ser legítimamente "Sin área" según el rol, así que un asterisco
+  ahí sería incorrecto, no solo innecesario.
+- **Estado:** Corregido.
+
+## DEF-16 — Contraste insuficiente del color de acento usado como texto (WCAG AA)
+
+- **Encontrado en:** Parte C (continuación), medido con herramienta real (`@axe-core/playwright`,
+  no a simple vista), en TODAS las pantallas de Vendedor revisadas.
+- **Caso de prueba:** escaneo de accesibilidad con axe-core sobre "Nueva solicitud", el detalle de
+  un trabajo y "Mis solicitudes", en 1280 px y 390 px.
+- **Causa confirmada:** `--color-acento` (rosa-600, `#B5586B`) se usaba también como color de
+  TEXTO sobre fondos claros (enlaces genéricos `a`, `.cabecera-marca`, `.boton-enlace`,
+  `.etapa-destacada-nombre`). Contra los fondos claros del sistema da 4.24:1, por debajo del
+  4.5:1 que exige WCAG AA para texto normal. Literal de axe-core:
+  ```
+  color-contrast (serious): Element has insufficient color contrast of 4.24
+  (foreground #b5586b, background #faf5f1). Expected contrast ratio of 4.5:1
+  ```
+  Como color de FONDO (botones primarios, con texto blanco encima) nunca estuvo en duda: ese par
+  de colores no lo marcó axe-core.
+- **Corrección:** se agregó el token `--color-acento-texto-legible` (`web/css/tokens.css`),
+  usando `rosa-700` (`#964658`), ya dentro de la paleta aprobada del proyecto — no un color
+  inventado. Se cambiaron las 4 reglas de CSS que usaban `--color-acento` como color de texto
+  (`a`, `.cabecera-marca`, `.boton-enlace`, `.etapa-destacada-nombre`) para usar el token nuevo.
+  Los usos como fondo (`.boton-primario`, `.nav-item[aria-current="page"]`) no se tocaron.
+- **Nueva ejecución:** mismo escaneo con axe-core, mismas pantallas, ambos anchos: **0
+  violaciones** (antes: 1 violación "serious" por pantalla, de 3 a 4 elementos cada vez).
+- **Estado:** Corregido.
+- **Adicional, fuera de lo que mide axe-core (axe no revisa estados `:hover` porque no se disparan
+  sin interacción):** se calculó a mano el contraste de `a:hover` (color `--color-acento-hover` =
+  rosa-400, `#E8A3B2`, contra `#FAF5F1`) y daba **1.88:1**, muy por debajo de 4.5:1 — peor que el
+  estado normal que motivó este defecto. Terminó corrigiéndose igual, de forma independiente, al
+  resolver **DEF-18** (el mismo color de "hover" fallaba también, y peor, en los botones).
+
+## DEF-17 — Los campos "Rol" y "Área" (crear cuenta y cambiar perfil) no tenían etiqueta accesible
+
+- **Encontrado en:** Parte C (continuación), revisión de Administrador, medido con herramienta
+  (`@axe-core/playwright`) en "Usuarios".
+- **Severidad:** Alta (`critical` en axe-core): quien usa un lector de pantalla no tenía forma de
+  saber para qué servía ese `<select>`.
+- **Causa confirmada:** `web/js/pantallas/admin.js` armaba el campo y su `<label>` como hermanos
+  (`el('label', {}, 'Rol')` junto a `el('select', {})`), sin `id` en el `<select>` ni `for` en el
+  `<label>` — nada los asociaba de verdad, ni implícita ni explícitamente. Afectaba a los 4
+  lugares donde se arma este campo: crear cuenta (Rol y Área) y el diálogo "Cambiar rol o área"
+  (Rol y Área otra vez).
+- **Corrección:** se agregó `id` a `selectRoles()`/`selectAreas()` (parámetro nuevo) y `for` a
+  cada `<label>` correspondiente, en los 4 lugares.
+- **Nueva ejecución:** mismo escaneo, misma pantalla: 0 violaciones (antes: 1 "critical" con 2
+  elementos).
+- **Estado:** Corregido.
+
+## DEF-18 — El color de "hover" de los botones primarios bajaba el contraste del texto blanco a 2.03:1
+
+- **Encontrado en:** Parte C (continuación), revisión de Administrador, medido con herramienta
+  (`@axe-core/playwright`) en "Bitácora" (el cursor quedó sobre el botón "Buscar" justo después de
+  hacerle clic, lo que dejó capturado su estado `:hover` en el escaneo — un hallazgo real, no
+  buscado a propósito).
+- **Severidad:** Alta (`serious` en axe-core, y afecta a cualquier persona, no solo a quien usa
+  un lector de pantalla: el texto del botón casi desaparece justo al pasar el mouse por encima).
+- **Causa confirmada:** `--color-acento-hover` (usado como fondo de `.boton-primario:hover`, con
+  texto blanco encima) era rosa-400 (`#E8A3B2`), más CLARO que el rosa-600 del estado normal del
+  botón — un "hover" que aclara en vez de oscurecer. Contraste real: 2.03:1 contra el 4.5:1
+  exigido. Literal de axe-core:
+  ```
+  color-contrast (serious): insufficient color contrast of 2.03
+  (foreground #ffffff, background #e8a3b2). Expected contrast ratio of 4.5:1
+  ```
+- **Corrección:** `--color-acento-hover` pasó a ser rosa-700 (ya dentro de la paleta aprobada), que
+  da 6.34:1 con texto blanco — y de paso corrigió también el `a:hover` de DEF-16 (que usaba el
+  mismo token; ahora usa `--color-texto`, más oscuro todavía, para que el cambio al pasar el mouse
+  se note). Como rosa-700 ya era el valor de `--color-acento-presionado`, el estado "hover" y el
+  estado "presionado" de un botón primario quedaron con el mismo tono (antes eran distintos); es
+  una concesión visual menor para no inventar un color fuera de la paleta aprobada.
+- **Nueva ejecución:** mismo escaneo, misma pantalla: 0 violaciones (antes: 1 "serious").
+- **Estado:** Corregido.
+
+## Hallazgos menores de esta ronda, anotados sin corregir (severidad baja, según el criterio acordado)
+
+- **`empty-table-header` (axe, "minor"):** la última columna de las tablas de "Panel general" y
+  "Usuarios" (`<th>` de "Acciones") no tiene texto, solo el visual. Encontrado en Producción y
+  Administrador, en ambos anchos. Corrección sugerida: un texto "Acciones" visible solo para
+  lectores de pantalla (clase utilitaria que no existe todavía en el proyecto).
+- **Tabla "Usuarios" en 390 px:** al apilarse sin encabezados (mismo patrón ya usado en "Panel
+  general"), cada celda se lee sin su etiqueta de columna. Los valores son mayormente
+  autoexplicativos (nombre, correo, rol, chip de estado), salvo quizás la fecha de "Último
+  acceso", que podría confundirse con otra fecha sin el rótulo. No se consideró de gravedad media
+  por ahora; si el equipo lo nota confuso en su propia prueba, subir su prioridad.

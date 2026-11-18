@@ -27,9 +27,19 @@
   --color-texto: var(--cafe-900);
   --color-texto-secundario: var(--cafe-700);
   --color-acento: var(--rosa-600);
-  --color-acento-hover: var(--rosa-400);
+  /* DEF-18: era rosa-400 (#E8A3B2); con texto blanco encima (.boton-primario:hover) daba 2.03:1,
+     muy por debajo del 4.5:1 exigido (confirmado con axe-core). rosa-400 es más CLARO que
+     rosa-600, así que un botón se volvía casi ilegible justo al pasar el mouse por encima. Ahora
+     es más oscuro que el estado normal (un "hover" oscurece, no aclara), y pasa el contraste. */
+  --color-acento-hover: var(--rosa-700);
   --color-acento-presionado: var(--rosa-700);
   --color-acento-texto: #FFFFFF;
+  /* DEF-16: --color-acento (rosa-600) como color de TEXTO sobre fondo claro da 4.24:1, por debajo
+     del 4.5:1 que exige WCAG AA para texto normal (confirmado con axe-core). rosa-600 sigue
+     sirviendo bien como FONDO (con texto blanco encima, ese contraste nunca estuvo en duda). Para
+     texto sobre fondo claro (enlaces, la marca de la cabecera, etc.) se usa este token, ya dentro
+     de la paleta aprobada (rosa-700), que da 5.4:1 o más contra cualquier fondo claro del sistema. */
+  --color-acento-texto-legible: var(--rosa-700);
   --color-foco: var(--rosa-400);
 
   --espacio-1: 8px;

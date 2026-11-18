@@ -1,25 +1,31 @@
 import { api } from '../api.js';
 import { el, vaciar, aviso, abrirDialogoConfirmacion } from '../ui.js';
-import { estadoVacio, estadoCarga, estadoError, chipAtrasado } from '../componentes.js';
+import { estadoVacio, estadoCarga, estadoError, chipAtrasado, paginador } from '../componentes.js';
 
 export function renderMisActividades(main, sesion, irA) {
   const contenedor = el('section', { class: 'contenedor' }, el('h1', {}, 'Mis actividades'));
   const listaNodo = el('div', { class: 'lista-trabajos' });
+  const piePagina = el('div');
   contenedor.appendChild(listaNodo);
+  contenedor.appendChild(piePagina);
   main.appendChild(contenedor);
+
+  let pagina = 1;
   cargar();
 
   async function cargar() {
     vaciar(listaNodo);
+    vaciar(piePagina);
     listaNodo.appendChild(estadoCarga());
     try {
-      const actividades = await api.get('/trabajos/mis-actividades');
+      const actividades = await api.get(`/trabajos/mis-actividades?pagina=${pagina}&limite=20`);
       vaciar(listaNodo);
       if (!actividades.length) {
-        listaNodo.appendChild(estadoVacio('No tienes actividades en curso en tu área por ahora.'));
-        return;
+        listaNodo.appendChild(estadoVacio(pagina === 1 ? 'No tienes actividades en curso en tu área por ahora.' : 'No hay más actividades.'));
+      } else {
+        for (const actividad of actividades) listaNodo.appendChild(tarjetaActividad(actividad));
       }
-      for (const actividad of actividades) listaNodo.appendChild(tarjetaActividad(actividad));
+      piePagina.appendChild(paginador({ pagina, llena: actividades.length === 20, alCambiar: (p) => { pagina = p; cargar(); } }));
     } catch {
       vaciar(listaNodo);
       listaNodo.appendChild(estadoError('No pudimos cargar tus actividades. Revisa tu conexión e inténtalo otra vez.', cargar));

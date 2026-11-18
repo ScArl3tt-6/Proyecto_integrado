@@ -18,8 +18,8 @@ h2 { font-size: var(--texto-20); }
 h3 { font-size: var(--texto-16); }
 p { margin: 0 0 var(--espacio-2); }
 
-a { color: var(--color-acento); }
-a:hover { color: var(--color-acento-hover); }
+a { color: var(--color-acento-texto-legible); }
+a:hover { color: var(--color-texto); }
 
 code, .codigo-trabajo { font-family: var(--fuente-codigo); letter-spacing: .02em; }
 
@@ -67,7 +67,7 @@ code, .codigo-trabajo { font-family: var(--fuente-codigo); letter-spacing: .02em
   gap: var(--espacio-2);
   flex-wrap: wrap;
 }
-.cabecera-marca { font-weight: 600; color: var(--color-acento); }
+.cabecera-marca { font-weight: 600; color: var(--color-acento-texto-legible); }
 .cabecera-usuario {
   display: flex;
   align-items: center;

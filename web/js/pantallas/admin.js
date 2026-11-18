@@ -1,18 +1,20 @@
 import { api, ApiError } from '../api.js';
-import { el, vaciar, aviso, abrirDialogoConfirmacion } from '../ui.js';
-import { estadoVacio, estadoCarga, estadoError } from '../componentes.js';
+import { el, vaciar, aviso, abrirDialogoConfirmacion, etiquetaCampo, describirErrorApi } from '../ui.js';
+import { estadoVacio, estadoCarga, estadoError, leyendaObligatorios } from '../componentes.js';
 import { ROL_TEXTO, AREAS_POR_ROL } from '../permisos.js';
+
+const CAMPOS_CREAR_CUENTA = { nombre: 'Nombre', correo: 'Correo', rol: 'Rol', area: 'Área', contrasena: 'Contraseña inicial' };
 
 const ROLES = ['ADMINISTRADOR', 'PRODUCCION', 'DISENO', 'VENDEDOR', 'OPERARIO'];
 
-function selectRoles(valorActual) {
-  return el('select', {}, ...ROLES.map((r) => el('option', { value: r, selected: r === valorActual || undefined }, ROL_TEXTO[r])));
+function selectRoles(valorActual, id) {
+  return el('select', { id }, ...ROLES.map((r) => el('option', { value: r, selected: r === valorActual || undefined }, ROL_TEXTO[r])));
 }
 
 // El área se recalcula según el rol elegido: solo se puede asignar un área que tenga sentido
 // para ese rol (evita, por ejemplo, un rol de Diseño con área Administración).
-function selectAreas(rolActual, valorActual) {
-  const campo = el('select', {});
+function selectAreas(rolActual, valorActual, id) {
+  const campo = el('select', { id });
   pintarOpcionesArea(campo, rolActual, valorActual);
   return campo;
 }
@@ -32,21 +34,22 @@ function formatoFechaHora(fecha) {
 
 export function renderUsuarios(main, sesion, irA) {
   const contenedorAvisoAlta = el('div');
-  const campoNombre = el('input', { id: 'nombre-nuevo', type: 'text', required: true, minlength: 3, maxlength: 80 });
-  const campoCorreo = el('input', { id: 'correo-nuevo', type: 'email', required: true, maxlength: 120 });
-  const campoRol = selectRoles('VENDEDOR');
-  const campoArea = selectAreas('VENDEDOR', '');
+  const campoNombre = el('input', { id: 'nombre-nuevo', type: 'text', required: true, minlength: 3, maxlength: 80, placeholder: 'Ej.: María Soto' });
+  const campoCorreo = el('input', { id: 'correo-nuevo', type: 'email', required: true, maxlength: 120, placeholder: 'Ej.: maria@kotoduo.test' });
+  const campoRol = selectRoles('VENDEDOR', 'rol-nuevo');
+  const campoArea = selectAreas('VENDEDOR', '', 'area-nuevo');
   campoRol.addEventListener('change', () => pintarOpcionesArea(campoArea, campoRol.value, null));
-  const campoContrasena = el('input', { id: 'contrasena-nueva-cuenta', type: 'text', required: true, minlength: 12, maxlength: 128 });
+  const campoContrasena = el('input', { id: 'contrasena-nueva-cuenta', type: 'text', required: true, minlength: 12, maxlength: 128, placeholder: 'Frase larga, 12 o más caracteres' });
   const botonCrear = el('button', { type: 'submit', class: 'boton boton-primario' }, 'Crear cuenta');
 
   const formAlta = el('form', { novalidate: true },
     contenedorAvisoAlta,
-    el('div', { class: 'campo' }, el('label', { for: 'nombre-nuevo' }, 'Nombre'), campoNombre),
-    el('div', { class: 'campo' }, el('label', { for: 'correo-nuevo' }, 'Correo'), campoCorreo),
-    el('div', { class: 'campo' }, el('label', {}, 'Rol'), campoRol),
-    el('div', { class: 'campo' }, el('label', {}, 'Área'), campoArea),
-    el('div', { class: 'campo' }, el('label', { for: 'contrasena-nueva-cuenta' }, 'Contraseña inicial'), campoContrasena),
+    leyendaObligatorios(),
+    el('div', { class: 'campo' }, etiquetaCampo('Nombre', { for: 'nombre-nuevo' }), campoNombre),
+    el('div', { class: 'campo' }, etiquetaCampo('Correo', { for: 'correo-nuevo' }), campoCorreo),
+    el('div', { class: 'campo' }, etiquetaCampo('Rol', { for: 'rol-nuevo' }), campoRol),
+    el('div', { class: 'campo' }, etiquetaCampo('Área', { for: 'area-nuevo', opcional: true }), campoArea),
+    el('div', { class: 'campo' }, etiquetaCampo('Contraseña inicial', { for: 'contrasena-nueva-cuenta' }), campoContrasena),
     el('p', { class: 'campo-ayuda' }, 'Mínimo 12 caracteres, sin el nombre, el correo ni «kotoduo». Entrégasela a la persona en mano; ella la cambia luego desde "Mi cuenta".'),
     botonCrear,
   );
@@ -84,7 +87,7 @@ export function renderUsuarios(main, sesion, irA) {
       mostrarAlta('exito', 'Cuenta creada. Entrégale la contraseña inicial en mano; ella la cambiará desde "Mi cuenta".');
       cargar();
     } catch (err) {
-      mostrarAlta('error', err instanceof ApiError ? (err.cuerpo?.error || 'No pudimos crear la cuenta.') : 'No pudimos crear la cuenta. Revisa tu conexión.');
+      mostrarAlta('error', err instanceof ApiError ? describirErrorApi(err, CAMPOS_CREAR_CUENTA, 'No pudimos crear la cuenta.') : 'No pudimos crear la cuenta. Revisa tu conexión.');
     } finally {
       botonCrear.disabled = false;
       botonCrear.textContent = 'Crear cuenta';
@@ -156,16 +159,16 @@ export function renderUsuarios(main, sesion, irA) {
   }
 
   function abrirDialogoPerfil(usuario, alGuardar) {
-    const campoRolDialogo = selectRoles(usuario.rol);
-    const campoAreaDialogo = selectAreas(usuario.rol, usuario.area || '');
+    const campoRolDialogo = selectRoles(usuario.rol, 'rol-dialogo-perfil');
+    const campoAreaDialogo = selectAreas(usuario.rol, usuario.area || '', 'area-dialogo-perfil');
     campoRolDialogo.addEventListener('change', () => pintarOpcionesArea(campoAreaDialogo, campoRolDialogo.value, null));
     const error = el('p', { class: 'campo-error' });
     error.hidden = true;
 
     const dialogo = el('dialog', { class: 'dialogo' },
       el('h2', {}, `Rol y área de ${usuario.nombre}`),
-      el('div', { class: 'campo' }, el('label', {}, 'Rol'), campoRolDialogo),
-      el('div', { class: 'campo' }, el('label', {}, 'Área'), campoAreaDialogo),
+      el('div', { class: 'campo' }, el('label', { for: 'rol-dialogo-perfil' }, 'Rol'), campoRolDialogo),
+      el('div', { class: 'campo' }, el('label', { for: 'area-dialogo-perfil' }, 'Área'), campoAreaDialogo),
       error,
       el('div', { class: 'dialogo-acciones' }),
     );
@@ -197,7 +200,8 @@ export function renderBitacora(main, sesion, irA) {
   const resultado = el('div');
 
   const form = el('form', { novalidate: true },
-    el('div', { class: 'campo' }, el('label', { for: 'codigo-bitacora' }, 'Código de trabajo'), campoCodigo),
+    leyendaObligatorios(),
+    el('div', { class: 'campo' }, etiquetaCampo('Código de trabajo', { for: 'codigo-bitacora' }), campoCodigo),
     botonBuscar,
   );
 
