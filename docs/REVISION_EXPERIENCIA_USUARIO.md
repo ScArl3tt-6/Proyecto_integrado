@@ -200,3 +200,37 @@ registrar cuenta (Administrador) — sí se repitió el orden de `Tab`, pero no 
   del entorno efímero, que es chica a propósito.
 - Esta valoración es de quien hizo la revisión, no la del equipo: falta la prueba del equipo en su
   propia máquina para confirmar o corregir lo anotado aquí.
+
+## Barrido visual sistemático (textos cortados, solapados, íconos sobre texto, elementos fuera de su caja)
+
+Motivado por un defecto real reportado por una usuaria (captura real de "Aprobaciones"): el
+placeholder del buscador se cortaba y la flecha del selector "Ordenar por" tapaba el texto
+(**DEF-19**, corregido). A partir de eso se revisaron, con capturas reales, las 32 combinaciones
+de pantalla × ancho (1280 px y 390 px) de los 5 perfiles: `evidencias/capturas/barrido_*.png`.
+
+**Encontrado y corregido además: DEF-20** — el paginador ("Anterior / Página N / Siguiente") no
+tenía ningún espacio real entre sus tres partes (quedaban pegadas), porque nunca tuvo una regla de
+CSS propia. Se agregó.
+
+**Dos falsas alarmas, verificadas antes de descartarlas (no asumidas):**
+1. En las capturas de página completa en 390 px, la barra de navegación inferior (fija) parece
+   "aparecer en medio" de una tarjeta a mitad de la pantalla. Es un artefacto de cómo se arma una
+   captura de página completa con un elemento de posición fija (`position: fixed`): en el uso
+   real, esa barra siempre queda pegada abajo mientras el contenido se desplaza debajo, nunca
+   tapa nada a mitad de pantalla. Confirmado revisando la regla CSS (`position: fixed`), no solo
+   mirando la captura.
+2. Los botones "Aprobar"/"Rechazar" parecían quedar tapados por esa misma barra al desplazarse con
+   la función `scrollIntoViewIfNeeded()` de la herramienta de prueba. Al desplazarse hasta el
+   final real de la página (como lo haría una persona con el dedo o la rueda del mouse), los
+   botones quedan completamente libres de la barra: `main#app` ya reserva 72 px de espacio abajo
+   para esto. Confirmado comparando las coordenadas exactas de ambos elementos en los dos casos,
+   no solo con una captura.
+
+**No se encontró ningún otro caso real** de texto cortado, solapado, ícono sobre texto, o
+elemento fuera de su caja, en las 32 combinaciones revisadas.
+
+**Qué no se cubrió:** un detector automático de desbordes (`scrollWidth`/`clientWidth` y
+elementos fuera del ancho de la ventana) no encontró nada, pero ese tipo de detector NO puede ver
+el problema real de DEF-19 (es un comportamiento interno del `<select>` nativo del navegador, no
+algo que se refleje en esas métricas del DOM) — por eso la revisión visual de las capturas, caso
+por caso, siguió siendo necesaria y no se puede reemplazar solo con un script.

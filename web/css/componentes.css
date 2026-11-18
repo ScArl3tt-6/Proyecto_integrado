@@ -90,7 +90,10 @@
 .tabla-simple .celda-acciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
 .filtros-lista { display: flex; flex-wrap: wrap; gap: var(--espacio-2); align-items: flex-end; margin-bottom: var(--espacio-2); }
-.filtros-lista .campo { margin-bottom: 0; min-width: 180px; }
+/* DEF-19: con min-width: 180px, un placeholder o una opción de select un poco largos no cabían
+   (texto cortado en el buscador, la flecha del select tapando la última letra). flex-grow deja
+   que cada campo use el espacio disponible en vez de quedarse en el mínimo. */
+.filtros-lista .campo { margin-bottom: 0; flex: 1 1 240px; min-width: 0; }
 
 .campo-contrasena { position: relative; display: flex; }
 .campo-contrasena input { flex: 1; padding-right: 72px; }
@@ -223,6 +226,11 @@ dialog.dialogo::backdrop { background: rgba(62, 44, 34, .45); }
 .detalle-encabezado h1 { margin-bottom: 0; }
 .lista-versiones { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .acciones-decision { display: flex; gap: 8px; margin-top: var(--espacio-2); }
+
+/* DEF-20: el paginador (Anterior/Página N/Siguiente) no tenía ninguna regla propia; como el()
+   arma el DOM sin nodos de texto en blanco entre hijos, quedaba sin espacio real entre el botón
+   "Anterior" y "Página N", pegados. */
+.paginador { display: flex; align-items: center; gap: var(--espacio-2); margin-top: var(--espacio-2); }
 
 /* Archivo de una propuesta de diseño: nombre/tipo/tamaño, botón para verlo y vista previa en la misma pantalla */
 .tarjeta-archivo {

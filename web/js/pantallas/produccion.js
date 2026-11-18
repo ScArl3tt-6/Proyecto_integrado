@@ -45,7 +45,7 @@ function tarjetaArchivo(idDiseno, archivo) {
 export function renderAprobaciones(main, sesion, irA) {
   const campoBusqueda = el('input', { id: 'buscar-aprobaciones', type: 'text', placeholder: 'Ej.: KT-2026-0005 o "poleras"' });
   const campoOrden = el('select', { id: 'orden-aprobaciones' },
-    el('option', { value: 'fecha_compromiso' }, 'Más urgentes primero (fecha comprometida)'),
+    el('option', { value: 'fecha_compromiso' }, 'Más urgentes primero'),
     el('option', { value: 'enviado_en' }, 'Más recientes primero'));
   const contador = el('p', { class: 'campo-ayuda' }, '');
 

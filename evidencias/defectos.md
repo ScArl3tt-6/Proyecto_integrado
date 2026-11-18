@@ -591,14 +591,21 @@ completa para el informe (sección de validación de resultados).
 - **Encontrado en:** verificación de rutina antes/después de una prueba con el entorno aislado:
   el conteo de `bitacora_eventos` de la base real no coincidía con el de la vez anterior (122 →
   125), cuando debía ser idéntico.
-- **Causa 1 (proceso):** un `node scripts/arrancar-demo.js` (el servidor REAL, puerto 3000),
-  lanzado durante la investigación de DEF-11 (antes de que existiera
-  `scripts/entorno-efimero.js`), nunca se cerró del todo: quedó corriendo en segundo plano más de
-  tres horas. Los 3 eventos nuevos de bitácora fueron solo inicios/cierres de sesión
-  (`ACCESO_EXITOSO`/`CIERRE_SESION`/`SESION_RENOVADA` de las cuentas `marcela`/`valentina`), sin
-  ninguna otra escritura — no se creó, modificó ni borró ningún trabajo mientras este proceso
-  quedó abierto después de la limpieza. Corregido: el proceso se identificó por su PID real (no
-  solo por el puerto) y se cerró.
+- **Causa 1 (proceso, más grave de lo que se pensó al principio):** no era un solo
+  `node scripts/arrancar-demo.js` sin cerrar: eran **al menos tres** instancias distintas del
+  servidor real (puerto 3000), de tres momentos distintos de esta sesión (17-11 23:35, 18-11
+  0:34 y 18-11 1:45), más dos scripts de verificación propios que se habían quedado colgados
+  (uno esperando una descarga de PDF que nunca llegó, otro bloqueado por el límite de intentos de
+  inicio de sesión de `marcela`) y dos procesos de Jest de un `npm run pruebas` del 15-11 que
+  tampoco habían terminado. Cada vez que se cerraba "el" servidor visible en el puerto 3000,
+  otra instancia que ya estaba esperando tomaba el puerto apenas quedaba libre — por eso el
+  conteo de bitácora volvió a cambiar una segunda vez (125 → 128) después de la primera
+  corrección, con el mismo patrón (solo inicios/cierres de sesión, ninguna escritura de datos).
+  Corregido de verdad esta vez: se identificaron TODOS los procesos `node.exe` reales por su
+  línea de comando completa (`Get-CimInstance Win32_Process`, no solo "lo que está en el puerto
+  3000 ahora mismo"), se cerraron todos, y se confirmó que el conteo de la base real queda
+  estable (128, sin un tercer cambio) con los puertos 3000 y 3100 y la lista de procesos `node`
+  vacíos.
 - **Causa 2 (más importante, datos):** al revisar la base completa para entender el conteo, se
   encontró que **todavía quedaban 8 trabajos de prueba sin borrar**: `KT-2026-0010` a
   `KT-2026-0017`, todos con la descripción `"Caso de prueba DEF-11"`, creados por los primeros
@@ -613,9 +620,62 @@ completa para el informe (sección de validación de resultados).
   **solo en modo vista previa** (sin `--si`): confirma los 8, con el detalle de qué depende de
   cada uno, y no borra nada. Falta la orden explícita del equipo para ejecutar
   `npm run db:limpiar-trabajos-prueba -- --si` con la lista ampliada.
-- **Estado:** Hallazgo documentado; corrección de datos pendiente de autorización explícita. El
-  incidente de proceso (servidor abierto) está corregido.
+- **Estado:** Hallazgo documentado; corrección de datos pendiente de autorización explícita
+  (confirmada por el equipo como "sí, procede", pero a la espera del "adelante" final en el mismo
+  mensaje, según la nueva regla de proceso). El incidente de proceso (varios servidores abiertos)
+  está corregido.
 - **Lección para el protocolo de esta sesión:** antes de declarar una limpieza "completa", conviene
   hacer una auditoría de TODA la tabla `trabajo` (no solo de la lista de códigos que uno recuerda
   haber creado), precisamente por lo que pasó acá: una lista armada de memoria dejó ocho casos
-  afuera.
+  afuera. Además, "cerrar el servidor" no es "cerrar lo que está en el puerto en este momento":
+  hay que revisar la lista completa de procesos por su línea de comando.
+- **Reglas nuevas de proceso, adoptadas desde este momento (orden del equipo):** (1) al terminar
+  cualquier verificación, cerrar TODOS los procesos iniciados (no solo el del puerto activo) y
+  comprobar que el puerto 3000 queda libre; (2) toda prueba con navegador va solo al entorno
+  aislado (`scripts/entorno-efimero.js`), nunca a `npm run demo`; (3) ninguna acción irreversible
+  (borrar datos, etc.) sin una orden explícita del equipo en el mismo mensaje.
+
+## DEF-19 — En "Aprobaciones", el placeholder del buscador se corta y la flecha del selector tapa el texto
+
+- **Encontrado en:** reportado por una usuaria real, con una captura real de la pantalla.
+- **Caso de prueba:** pantalla "Aprobaciones" (Producción), campos "Buscar por código o
+  descripción" y "Ordenar por", en 1280 px y 390 px.
+- **Causa confirmada:** `.filtros-lista .campo` tenía `min-width: 180px` y nada de `flex-grow`:
+  cada campo se quedaba en ese mínimo en vez de usar el espacio disponible. El placeholder
+  `Ej.: KT-2026-0005 o "poleras"` y la opción `Más urgentes primero (fecha comprometida)` no
+  cabían en 180 px, así que el texto se cortaba y, en el `<select>`, el texto llegaba a tocar la
+  flecha decorativa.
+- **Corrección:** `.filtros-lista .campo` pasó a `flex: 1 1 240px; min-width: 0` (crece con el
+  espacio disponible, en vez de quedarse en un mínimo fijo); además se acortó el texto de la
+  opción a "Más urgentes primero" (la palabra "comprometida" ya estaba implícita en el nombre del
+  campo "Ordenar por" y en el resto de la pantalla).
+- **Nueva ejecución:** capturas reales antes/después en `evidencias/capturas/`
+  (`revision_visual_aprobaciones_filtros_*.png`): el placeholder completo y la opción completa se
+  ven enteros, sin que la flecha tape ninguna letra, en 1280 px y 390 px.
+- **Estado:** Corregido.
+
+## DEF-20 — El paginador (Anterior/Página N/Siguiente) no tenía espacio real entre sus partes
+
+- **Encontrado en:** barrido visual sistemático pedido por el equipo tras DEF-19, revisando TODAS
+  las pantallas de los 5 perfiles en 1280 px y 390 px.
+- **Causa confirmada:** `web/js/componentes.js` arma el paginador con `el('div', ...)` uniendo el
+  botón "Anterior", un `<span>` con el texto "Página N" y el botón "Siguiente" directamente por
+  DOM (`appendChild`), sin ningún nodo de texto en blanco entre ellos (a diferencia de escribir
+  HTML a mano, donde un espacio en el código fuente sí deja un espacio real). La clase `.paginador`
+  nunca tuvo una regla de CSS propia, así que no había ningún `gap` que separara las tres partes:
+  quedaban pegadas.
+- **Corrección:** se agregó la regla `.paginador { display: flex; align-items: center; gap: ...; }`.
+- **Nueva ejecución:** captura real antes/después (`evidencias/capturas/revision_visual_paginador.png`):
+  las tres partes quedan separadas con un espacio parejo.
+- **Estado:** Corregido.
+- **Nota para el barrido:** se revisaron visualmente las capturas de las 32 combinaciones de
+  pantalla × ancho (5 perfiles) buscando el mismo patrón (texto cortado, solapado, ícono sobre
+  texto, elementos fuera de su caja) y no se encontró ningún otro caso real. Se descartaron
+  explícitamente dos falsas alarmas, verificadas antes de descartarlas, no solo asumidas: (1) la
+  barra de navegación inferior, fija (`position: fixed`), parece "superponerse" a una tarjeta a
+  mitad de pantalla en una captura de página completa — es un artefacto de cómo Playwright arma
+  una captura de toda la página con un elemento fijo, no algo que vea una persona real
+  desplazándose; (2) los botones "Aprobar"/"Rechazar" parecían quedar tapados por esa misma barra
+  al usar `scrollIntoViewIfNeeded()` — al desplazarse hasta el final real de la página (como lo
+  haría una persona), sí quedan completamente libres de la barra, gracias al
+  `padding-bottom: 72px` que ya tenía `main#app`.
