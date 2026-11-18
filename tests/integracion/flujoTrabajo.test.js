@@ -14,7 +14,7 @@ describe('Pruebas de integración - flujo completo de un trabajo de bordado', ()
   afterAll(async () => ctx.cerrar());
 
   const propuesta = (version) => ({
-    archivos: [{ nombre: `poleras_club_v${version}.pdf`, tipoMime: 'application/pdf', tamanoBytes: 482133, cabeceraBase64: CABECERAS.pdf }],
+    archivos: [{ nombre: `poleras_club_v${version}.pdf`, tipoMime: 'application/pdf', contenidoBase64: CABECERAS.pdf }],
     especificaciones: { tecnica: 'Bordado', ubicacion: 'Pecho izquierdo', medidas: '9 x 7 cm', colores: ['Azul marino', 'Blanco'] },
     comentario: `Versión ${version} del logo`,
   });
@@ -103,7 +103,9 @@ describe('Pruebas de integración - flujo completo de un trabajo de bordado', ()
 
   test('CP-15 integración PostgreSQL-MongoDB: detalle del diseño y bitácora del trabajo', async () => {
     const detalle = await marcela.get(`/api/disenos/${idDisenoV2}`);
-    expect(detalle.body).toMatchObject({ codigo, version: 2, estado: 'APROBADO' });
+    // idDiseno (no id_diseno): la pantalla de Producción arma el enlace para ver el archivo con este
+    // campo (ver web/js/pantallas/produccion.js); faltaba el alias de la columna y quedaba undefined.
+    expect(detalle.body).toMatchObject({ idDiseno: idDisenoV2, codigo, version: 2, estado: 'APROBADO' });
     expect(detalle.body.propuesta.especificaciones.ubicacion).toBe('Pecho izquierdo');
 
     const bitacora = await koto.get(`/api/auditoria/trabajos/${codigo}`);
@@ -134,7 +136,7 @@ describe('Pruebas de integración - perfiles y consistencia', () => {
     }
   });
 
-  test('CP-16 si MongoDB falla al guardar la propuesta, PostgreSQL revierte la transacción', async () => {
+  test('CP-16 si MongoDB falla al guardar la propuesta, PostgreSQL revierte la transacción y no quedan archivos huérfanos en GridFS', async () => {
     const envolverMongo = (db) => ({
       collection: (nombre) => {
         const col = db.collection(nombre);
@@ -149,13 +151,16 @@ describe('Pruebas de integración - perfiles y consistencia', () => {
       const { body: { codigo } } = await jorge.post('/api/trabajos', { idTipo: 4, descripcion: 'Placas grabadas premiación', cantidad: 25, fechaCompromiso: fechaEnDias(7) });
       await valentina.post(`/api/trabajos/${codigo}/tomar-diseno`);
       const res = await valentina.post(`/api/disenos/trabajos/${codigo}`, {
-        archivos: [{ nombre: 'placa.png', tipoMime: 'image/png', tamanoBytes: 90000, cabeceraBase64: CABECERAS.png }],
+        archivos: [{ nombre: 'placa.png', tipoMime: 'image/png', contenidoBase64: CABECERAS.png }],
       });
       expect(res.status).toBe(500);
       expect(res.body).toHaveProperty('idIncidente');
       const { rows } = await ctx.pg.query(
         'SELECT t.estado, (SELECT COUNT(*)::int FROM diseno d WHERE d.id_trabajo = t.id_trabajo) AS disenos FROM trabajo t WHERE codigo = $1', [codigo]);
       expect(rows[0]).toEqual({ estado: 'EN_DISENO', disenos: 0 });
+      // El archivo ya se había subido a GridFS antes de que la transacción fallara: debe
+      // deshacerse también, o quedaría un archivo real sin ningún diseño que lo referencie.
+      expect(await ctx.mongoDb.collection('disenos.files').countDocuments()).toBe(0);
     } finally {
       await ctx.cerrar();
     }

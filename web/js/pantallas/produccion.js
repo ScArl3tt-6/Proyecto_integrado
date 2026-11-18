@@ -73,7 +73,10 @@ export function renderDecidirDiseno(main, sesion, idDiseno, irA) {
 
     if (propuesta.archivos?.length) {
       contenedor.appendChild(el('h2', {}, 'Archivos'));
-      contenedor.appendChild(el('ul', { class: 'lista-reglas' }, ...propuesta.archivos.map((a) => el('li', {}, `${a.nombre} · ${a.tipoMime} · ${Math.round(a.tamanoBytes / 1024)} KB`))));
+      contenedor.appendChild(el('ul', { class: 'lista-reglas' }, ...propuesta.archivos.map((a) => el('li', {},
+        `${a.nombre} · ${a.tipoMime} · ${Math.round(a.tamanoBytes / 1024)} KB · `,
+        el('a', { href: `/api/disenos/${diseno.idDiseno}/archivos/${a.archivoId}`, target: '_blank', rel: 'noopener' }, 'Ver archivo'),
+      ))));
     }
     const especificaciones = propuesta.especificaciones || {};
     if (Object.keys(especificaciones).length) {

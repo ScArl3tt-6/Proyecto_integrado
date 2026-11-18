@@ -11,7 +11,7 @@ describe('Detener y reanudar trabajos en producción', () => {
     codigo = (await jorge.post('/api/trabajos', { idTipo: 1, descripcion: 'Chalecos bordados turno noche', cantidad: 30, fechaCompromiso: fechaEnDias(12) })).body.codigo;
     await valentina.post(`/api/trabajos/${codigo}/tomar-diseno`);
     const { body: { idDiseno } } = await valentina.post(`/api/disenos/trabajos/${codigo}`, {
-      archivos: [{ nombre: 'chaleco.pdf', tipoMime: 'application/pdf', tamanoBytes: 200000, cabeceraBase64: CABECERAS.pdf }],
+      archivos: [{ nombre: 'chaleco.pdf', tipoMime: 'application/pdf', contenidoBase64: CABECERAS.pdf }],
     });
     await marcela.post(`/api/disenos/${idDiseno}/decision`, { decision: 'APROBADO' });
   });

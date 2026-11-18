@@ -1,6 +1,6 @@
 // Helpers de interfaz: todo nodo se construye con DOM y texto plano, nunca con cadenas HTML.
 const ATRIBUTOS_PERMITIDOS = new Set([
-  'id', 'class', 'type', 'name', 'value', 'placeholder', 'for', 'href', 'role', 'tabindex',
+  'id', 'class', 'type', 'name', 'value', 'placeholder', 'for', 'href', 'target', 'rel', 'role', 'tabindex',
   'aria-invalid', 'aria-describedby', 'aria-live', 'aria-label', 'aria-hidden', 'aria-current', 'aria-expanded', 'aria-controls',
   'autocomplete', 'disabled', 'required', 'minlength', 'maxlength', 'min', 'max', 'step', 'checked', 'open',
   'novalidate', 'method', 'accept', 'multiple', 'selected',

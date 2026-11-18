@@ -276,3 +276,32 @@ completa para el informe (sección de validación de resultados).
   3-4 (por ejemplo, haciendo que `tests/contexto.js` use `sst_app` para las operaciones de la
   aplicación y un rol aparte solo para preparar el esquema), no se implementó ese cambio mayor en
   esta sesión para no desviarse del orden de la Fase 1 acordado con el equipo.
+
+## DEF-10 — `GET /api/disenos/:idDiseno` no devolvía `idDiseno`, y el enlace nuevo para ver el archivo quedaba roto
+
+- **Encontrado en:** Fase 1 (archivos reales de diseño con GridFS), en la verificación manual con
+  Playwright contra un navegador real, al revisar el enlace "Ver archivo" que se agregó en la
+  pantalla de Producción (`web/js/pantallas/produccion.js`).
+- **Caso de prueba:** como `marcela` (Producción), abrir "Aprobaciones" → "Ver y decidir" sobre una
+  propuesta real con un archivo subido de verdad, y pedir el enlace "Ver archivo".
+- **Severidad:** Alta para la funcionalidad nueva (el archivo real quedaba inaccesible desde la
+  pantalla, que es justo el problema que esta fase debía resolver), pero no afectaba nada de lo ya
+  existente: nada usaba `idDiseno` desde esta respuesta antes de esta fase.
+- **Causa confirmada:** la consulta de `detalle(idDiseno)` en `src/modulos/disenos/servicioDisenos.js`
+  seleccionaba `d.id_diseno` sin alias, así que la respuesta JSON traía `id_diseno` (snake_case),
+  no `idDiseno`. La función `pendientes()`, en el mismo archivo, sí usa
+  `d.id_diseno AS "idDiseno"`, pero nadie había igualado `detalle()` porque hasta esta fase ningún
+  código leía ese campo desde la respuesta de `detalle()`. El enlace nuevo fue el primero en
+  usarlo, y por eso salió roto. Literal, visto en el navegador:
+  ```
+  Enlace "Ver archivo" encontrado: /api/disenos/undefined/archivos/6afcf4f77dbff5bb75711f26
+  Status descarga: 400
+  ```
+- **Corrección:** se agregó el alias `AS "idDiseno"` a esa columna en `detalle()`.
+- **Nueva ejecución:** con el fix, el mismo flujo en Playwright mostró
+  `/api/disenos/8/archivos/6afcf585d3b3d88c67ec02d6`, con `Status descarga: 200`,
+  `Content-Type: application/pdf` y el contenido descargado idéntico byte a byte al archivo
+  subido (10 409 bytes en ambos). Se agregó además una aserción a CP-15
+  (`tests/integracion/flujoTrabajo.test.js`) que exige `idDiseno` en la respuesta, para que este
+  campo no vuelva a quedar sin probar.
+- **Estado:** Corregido.

@@ -11,7 +11,7 @@ describe('Propuestas de diseño pendientes de decisión', () => {
     codigo = (await jorge.post('/api/trabajos', { idTipo: 3, descripcion: 'Letrero fachada local nuevo', cantidad: 1, fechaCompromiso: fechaEnDias(20) })).body.codigo;
     await valentina.post(`/api/trabajos/${codigo}/tomar-diseno`);
     const envio = await valentina.post(`/api/disenos/trabajos/${codigo}`, {
-      archivos: [{ nombre: 'letrero.pdf', tipoMime: 'application/pdf', tamanoBytes: 300000, cabeceraBase64: CABECERAS.pdf }],
+      archivos: [{ nombre: 'letrero.pdf', tipoMime: 'application/pdf', contenidoBase64: CABECERAS.pdf }],
     });
     idDiseno = envio.body.idDiseno;
   });

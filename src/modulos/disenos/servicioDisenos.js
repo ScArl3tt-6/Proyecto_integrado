@@ -1,59 +1,107 @@
 'use strict';
 const crypto = require('node:crypto');
-const { ObjectId } = require('mongodb');
+const { ObjectId, GridFSBucket } = require('mongodb');
 const { ErrorNegocio } = require('../../dominio/errores');
 const { validarTransicion } = require('../../dominio/flujoTrabajo');
 const { validarArchivoDiseno } = require('../../dominio/archivosDiseno');
 
+// Sube el contenido ya validado a GridFS y devuelve el ObjectId real del archivo guardado.
+function subirArchivo(bucket, nombre, tipoMime, contenido, trabajoCodigo) {
+  return new Promise((resolve, reject) => {
+    const subida = bucket.openUploadStream(nombre, { contentType: tipoMime, metadata: { trabajoCodigo } });
+    subida.once('error', reject);
+    subida.once('finish', () => resolve(subida.id));
+    subida.end(contenido);
+  });
+}
+
 function crearServicioDisenos({ pg, mongoDb, bitacora }) {
   const propuestas = mongoDb.collection('propuestas_diseno');
+  const bucket = new GridFSBucket(mongoDb, { bucketName: 'disenos' });
 
-  // HU-02 / RF-02: registrar propuesta. Metadatos en MongoDB; versión y estado en PostgreSQL.
+  // HU-02 / RF-02: registrar propuesta. El archivo real se guarda en GridFS (bucket "disenos");
+  // sus metadatos en MongoDB; la versión y el estado del trabajo, en PostgreSQL.
   async function enviarPropuesta(usuario, codigo, { archivos, especificaciones, comentario }) {
-    for (const archivo of archivos) {
-      const { valido, errores } = validarArchivoDiseno(archivo);
-      if (!valido) throw new ErrorNegocio(`Archivo "${archivo.nombre}" rechazado: ${errores.join(', ')}`, 400);
-    }
-    const idDocumento = new ObjectId();
-
-    const resultado = await pg.transaction(async (tx) => {
-      const { rows } = await tx.query('SELECT id_trabajo, estado FROM trabajo WHERE codigo = $1 FOR UPDATE', [codigo]);
-      const trabajo = rows[0];
-      if (!trabajo) throw new ErrorNegocio('Trabajo no encontrado', 404);
-      validarTransicion(trabajo.estado, 'PENDIENTE_APROBACION');
-
-      const { rows: [{ version }] } = await tx.query(
-        'SELECT COALESCE(MAX(version), 0) + 1 AS version FROM diseno WHERE id_trabajo = $1', [trabajo.id_trabajo],
-      );
-      const { rows: [diseno] } = await tx.query(
-        `INSERT INTO diseno (id_trabajo, version, id_disenador, ref_documento)
-         VALUES ($1, $2, $3, $4) RETURNING id_diseno, version`,
-        [trabajo.id_trabajo, version, usuario.id, idDocumento.toHexString()],
-      );
-      await tx.query("UPDATE trabajo SET estado = 'PENDIENTE_APROBACION', actualizado_en = now() WHERE id_trabajo = $1", [trabajo.id_trabajo]);
-
-      // Si MongoDB falla, la excepción revierte la transacción relacional (no quedan referencias huérfanas)
-      await propuestas.insertOne({
-        _id: idDocumento,
-        trabajoCodigo: codigo,
-        idDiseno: diseno.id_diseno,
-        version: diseno.version,
-        archivos: archivos.map((a) => ({
-          nombre: a.nombre, tipoMime: a.tipoMime, tamanoBytes: a.tamanoBytes,
-          sha256: crypto.createHash('sha256').update(Buffer.from(a.cabeceraBase64, 'base64')).digest('hex'),
-        })),
-        especificaciones: especificaciones || {},
-        comentarios: comentario ? [{ autor: usuario.id, rol: usuario.rol, texto: comentario, fecha: new Date() }] : [],
-        creadoEn: new Date(),
+    // El tamaño y la cabecera para validar la firma se miden del contenido real recibido, nunca de
+    // un dato declarado por el cliente (antes de esta fase solo se recibía la cabecera: no había
+    // nada real que medir). Así el límite de 15 MB tampoco se puede evadir declarando un tamaño falso.
+    const validados = archivos.map((archivo) => {
+      const contenido = Buffer.from(archivo.contenidoBase64, 'base64');
+      const { valido, errores } = validarArchivoDiseno({
+        nombre: archivo.nombre, tipoMime: archivo.tipoMime, tamanoBytes: contenido.length,
+        cabeceraBase64: contenido.subarray(0, 16).toString('base64'),
       });
-      return { idDiseno: diseno.id_diseno, version: diseno.version, refDocumento: idDocumento.toHexString() };
-    }).catch(async (err) => {
-      await propuestas.deleteOne({ _id: idDocumento }).catch(() => {});
-      throw err;
+      if (!valido) throw new ErrorNegocio(`Archivo "${archivo.nombre}" rechazado: ${errores.join(', ')}`, 400);
+      return { nombre: archivo.nombre, tipoMime: archivo.tipoMime, contenido };
     });
 
-    await bitacora.registrar({ tipo: 'DISENO_ENVIADO', usuario, entidad: { tipo: 'trabajo', codigo }, detalle: { version: resultado.version } });
-    return resultado;
+    const idDocumento = new ObjectId();
+    const archivosGuardados = [];
+    try {
+      for (const v of validados) {
+        const idArchivo = await subirArchivo(bucket, v.nombre, v.tipoMime, v.contenido, codigo);
+        archivosGuardados.push({
+          nombre: v.nombre, tipoMime: v.tipoMime, tamanoBytes: v.contenido.length,
+          sha256: crypto.createHash('sha256').update(v.contenido).digest('hex'),
+          archivoId: idArchivo.toHexString(),
+        });
+      }
+
+      const resultado = await pg.transaction(async (tx) => {
+        const { rows } = await tx.query('SELECT id_trabajo, estado FROM trabajo WHERE codigo = $1 FOR UPDATE', [codigo]);
+        const trabajo = rows[0];
+        if (!trabajo) throw new ErrorNegocio('Trabajo no encontrado', 404);
+        validarTransicion(trabajo.estado, 'PENDIENTE_APROBACION');
+
+        const { rows: [{ version }] } = await tx.query(
+          'SELECT COALESCE(MAX(version), 0) + 1 AS version FROM diseno WHERE id_trabajo = $1', [trabajo.id_trabajo],
+        );
+        const { rows: [diseno] } = await tx.query(
+          `INSERT INTO diseno (id_trabajo, version, id_disenador, ref_documento)
+           VALUES ($1, $2, $3, $4) RETURNING id_diseno, version`,
+          [trabajo.id_trabajo, version, usuario.id, idDocumento.toHexString()],
+        );
+        await tx.query("UPDATE trabajo SET estado = 'PENDIENTE_APROBACION', actualizado_en = now() WHERE id_trabajo = $1", [trabajo.id_trabajo]);
+
+        // Si MongoDB falla, la excepción revierte la transacción relacional (no quedan referencias huérfanas)
+        await propuestas.insertOne({
+          _id: idDocumento,
+          trabajoCodigo: codigo,
+          idDiseno: diseno.id_diseno,
+          version: diseno.version,
+          archivos: archivosGuardados,
+          especificaciones: especificaciones || {},
+          comentarios: comentario ? [{ autor: usuario.id, rol: usuario.rol, texto: comentario, fecha: new Date() }] : [],
+          creadoEn: new Date(),
+        });
+        return { idDiseno: diseno.id_diseno, version: diseno.version, refDocumento: idDocumento.toHexString() };
+      });
+
+      await bitacora.registrar({ tipo: 'DISENO_ENVIADO', usuario, entidad: { tipo: 'trabajo', codigo }, detalle: { version: resultado.version } });
+      return resultado;
+    } catch (err) {
+      // Si algo falla después de subir archivos a GridFS (trabajo no encontrado, transición
+      // inválida, fallo de MongoDB), no deben quedar archivos huérfanos sin ningún diseño que los referencie.
+      await propuestas.deleteOne({ _id: idDocumento }).catch(() => {});
+      await Promise.all(archivosGuardados.map((a) => bucket.delete(ObjectId.createFromHexString(a.archivoId)).catch(() => {})));
+      throw err;
+    }
+  }
+
+  // Descarga el archivo real de una propuesta, verificando que el archivo pedido pertenezca de
+  // verdad a ese diseño (sin esto, cualquiera con permiso DISENO_VER podría adivinar el id de un
+  // archivo de otro trabajo y descargarlo igual).
+  async function obtenerArchivo(idDiseno, idArchivo) {
+    const { rows } = await pg.query('SELECT ref_documento FROM diseno WHERE id_diseno = $1', [idDiseno]);
+    if (!rows[0]) throw new ErrorNegocio('Diseño no encontrado', 404);
+    const documento = await propuestas.findOne({ _id: ObjectId.createFromHexString(rows[0].ref_documento) });
+    const archivo = documento?.archivos.find((a) => a.archivoId === idArchivo);
+    if (!archivo) throw new ErrorNegocio('Archivo no encontrado', 404);
+    return {
+      nombre: archivo.nombre,
+      tipoMime: archivo.tipoMime,
+      flujo: bucket.openDownloadStream(ObjectId.createFromHexString(idArchivo)),
+    };
   }
 
   // HU-03 / RF-03: aprobar o rechazar; registra usuario, fecha y hora. Al aprobar se generan las etapas productivas.
@@ -113,7 +161,7 @@ function crearServicioDisenos({ pg, mongoDb, bitacora }) {
   // Consulta integrada: estado relacional + documento de la propuesta
   async function detalle(idDiseno) {
     const { rows } = await pg.query(
-      `SELECT d.id_diseno, d.version, d.estado, d.ref_documento, t.codigo
+      `SELECT d.id_diseno AS "idDiseno", d.version, d.estado, d.ref_documento, t.codigo
          FROM diseno d JOIN trabajo t ON t.id_trabajo = d.id_trabajo WHERE d.id_diseno = $1`,
       [idDiseno],
     );
@@ -122,7 +170,7 @@ function crearServicioDisenos({ pg, mongoDb, bitacora }) {
     return { ...rows[0], propuesta: documento };
   }
 
-  return { enviarPropuesta, decidir, detalle, pendientes };
+  return { enviarPropuesta, decidir, detalle, pendientes, obtenerArchivo };
 }
 
 module.exports = { crearServicioDisenos };

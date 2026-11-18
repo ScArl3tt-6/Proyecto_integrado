@@ -15,6 +15,7 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-07 | Uso en celular (390 px): botones, lectura y la pantalla del operario | |
 | PM-08 | Cambio de contraseña y cierre de las otras sesiones | |
 | PM-09 | Producción registra materiales de un trabajo; otros perfiles solo los consultan | |
+| PM-10 | Diseño adjunta el archivo real de una propuesta y Producción puede verlo/descargarlo antes de decidir | |
 
 ## Pasos detallados
 
@@ -75,3 +76,9 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 4. Vuelve a registrar el mismo material con otra cantidad u otra medida. **Esperado:** la lista sigue mostrando una sola fila para ese material, con los valores nuevos (no se duplica).
 5. Intenta registrar con la cantidad en 0 o en blanco: el formulario muestra el error antes de llamar a la API.
 6. Ingresa como `koto` (Administrador) o `luis` (Operario de esa área, desde «Mis actividades» → «Ver materiales y medidas») y confirma que ambos ven la lista de materiales, pero ninguno tiene el formulario para registrar uno nuevo.
+
+### PM-10 — Ver el archivo real de una propuesta de diseño (RF-02 con GridFS)
+1. Ingresa como `valentina` (Diseño), toma una solicitud y en «Enviar propuesta» adjunta un archivo PDF, PNG o JPG real (no de prueba vacío) junto con la técnica y las medidas.
+2. Ingresa como `marcela` (Producción), ve a «Aprobaciones» → «Ver y decidir» sobre esa propuesta.
+3. **Esperado:** junto al nombre, el tipo y el tamaño del archivo aparece un enlace «Ver archivo». Al hacer clic, se abre en una pestaña nueva y el navegador muestra el PDF o la imagen real que Diseño adjuntó (no un error ni una página en blanco).
+4. Ingresa como `jorge` (Vendedor) o cualquier perfil sin el permiso `DISENO_VER` y confirma que no puede llegar a esa pantalla ni al enlace (403 si se intenta a mano por la API).

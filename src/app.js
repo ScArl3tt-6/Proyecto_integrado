@@ -45,13 +45,17 @@ function crearApp({ entorno, pg, mongoDb, registro = console }) {
     windowMs: 60 * 1000, limit: entorno.limiteGeneral, standardHeaders: 'draft-7', legacyHeaders: false,
     message: { error: 'Demasiadas solicitudes, intente nuevamente en un minuto' },
   }));
-  app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
 
   const sesion = autenticar({ entorno, pg });
+  // Diseños sube archivos reales en base64 (hasta 15 MB cada uno, ver TAMANO_MAXIMO): necesita un
+  // límite de cuerpo mayor que el resto de la API. Se monta ANTES del express.json() genérico de
+  // abajo para que ese límite más chico no intercepte primero la solicitud (Express ya no vuelve
+  // a parsear un cuerpo que otro express.json() anterior marcó como leído).
+  app.use('/api/disenos', sesion, verificarCsrf, express.json({ limit: '65mb' }), rutasDisenos(servicios));
+  app.use(express.json({ limit: '100kb' }));
   app.use('/api/auth', rutasAutenticacion({ autenticacion, entorno, autenticar: sesion, verificarCsrf }));
   app.use('/api/trabajos', sesion, verificarCsrf, rutasTrabajos(servicios));
-  app.use('/api/disenos', sesion, verificarCsrf, rutasDisenos(servicios));
   app.use('/api/usuarios', sesion, verificarCsrf, rutasUsuarios(servicios));
   app.use('/api/auditoria', sesion, rutasAuditoria(servicios));
   app.use('/api/catalogos', sesion, rutasCatalogos(servicios));

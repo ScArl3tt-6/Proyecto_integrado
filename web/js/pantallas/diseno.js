@@ -76,11 +76,17 @@ export function renderBandejaDiseno(main, sesion, irA) {
   }
 }
 
-async function primerosBytesBase64(archivo, n = 16) {
-  const buffer = await archivo.slice(0, n).arrayBuffer();
-  let binario = '';
-  new Uint8Array(buffer).forEach((b) => { binario += String.fromCharCode(b); });
-  return btoa(binario);
+// Todo el archivo, no solo la cabecera: el servidor lo guarda de verdad en GridFS (Fase 1).
+// FileReader.readAsDataURL es la forma rápida de codificar en base64 un archivo de hasta 15 MB en
+// el navegador (recorrer el archivo byte a byte para armar el texto, como se hacía con la cabecera
+// de 16 bytes, es demasiado lento para un archivo de este tamaño).
+function leerArchivoBase64(archivo) {
+  return new Promise((resolve, reject) => {
+    const lector = new FileReader();
+    lector.onload = () => resolve(lector.result.split(',')[1]);
+    lector.onerror = () => reject(lector.error);
+    lector.readAsDataURL(archivo);
+  });
 }
 
 function archivoValido(archivo) {
@@ -133,7 +139,7 @@ export function renderEnviarPropuesta(main, sesion, codigo, irA) {
     boton.textContent = 'Enviando…';
     try {
       const archivosCodificados = await Promise.all(archivos.map(async (archivo) => ({
-        nombre: archivo.name, tipoMime: archivo.type, tamanoBytes: archivo.size, cabeceraBase64: await primerosBytesBase64(archivo),
+        nombre: archivo.name, tipoMime: archivo.type, contenidoBase64: await leerArchivoBase64(archivo),
       })));
       const especificaciones = {};
       if (campoTecnica.value.trim()) especificaciones.tecnica = campoTecnica.value.trim();

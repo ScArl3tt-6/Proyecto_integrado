@@ -24,7 +24,7 @@ async function principal() {
   const { body: t } = await jorge.post('/api/trabajos', { idTipo: 1, descripcion: '40 poleras piqué bordadas Club Deportivo Los Aromos', cantidad: 40, fechaCompromiso: fechaEnDias(10) });
   await valentina.post(`/api/trabajos/${t.codigo}/tomar-diseno`);
   const { body: d } = await valentina.post(`/api/disenos/trabajos/${t.codigo}`, {
-    archivos: [{ nombre: 'escudo_aromos_v1.pdf', tipoMime: 'application/pdf', tamanoBytes: 482133, cabeceraBase64: CABECERAS.pdf }],
+    archivos: [{ nombre: 'escudo_aromos_v1.pdf', tipoMime: 'application/pdf', contenidoBase64: CABECERAS.pdf }],
     especificaciones: { tecnica: 'Bordado', ubicacion: 'Pecho izquierdo', medidas: '9 x 7 cm', colores: ['Azul marino', 'Blanco'], puntadas: 11800 },
     comentario: 'Se ajustó el escudo a 9 cm de ancho',
   });

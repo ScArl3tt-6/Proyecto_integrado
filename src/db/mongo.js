@@ -13,12 +13,14 @@ const ESQUEMA_PROPUESTA = {
     archivos: {
       bsonType: 'array', minItems: 1, maxItems: 10,
       items: {
-        bsonType: 'object', required: ['nombre', 'tipoMime', 'tamanoBytes', 'sha256'],
+        bsonType: 'object', required: ['nombre', 'tipoMime', 'tamanoBytes', 'sha256', 'archivoId'],
         properties: {
           nombre: { bsonType: 'string' },
           tipoMime: { enum: ['application/pdf', 'image/png', 'image/jpeg'] },
           tamanoBytes: { bsonType: ['int', 'long'] },
           sha256: { bsonType: 'string', pattern: '^[a-f0-9]{64}$' },
+          // _id (como texto hexadecimal) del archivo real guardado en GridFS, bucket "disenos" (Fase 1).
+          archivoId: { bsonType: 'string', pattern: '^[0-9a-f]{24}$' },
         },
       },
     },
@@ -45,4 +47,4 @@ async function crearBaseDocumental(uri, nombreBase) {
   return { cliente, db };
 }
 
-module.exports = { crearBaseDocumental };
+module.exports = { crearBaseDocumental, ESQUEMA_PROPUESTA };

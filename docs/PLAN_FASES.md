@@ -42,9 +42,15 @@ Estado real de cada punto, revisado directamente en el código (no por memoria):
   `sst_app`, así que no pueden detectar un permiso real que falte en una tabla nueva. Revisar en
   las Fases 3-4 si conviene que `tests/contexto.js` use `sst_app` para las operaciones de la
   aplicación.
-- **Archivos reales (GridFS):** no empezado. Hoy `src/dominio/archivosDiseno.js` solo valida la
-  firma, el tamaño y el nombre del archivo recibido; ni el archivo ni su contenido se guardan en
-  ningún lado (ni GridFS ni disco). Falta el almacenamiento real.
+- **Archivos reales (GridFS):** ✅ terminado. El archivo completo (no solo su cabecera) se guarda
+  en GridFS (bucket `disenos`, dentro de `sst_kotoduo`); Producción puede verlo/descargarlo desde
+  la pantalla de aprobación antes de decidir (`GET /api/disenos/:idDiseno/archivos/:idArchivo`,
+  permiso `DISENO_VER`, verificando que el archivo pedido pertenezca de verdad a ese diseño). Si
+  algo falla después de subir el archivo (trabajo no encontrado, fallo de MongoDB), el archivo
+  subido se borra para no dejar huérfanos. Pruebas CP-52 a CP-54 y PM-10. En el camino se encontró
+  y corrigió DEF-10 (`detalle()` no traía `idDiseno` en la respuesta: el enlace nuevo quedaba roto
+  hasta agregar el alias que faltaba). Detalle en `evidencias/defectos.md` y
+  `evidencias/fase1_archivos_diseno.txt`.
 - **MFA (TOTP):** no empezado. Solo existe la columna `mfa_habilitado` en `usuario`
   (`src/db/esquema.sql`), siempre en `FALSE`; no hay ninguna lógica de TOTP en `src/`.
 - **Restablecimiento de contraseña:** no empezado. No existe ningún endpoint ni servicio para esto;
@@ -54,9 +60,9 @@ Estado real de cada punto, revisado directamente en el código (no por memoria):
   (`minutosAcceso`, `horasSesion`), no por inactividad.
 - **Matriz HU-pantalla-endpoint:** no existe. No hay ningún documento de trazabilidad entre
   historias de usuario, pantallas y endpoints en el repositorio.
-- **Pruebas manuales (PM):** `web/PRUEBAS_MANUALES.md` solo llega hasta PM-08. Las PM-09 a PM-14
-  (presumiblemente para los temas nuevos de esta fase: materiales, archivos, MFA, restablecimiento,
-  inactividad) todavía no están escritas.
+- **Pruebas manuales (PM):** `web/PRUEBAS_MANUALES.md` ya tiene PM-09 (materiales) y PM-10
+  (archivos reales). Faltan las de MFA, restablecimiento de contraseña, cierre por inactividad y
+  la matriz HU-pantalla-endpoint, a medida que se implementen.
 
 ## Fase 2 — Rediseño con la marca Kotoduo (no iniciada)
 

@@ -3,11 +3,12 @@ const express = require('express');
 const { z } = require('zod');
 const { autorizar, validar } = require('../../middleware/seguridad');
 
+// 20 971 520 = 15 MB (TAMANO_MAXIMO en src/dominio/archivosDiseno.js) codificados en base64.
+// El tamaño ya no lo declara el cliente: se mide del contenido real recibido (Fase 1, GridFS).
 const esquemaArchivo = z.strictObject({
   nombre: z.string().min(1).max(100),
   tipoMime: z.string().max(50),
-  tamanoBytes: z.number().int().positive(),
-  cabeceraBase64: z.base64().max(64),
+  contenidoBase64: z.base64().max(20_971_520),
 });
 const esquemaPropuesta = z.strictObject({
   archivos: z.array(esquemaArchivo).min(1).max(10),
@@ -42,6 +43,20 @@ function rutasDisenos({ disenos }) {
     validar(z.strictObject({ idDiseno: z.coerce.number().int().positive() }), 'params'),
     async (req, res) => {
       res.json(await disenos.detalle(req.datos.params.idDiseno));
+    });
+
+  // Ver/descargar el archivo real de una propuesta (RF-02 con GridFS). GET no necesita token CSRF.
+  r.get('/:idDiseno/archivos/:idArchivo', autorizar('DISENO_VER'),
+    validar(z.strictObject({
+      idDiseno: z.coerce.number().int().positive(),
+      idArchivo: z.string().regex(/^[0-9a-f]{24}$/),
+    }), 'params'),
+    async (req, res, next) => {
+      const { nombre, tipoMime, flujo } = await disenos.obtenerArchivo(req.datos.params.idDiseno, req.datos.params.idArchivo);
+      res.set('Content-Type', tipoMime);
+      res.set('Content-Disposition', `inline; filename="${encodeURIComponent(nombre)}"`);
+      flujo.on('error', (err) => { if (!res.headersSent) next(err); else res.destroy(err); });
+      flujo.pipe(res);
     });
 
   return r;

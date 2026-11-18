@@ -15,6 +15,7 @@
     "db:reiniciar": "node scripts/db/reiniciar-base-postgres.js",
     "mongo:iniciar": "node scripts/db/mongo-iniciar.js",
     "mongo:crear-usuarios": "node scripts/db/mongo-crear-usuarios.js",
+    "mongo:actualizar-validador": "node scripts/db/mongo-actualizar-validador-disenos.js",
     "verificar": "node scripts/verificar-entorno.js",
     "docs:guia-bases": "node scripts/generar-guia-bases.js"
   },

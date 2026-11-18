@@ -81,7 +81,7 @@ describe('Pruebas de seguridad: sesiones, cuentas y datos', () => {
     const { body: { codigo } } = await jorge.post('/api/trabajos', { idTipo: 1, descripcion: 'Gorros bordados para colegio', cantidad: 20, fechaCompromiso: fechaEnDias(8) });
     await valentina.post(`/api/trabajos/${codigo}/tomar-diseno`);
     const { body: { idDiseno } } = await valentina.post(`/api/disenos/trabajos/${codigo}`, {
-      archivos: [{ nombre: 'insignia.png', tipoMime: 'image/png', tamanoBytes: 52000, cabeceraBase64: CABECERAS.png }],
+      archivos: [{ nombre: 'insignia.png', tipoMime: 'image/png', contenidoBase64: CABECERAS.png }],
     });
     expect((await aprobar(`/api/disenos/${idDiseno}/decision`, { decision: 'APROBADO' })).status).toBe(200);
 

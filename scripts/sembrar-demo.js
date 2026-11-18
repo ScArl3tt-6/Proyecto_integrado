@@ -72,7 +72,7 @@ async function principal() {
   const marcela = { id: cuentas.marcela.idUsuario, rol: 'PRODUCCION' };
   const luis = { id: cuentas.luis.idUsuario, rol: 'OPERARIO', idArea: idArea('Bordado') };
 
-  const archivo = (nombre) => ({ nombre, tipoMime: 'application/pdf', tamanoBytes: 250000, cabeceraBase64: CABECERA_PDF });
+  const archivo = (nombre) => ({ nombre, tipoMime: 'application/pdf', contenidoBase64: CABECERA_PDF });
 
   async function aprobar(codigo) {
     await servicios.trabajos.tomarParaDiseno(valentina, codigo);
