@@ -49,10 +49,9 @@ Las 3 tareas principales del día a día que se usaron para medir cada perfil:
 exacto de la confirmación, el tamaño real del botón principal, ausencia de errores de consola y
 de scroll horizontal, y que la corrección de DEF-14 no rompió nada (se repitió el recorrido tras
 el cambio).
-**Qué NO se comprobó:** navegación con teclado en este perfil en particular (sí se verificó en
-Producción y Vendedor, con el mismo patrón de componentes); medición de contraste con axe-core
-específicamente en esta pantalla (si se midió en las demás, que comparten los mismos estilos, y
-dio 0 violaciones tras DEF-16); un operario con más de una etapa en curso al mismo tiempo.
+**Qué NO se comprobó:** medición de contraste con axe-core específicamente en esta pantalla (si se
+midió en las demás, que comparten los mismos estilos, y dio 0 violaciones tras DEF-16); un
+operario con más de una etapa en curso al mismo tiempo.
 **Valoración:** buena para las 3 tareas principales.
 
 ---
@@ -107,9 +106,8 @@ Fase 1, Parte B de este trabajo); el flujo de "Reanudar" un trabajo detenido.
 
 **Qué se comprobó:** las 3 tareas completas (la tercera con un escenario creado a propósito para
 poder verla de verdad, no solo en teoría), en 1280 px y 390 px; escaneo de accesibilidad.
-**Qué NO se comprobó:** navegación con teclado en este perfil en particular; subir más de un
-archivo a la vez en el recorrido real (sí se probó como prueba automática, CP-55 y la de "dos
-archivos" de la Parte 1 de esta sesión).
+**Qué NO se comprobó:** subir más de un archivo a la vez en el recorrido real (sí se probó como
+prueba automática, CP-55 y la de "dos archivos" de la Parte 1 de esta sesión).
 **Valoración:** buena; el único hallazgo (DEF-15) era de toda la aplicación y ya se corrigió.
 
 ---
@@ -128,8 +126,7 @@ archivos" de la Parte 1 de esta sesión).
 **Qué se comprobó:** las 3 tareas completas, en 1280 px y 390 px; escaneo de accesibilidad en las
 3 pantallas; validación de "Crear cuenta" vacío y con datos inválidos.
 **Qué NO se comprobó:** desactivar/activar una cuenta de verdad (se revisó el diálogo de
-confirmación por código, no se ejecutó la acción); navegación con teclado en este perfil en
-particular.
+confirmación por código, no se ejecutó la acción).
 **Valoración:** buena, una vez corregidos DEF-17 y DEF-18 (ambos de severidad alta, encontrados
 aquí). Dos hallazgos de severidad baja quedan anotados.
 
@@ -151,6 +148,32 @@ vista en 390 px de esta pantalla específica, y navegación con teclado.
 
 ---
 
+## Navegación con teclado en los 5 perfiles (pedido aparte, repetido para los 5)
+
+Metodología: `Tab`/`Enter`/`Escape` de verdad (eventos de teclado reales de Playwright, no
+`.focus()` programático — se detectó antes que `.focus()` programático no siempre activa
+`:focus-visible` en Chromium headless igual que un `Tab` real, así que todo lo de abajo se repitió
+con `Tab` real para no reportar un falso defecto).
+
+| Perfil | Pantalla | Orden de `Tab` | `Enter` | `Escape` | Foco visible |
+|---|---|---|---|---|---|
+| Vendedor | Nueva solicitud | Tipo → Descripción → Cantidad → Fecha (3 segmentos internos, normal de `<input type="date">`) → Registrar solicitud, en 2 pasos más | Envía el formulario de verdad (confirmado: creó el trabajo y navegó al detalle) | — | Sí, en cada campo y en el botón |
+| Diseño | Bandeja de diseño | — | Abre el diálogo "Tomar solicitud" | Cierra el diálogo SIN tomar la solicitud (confirmado: el botón "Tomar solicitud" seguía disponible después) | Sí, el botón "Tomar" del diálogo queda enfocado al abrirse |
+| Producción | Decidir propuesta | Hasta "Aprobar" en 3 pasos | Abre el diálogo de confirmación | Cierra el diálogo SIN aprobar (confirmado: seguía en la misma pantalla, sin decisión) | Sí (anillo de foco de 3 px) |
+| Operario | Mis actividades | Hasta "Completar etapa" en 2 pasos | Abre el diálogo de confirmación | Cierra el diálogo SIN completar la etapa (confirmado: el botón seguía visible) | Sí |
+| Administrador | Usuarios | De "Nombre" a "Crear cuenta" en 5 pasos, pasando por Correo/Rol/Área/Contraseña | — | Cierra el diálogo "Cambiar rol o área" sin guardar | Sí |
+
+**Resultado: ningún defecto nuevo.** Las 5 pantallas principales tienen orden de `Tab` lógico, foco
+siempre visible, `Enter` activa el control esperado, y `Escape` cancela sin ejecutar la acción
+(aprobar, tomar, completar) en los 3 diálogos donde se probó. Esto también corrige una nota
+anterior de esta misma revisión: el "foco no visible" que se había anotado para Operario al medir
+con `.focus()` programático resultó ser un artefacto de cómo se medía, no un defecto real — con
+`Tab` de verdad el foco sí es visible.
+
+**Qué no se repitió:** `Enter`/`Escape` en el formulario de materiales (Producción) y en el de
+registrar cuenta (Administrador) — sí se repitió el orden de `Tab`, pero no se forzó el envío con
+`Enter` en esos dos formularios específicos.
+
 ## Resumen de hallazgos de esta ronda (detalle completo de cada uno en `evidencias/defectos.md`)
 
 | Defecto | Dónde | Severidad (axe-core cuando aplica) | Estado |
@@ -166,9 +189,9 @@ vista en 390 px de esta pantalla específica, y navegación con teclado.
 
 ## Lo que queda sin verificar, dicho explícitamente (no se declara "terminado" sin esto)
 
-- Navegación con teclado: verificada a fondo en Vendedor y Producción (con `Tab` real, no foco
-  programático); no se repitió el mismo ejercicio en Diseño, Operario ni Administrador, aunque
-  comparten los mismos componentes de formulario y botón.
+- Navegación con teclado: ahora verificada con `Tab`/`Enter`/`Escape` reales en los 5 perfiles
+  (ver la sección dedicada arriba). No se probó `Enter` para enviar el formulario de materiales ni
+  el de crear cuenta, ni se repitió en pantallas secundarias (Panel, Bitácora, Mi cuenta).
 - Contraste de color: medido con herramienta (axe-core) en las pantallas con formularios y en las
   principales de cada perfil; no se corrió en absolutamente todas las pantallas posibles (por
   ejemplo, los estados de cada `chip` por separado, uno por uno).
