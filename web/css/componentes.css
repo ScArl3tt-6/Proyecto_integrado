@@ -222,6 +222,21 @@ dialog.dialogo::backdrop { background: rgba(62, 44, 34, .45); }
 .lista-versiones { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .acciones-decision { display: flex; gap: 8px; margin-top: var(--espacio-2); }
 
+/* Archivo de una propuesta de diseño: nombre/tipo/tamaño, botón para verlo y vista previa en la misma pantalla */
+.tarjeta-archivo {
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-tarjeta);
+  padding: var(--espacio-2);
+  margin-bottom: var(--espacio-2);
+  background: var(--color-superficie);
+}
+.tarjeta-archivo-datos { display: flex; align-items: center; justify-content: space-between; gap: var(--espacio-2); flex-wrap: wrap; margin-bottom: var(--espacio-2); }
+.tarjeta-archivo-nombre { font-weight: 600; }
+.tarjeta-archivo-meta { color: var(--color-texto-secundario); font-size: var(--texto-14); }
+.vista-previa-archivo { display: block; width: 100%; max-height: 420px; border: 1px solid var(--color-borde); border-radius: var(--radio-boton); background: var(--color-superficie-destacada); }
+.vista-previa-archivo.vista-previa-imagen { max-height: 420px; width: auto; max-width: 100%; object-fit: contain; }
+.vista-previa-archivo.vista-previa-pdf { height: 420px; }
+
 /* Panel general: tarjetas por estado */
 .panel-tiles { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: var(--espacio-2); }
 .panel-tile {

@@ -9,6 +9,30 @@ const MOTIVOS_RECHAZO = [
   'Falta información técnica para producir',
 ];
 
+// Tarjeta de un archivo real de la propuesta: datos, botón para abrirlo completo y una vista
+// previa en la misma pantalla (imagen o PDF), para decidir sin tener que adivinar qué se adjuntó.
+function tarjetaArchivo(idDiseno, archivo) {
+  const url = `/api/disenos/${idDiseno}/archivos/${archivo.archivoId}`;
+  const tamanoKb = Math.round(archivo.tamanoBytes / 1024);
+  const boton = el('a', { class: 'boton boton-secundario', href: url, target: '_blank', rel: 'noopener' }, '📄 Ver archivo completo');
+
+  let previa = null;
+  if (archivo.tipoMime === 'image/png' || archivo.tipoMime === 'image/jpeg') {
+    previa = el('img', { class: 'vista-previa-archivo vista-previa-imagen', src: url, alt: `Vista previa de ${archivo.nombre}` });
+  } else if (archivo.tipoMime === 'application/pdf') {
+    previa = el('iframe', { class: 'vista-previa-archivo vista-previa-pdf', src: url, title: `Vista previa de ${archivo.nombre}` });
+  }
+
+  return el('article', { class: 'tarjeta-archivo' },
+    el('div', { class: 'tarjeta-archivo-datos' },
+      el('span', { class: 'tarjeta-archivo-nombre' }, archivo.nombre),
+      el('span', { class: 'tarjeta-archivo-meta' }, `${archivo.tipoMime} · ${tamanoKb} KB`),
+      boton,
+    ),
+    previa,
+  );
+}
+
 export function renderAprobaciones(main, sesion, irA) {
   const contenedor = el('section', { class: 'contenedor' }, el('h1', {}, 'Aprobaciones'));
   const listaNodo = el('div', { class: 'lista-trabajos' });
@@ -73,10 +97,7 @@ export function renderDecidirDiseno(main, sesion, idDiseno, irA) {
 
     if (propuesta.archivos?.length) {
       contenedor.appendChild(el('h2', {}, 'Archivos'));
-      contenedor.appendChild(el('ul', { class: 'lista-reglas' }, ...propuesta.archivos.map((a) => el('li', {},
-        `${a.nombre} · ${a.tipoMime} · ${Math.round(a.tamanoBytes / 1024)} KB · `,
-        el('a', { href: `/api/disenos/${diseno.idDiseno}/archivos/${a.archivoId}`, target: '_blank', rel: 'noopener' }, 'Ver archivo'),
-      ))));
+      for (const a of propuesta.archivos) contenedor.appendChild(tarjetaArchivo(diseno.idDiseno, a));
     }
     const especificaciones = propuesta.especificaciones || {};
     if (Object.keys(especificaciones).length) {
