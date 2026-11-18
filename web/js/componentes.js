@@ -28,12 +28,6 @@ export function chipAtrasado() {
   return el('span', { class: 'chip chip-error' }, 'Atrasado');
 }
 
-// Leyenda del asterisco de campo obligatorio (ver etiquetaCampo en ui.js). Va una sola vez, al
-// principio de cada formulario que tenga al menos un campo obligatorio.
-export function leyendaObligatorios() {
-  return el('p', { class: 'campo-ayuda' }, el('span', { class: 'campo-obligatorio', 'aria-hidden': 'true' }, '*'), ' Campo obligatorio');
-}
-
 function formatoFecha(fecha) {
   const texto = String(fecha).slice(0, 10);
   const [anio, mes, dia] = texto.split('-');

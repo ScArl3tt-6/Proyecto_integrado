@@ -234,3 +234,20 @@ elementos fuera del ancho de la ventana) no encontró nada, pero ese tipo de det
 el problema real de DEF-19 (es un comportamiento interno del `<select>` nativo del navegador, no
 algo que se refleje en esas métricas del DOM) — por eso la revisión visual de las capturas, caso
 por caso, siguió siendo necesaria y no se puede reemplazar solo con un script.
+
+### Segundo barrido, tras agregar la Funcionalidad 5 (18-11-2026)
+
+La sección nueva de "Verificación en dos pasos" en "Mi cuenta" reveló un patrón que el barrido
+anterior no había encontrado (no existía todavía esa combinación de secciones): **DEF-21** — un
+título de sección quedaba pegado al botón o la lista de la sección anterior (sin ningún espacio),
+y los pares de botones "Confirmar y activar"/"Cancelar" y "Sí, desactivar"/"Cancelar" no tenían
+espacio entre sí. Verificado con `getBoundingClientRect()` (0 px de separación real antes de
+corregir) y corregido con una regla general (`* + h2, * + h3` en `base.css`) más una específica
+para el único caso anidado que esa regla no alcanza. Capturas reales antes/después en "Mi cuenta",
+"Usuarios", "Detalle de trabajo" y "Bandeja de diseño" (1280 px y 390 px); no se repitieron las 32
+combinaciones completas una por una, queda dicho como no verificado al detalle en DEF-21.
+
+De paso se descartó, de nuevo verificando y no solo mirando, la misma falsa alarma de captura de
+página completa que documentó DEF-20: el botón "Confirmar y activar" parecía tapado por la barra
+de navegación inferior en una captura `fullPage`, pero al medir las coordenadas reales tras bajar
+hasta el final de la página, queda 130 px por encima de la barra.

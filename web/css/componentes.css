@@ -53,7 +53,7 @@
 .campo input[aria-invalid="true"] { border-color: var(--error-tx); }
 .campo-error { color: var(--error-tx); font-size: var(--texto-14); margin: 0; }
 .campo-ayuda { color: var(--color-texto-secundario); font-size: var(--texto-14); margin: 0; }
-.campo-obligatorio { color: var(--error-tx); font-weight: 700; }
+.campo-opcional { color: var(--color-texto-secundario); font-weight: 400; }
 
 .campo select {
   appearance: none;

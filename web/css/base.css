@@ -16,6 +16,11 @@ h1, h2, h3 { color: var(--color-texto); margin: 0 0 var(--espacio-2); line-heigh
 h1 { font-size: var(--texto-28); }
 h2 { font-size: var(--texto-20); }
 h3 { font-size: var(--texto-16); }
+/* Separación de una sección de la anterior: solo cuando el título no es el primer elemento del
+   contenedor (un título de diálogo, por ejemplo, sigue sin margen superior). Sin esto, un título
+   quedaba pegado al botón o la lista de la sección de arriba — encontrado en el barrido visual a
+   390 px de "Mi cuenta" y presente en varias pantallas más (Usuarios, Detalle de trabajo, etc.). */
+* + h2, * + h3 { margin-top: var(--espacio-4); }
 p { margin: 0 0 var(--espacio-2); }
 
 a { color: var(--color-acento-texto-legible); }

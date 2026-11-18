@@ -501,6 +501,12 @@ completa para el informe (sección de validación de resultados).
   real que impedir) y el Área puede ser legítimamente "Sin área" según el rol, así que un asterisco
   ahí sería incorrecto, no solo innecesario.
 - **Estado:** Corregido.
+- **Revisión del equipo, 18-11-2026:** no todo el mundo conoce la convención del asterisco para
+  "obligatorio". Se revirtió el punto 1 de esta corrección: `etiquetaCampo()` ya no agrega ningún
+  asterisco ni `leyendaObligatorios()` (se eliminó esa función); ahora solo se marca lo **opcional**
+  con la palabra "(opcional)" junto al nombre del campo, y un campo obligatorio vacío muestra un
+  mensaje junto al campo mismo (ver DEF-21) en vez de depender de un símbolo. Los puntos 2 y 3
+  (ejemplos y mensajes de error por campo del servidor) siguen vigentes, no cambiaron.
 
 ## DEF-16 — Contraste insuficiente del color de acento usado como texto (WCAG AA)
 
@@ -720,3 +726,47 @@ completa para el informe (sección de validación de resultados).
   al usar `scrollIntoViewIfNeeded()` — al desplazarse hasta el final real de la página (como lo
   haría una persona), sí quedan completamente libres de la barra, gracias al
   `padding-bottom: 72px` que ya tenía `main#app`.
+
+## DEF-21 — Un título de sección quedaba pegado al botón o la lista de la sección anterior, y pares de botones contiguos sin espacio entre ellos
+
+- **Encontrado en:** barrido visual a 390 px de "Mi cuenta" pedido por el equipo, al revisar la
+  sección nueva de verificación en dos pasos (Funcionalidad 5). No es exclusivo de esa pantalla:
+  el mismo patrón aparece en "Usuarios" ("Crear cuenta" → "Cuentas"), "Detalle de trabajo"
+  ("Etapas", "Versiones de diseño", "Materiales") y las bandejas con varias listas seguidas.
+- **Por qué el barrido de DEF-20 no lo encontró antes:** ese barrido se hizo antes de que existiera
+  la sección de MFA (Funcionalidad 5, de esta misma sesión); el patrón ya existía en el código
+  (`h1, h2, h3` nunca tuvieron margen superior, solo inferior) pero no se había notado porque
+  ninguna de las 32 capturas de entonces tenía dos secciones con tan poca distancia entre un botón
+  y el título de la siguiente como la que agregó "Mi cuenta" ahora.
+- **Causa confirmada (verificada con medición real, no solo visual):** `h1, h2, h3` solo tienen
+  margen inferior (`margin: 0 0 var(--espacio-2)`), nunca superior; y en `cuenta.js`, los pares de
+  botones "Confirmar y activar"/"Cancelar" y "Sí, desactivar"/"Cancelar" se agregaban sueltos al
+  contenedor (dos `appendChild` separados) sin ningún `display:flex` ni `gap` entre ellos — el
+  mismo patrón de fondo que DEF-20 (el `el()` de este proyecto nunca deja espacio en blanco entre
+  elementos). Medido con `getBoundingClientRect()` en el navegador real: 0 px de separación en
+  ambos casos antes de la corrección.
+- **Nota sobre una falsa alarma propia, verificada antes de descartarla:** una primera captura de
+  página completa (`fullPage: true`) parecía mostrar el botón "Confirmar y activar" tapado por la
+  barra de navegación inferior fija — es el mismo artefacto de captura ya documentado en DEF-20
+  (no algo que vea una persona real). Verificado con `getBoundingClientRect()` tras bajar de
+  verdad hasta el final de la página: no hay superposición real (el botón queda 130 px por encima
+  de la barra).
+- **Corrección:**
+  1. Regla general `* + h2, * + h3 { margin-top: var(--espacio-4); }` en `base.css` (con el
+     selector de hermano adyacente, para que un título que SÍ es el primer elemento de su
+     contenedor — por ejemplo, el de un diálogo — no reciba un espacio de más).
+  2. `.seccion-cuenta h2 { margin-top: var(--espacio-4); }` en `pantallas.css`, para el único caso
+     que la regla general no alcanza (el título de "Verificación en dos pasos" queda anidado
+     dentro de su propio contenedor, sin un hermano directo).
+  3. Los dos pares de botones de `cuenta.js` ahora se envuelven en `.acciones-decision` (clase que
+     ya existía, reutilizada, con `display:flex; gap:8px`).
+- **Nueva ejecución:** verificado con capturas reales en 1280 px y 390 px en "Mi cuenta", "Usuarios",
+  "Detalle de trabajo" y "Bandeja de diseño": los títulos de sección y los pares de botones quedan
+  con una separación clara en las cuatro pantallas, sin espacios excesivos en los diálogos (que no
+  cambiaron, como se esperaba).
+- **Lo que no se verificó:** no se revisaron las 32 combinaciones completas de pantalla × ancho de
+  los 5 perfiles una por una tras este cambio (sí se revisaron 7: Mi cuenta ×2 anchos, Usuarios ×2,
+  Detalle de trabajo ×2, Bandeja de diseño). Dado que la regla es general (no por pantalla), es
+  razonable esperar que el resto se beneficie igual, pero esto queda dicho explícitamente como no
+  comprobado pantalla por pantalla.
+- **Estado:** Corregido en los casos verificados.

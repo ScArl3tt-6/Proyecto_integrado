@@ -1,6 +1,6 @@
 import { api, ApiError } from '../api.js';
 import { el, vaciar, aviso, abrirDialogoConfirmacion, etiquetaCampo, describirErrorApi } from '../ui.js';
-import { estadoVacio, estadoCarga, estadoError, leyendaObligatorios } from '../componentes.js';
+import { estadoVacio, estadoCarga, estadoError } from '../componentes.js';
 import { ROL_TEXTO, AREAS_POR_ROL } from '../permisos.js';
 
 const CAMPOS_CREAR_CUENTA = { nombre: 'Nombre', correo: 'Correo', rol: 'Rol', area: 'Área', contrasena: 'Contraseña inicial' };
@@ -34,22 +34,27 @@ function formatoFechaHora(fecha) {
 
 export function renderUsuarios(main, sesion, irA) {
   const contenedorAvisoAlta = el('div');
-  const campoNombre = el('input', { id: 'nombre-nuevo', type: 'text', required: true, minlength: 3, maxlength: 80, placeholder: 'Ej.: María Soto' });
-  const campoCorreo = el('input', { id: 'correo-nuevo', type: 'email', required: true, maxlength: 120, placeholder: 'Ej.: maria@kotoduo.test' });
+  const campoNombre = el('input', { id: 'nombre-nuevo', type: 'text', required: true, minlength: 3, maxlength: 80, placeholder: 'Ej.: María Soto', 'aria-describedby': 'nombre-nuevo-error' });
+  const errorNombre = el('p', { class: 'campo-error', id: 'nombre-nuevo-error', role: 'alert' });
+  errorNombre.hidden = true;
+  const campoCorreo = el('input', { id: 'correo-nuevo', type: 'email', required: true, maxlength: 120, placeholder: 'Ej.: maria@kotoduo.test', 'aria-describedby': 'correo-nuevo-error' });
+  const errorCorreo = el('p', { class: 'campo-error', id: 'correo-nuevo-error', role: 'alert' });
+  errorCorreo.hidden = true;
   const campoRol = selectRoles('VENDEDOR', 'rol-nuevo');
   const campoArea = selectAreas('VENDEDOR', '', 'area-nuevo');
   campoRol.addEventListener('change', () => pintarOpcionesArea(campoArea, campoRol.value, null));
-  const campoContrasena = el('input', { id: 'contrasena-nueva-cuenta', type: 'text', required: true, minlength: 12, maxlength: 128, placeholder: 'Frase larga, 12 o más caracteres' });
+  const campoContrasena = el('input', { id: 'contrasena-nueva-cuenta', type: 'text', required: true, minlength: 12, maxlength: 128, placeholder: 'Frase larga, 12 o más caracteres', 'aria-describedby': 'contrasena-nueva-cuenta-error' });
+  const errorContrasena = el('p', { class: 'campo-error', id: 'contrasena-nueva-cuenta-error', role: 'alert' });
+  errorContrasena.hidden = true;
   const botonCrear = el('button', { type: 'submit', class: 'boton boton-primario' }, 'Crear cuenta');
 
   const formAlta = el('form', { novalidate: true },
     contenedorAvisoAlta,
-    leyendaObligatorios(),
-    el('div', { class: 'campo' }, etiquetaCampo('Nombre', { for: 'nombre-nuevo' }), campoNombre),
-    el('div', { class: 'campo' }, etiquetaCampo('Correo', { for: 'correo-nuevo' }), campoCorreo),
+    el('div', { class: 'campo' }, etiquetaCampo('Nombre', { for: 'nombre-nuevo' }), campoNombre, errorNombre),
+    el('div', { class: 'campo' }, etiquetaCampo('Correo', { for: 'correo-nuevo' }), campoCorreo, errorCorreo),
     el('div', { class: 'campo' }, etiquetaCampo('Rol', { for: 'rol-nuevo' }), campoRol),
     el('div', { class: 'campo' }, etiquetaCampo('Área', { for: 'area-nuevo', opcional: true }), campoArea),
-    el('div', { class: 'campo' }, etiquetaCampo('Contraseña inicial', { for: 'contrasena-nueva-cuenta' }), campoContrasena),
+    el('div', { class: 'campo' }, etiquetaCampo('Contraseña inicial', { for: 'contrasena-nueva-cuenta' }), campoContrasena, errorContrasena),
     el('p', { class: 'campo-ayuda' }, 'Mínimo 12 caracteres, sin el nombre, el correo ni «kotoduo». Entrégasela a la persona en mano; ella la cambia luego desde "Mi cuenta".'),
     botonCrear,
   );
@@ -68,12 +73,30 @@ export function renderUsuarios(main, sesion, irA) {
 
   cargar();
 
+  function limpiarErroresAlta() {
+    for (const [input, error] of [[campoNombre, errorNombre], [campoCorreo, errorCorreo], [campoContrasena, errorContrasena]]) {
+      input.removeAttribute('aria-invalid');
+      error.hidden = true;
+    }
+  }
+  function marcarErrorAlta(input, error, mensaje) {
+    input.setAttribute('aria-invalid', 'true');
+    error.textContent = mensaje;
+    error.hidden = false;
+  }
+
   formAlta.addEventListener('submit', async (evento) => {
     evento.preventDefault();
     vaciar(contenedorAvisoAlta);
-    if (campoNombre.value.trim().length < 3) return mostrarAlta('error', 'El nombre debe tener al menos 3 caracteres.');
-    if (!campoCorreo.value.trim()) return mostrarAlta('error', 'Ingresa un correo.');
-    if (campoContrasena.value.length < 12) return mostrarAlta('error', 'La contraseña inicial debe tener al menos 12 caracteres.');
+    limpiarErroresAlta();
+    let valido = true;
+    const nombre = campoNombre.value.trim();
+    if (!nombre) { marcarErrorAlta(campoNombre, errorNombre, 'Escribe el nombre.'); valido = false; }
+    else if (nombre.length < 3) { marcarErrorAlta(campoNombre, errorNombre, 'Escribe al menos 3 caracteres.'); valido = false; }
+    if (!campoCorreo.value.trim()) { marcarErrorAlta(campoCorreo, errorCorreo, 'Escribe un correo.'); valido = false; }
+    if (!campoContrasena.value) { marcarErrorAlta(campoContrasena, errorContrasena, 'Escribe una contraseña inicial.'); valido = false; }
+    else if (campoContrasena.value.length < 12) { marcarErrorAlta(campoContrasena, errorContrasena, 'Debe tener al menos 12 caracteres.'); valido = false; }
+    if (!valido) return;
 
     botonCrear.disabled = true;
     botonCrear.textContent = 'Creando…';
@@ -258,13 +281,14 @@ export function renderUsuarios(main, sesion, irA) {
 }
 
 export function renderBitacora(main, sesion, irA) {
-  const campoCodigo = el('input', { id: 'codigo-bitacora', type: 'text', placeholder: 'KT-2026-0001', maxlength: 15 });
+  const campoCodigo = el('input', { id: 'codigo-bitacora', type: 'text', placeholder: 'KT-2026-0001', maxlength: 15, required: true, 'aria-describedby': 'codigo-bitacora-error' });
+  const errorCodigo = el('p', { class: 'campo-error', id: 'codigo-bitacora-error', role: 'alert' });
+  errorCodigo.hidden = true;
   const botonBuscar = el('button', { type: 'submit', class: 'boton boton-primario' }, 'Buscar');
   const resultado = el('div');
 
   const form = el('form', { novalidate: true },
-    leyendaObligatorios(),
-    el('div', { class: 'campo' }, etiquetaCampo('Código de trabajo', { for: 'codigo-bitacora' }), campoCodigo),
+    el('div', { class: 'campo' }, etiquetaCampo('Código de trabajo', { for: 'codigo-bitacora' }), campoCodigo, errorCodigo),
     botonBuscar,
   );
 
@@ -274,8 +298,18 @@ export function renderBitacora(main, sesion, irA) {
     evento.preventDefault();
     const codigo = campoCodigo.value.trim().toUpperCase();
     vaciar(resultado);
+    errorCodigo.hidden = true;
+    campoCodigo.removeAttribute('aria-invalid');
+    if (!codigo) {
+      campoCodigo.setAttribute('aria-invalid', 'true');
+      errorCodigo.textContent = 'Escribe un código de trabajo.';
+      errorCodigo.hidden = false;
+      return;
+    }
     if (!/^KT-\d{4}-\d{4}$/.test(codigo)) {
-      resultado.appendChild(aviso('error', 'Ingresa un código con el formato KT-AAAA-NNNN.'));
+      campoCodigo.setAttribute('aria-invalid', 'true');
+      errorCodigo.textContent = 'Usa el formato KT-AAAA-NNNN.';
+      errorCodigo.hidden = false;
       return;
     }
     resultado.appendChild(estadoCarga());

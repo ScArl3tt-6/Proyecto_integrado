@@ -2,7 +2,7 @@
 // administración), con el alcance que ya decide el servidor (403 si el trabajo no corresponde).
 import { api, ApiError } from '../api.js';
 import { el, vaciar, aviso, abrirDialogoConfirmacion, abrirDialogoMotivo, enlaceVolver, etiquetaCampo, describirErrorApi } from '../ui.js';
-import { chipEstado, chipAtrasado, listaEtapas, estadoCarga, estadoError, leyendaObligatorios } from '../componentes.js';
+import { chipEstado, chipAtrasado, listaEtapas, estadoCarga, estadoError } from '../componentes.js';
 import { tienePermiso, INICIO_POR_ROL } from '../permisos.js';
 
 const MOTIVOS_DETENER = [
@@ -106,17 +106,20 @@ export function renderDetalleTrabajo(main, sesion, codigo) {
 
   function formularioMaterial(trabajo, listaMateriales) {
     const contenedorAviso = el('div');
-    const campoMaterial = el('select', { id: 'material', required: true }, el('option', { value: '' }, 'Selecciona un material'));
-    const campoCantidad = el('input', { id: 'cantidad-material', type: 'number', required: true, min: '0.01', step: '0.01', max: '100000', placeholder: 'Ej.: 2.5' });
-    const campoMedida = el('input', { id: 'medida-material', type: 'text', maxlength: 60, placeholder: 'Opcional: color, talla, etc.' });
+    const campoMaterial = el('select', { id: 'material', required: true, 'aria-describedby': 'material-error' }, el('option', { value: '' }, 'Selecciona un material'));
+    const errorMaterial = el('p', { class: 'campo-error', id: 'material-error', role: 'alert' });
+    errorMaterial.hidden = true;
+    const campoCantidad = el('input', { id: 'cantidad-material', type: 'number', required: true, min: '0.01', step: '0.01', max: '100000', placeholder: 'Ej.: 2.5', 'aria-describedby': 'cantidad-material-error' });
+    const errorCantidad = el('p', { class: 'campo-error', id: 'cantidad-material-error', role: 'alert' });
+    errorCantidad.hidden = true;
+    const campoMedida = el('input', { id: 'medida-material', type: 'text', maxlength: 60, placeholder: 'Ej.: color, talla, etc.' });
     const botonGuardar = el('button', { type: 'submit', class: 'boton boton-secundario' }, 'Registrar material');
 
     const form = el('form', { novalidate: true },
       contenedorAviso,
-      leyendaObligatorios(),
-      el('div', { class: 'campo' }, etiquetaCampo('Material', { for: 'material' }), campoMaterial),
-      el('div', { class: 'campo' }, etiquetaCampo('Cantidad', { for: 'cantidad-material' }), campoCantidad),
-      el('div', { class: 'campo' }, etiquetaCampo('Medida (opcional)', { for: 'medida-material', opcional: true }), campoMedida),
+      el('div', { class: 'campo' }, etiquetaCampo('Material', { for: 'material' }), campoMaterial, errorMaterial),
+      el('div', { class: 'campo' }, etiquetaCampo('Cantidad', { for: 'cantidad-material' }), campoCantidad, errorCantidad),
+      el('div', { class: 'campo' }, etiquetaCampo('Medida', { for: 'medida-material', opcional: true }), campoMedida),
       botonGuardar,
     );
 
@@ -130,8 +133,29 @@ export function renderDetalleTrabajo(main, sesion, codigo) {
     form.addEventListener('submit', async (evento) => {
       evento.preventDefault();
       vaciar(contenedorAviso);
-      if (!campoMaterial.value) { contenedorAviso.appendChild(aviso('error', 'Selecciona un material.')); return; }
-      if (!campoCantidad.value || Number(campoCantidad.value) <= 0) { contenedorAviso.appendChild(aviso('error', 'La cantidad debe ser mayor que cero.')); return; }
+      errorMaterial.hidden = true;
+      campoMaterial.removeAttribute('aria-invalid');
+      errorCantidad.hidden = true;
+      campoCantidad.removeAttribute('aria-invalid');
+      let valido = true;
+      if (!campoMaterial.value) {
+        campoMaterial.setAttribute('aria-invalid', 'true');
+        errorMaterial.textContent = 'Selecciona un material.';
+        errorMaterial.hidden = false;
+        valido = false;
+      }
+      if (!campoCantidad.value) {
+        campoCantidad.setAttribute('aria-invalid', 'true');
+        errorCantidad.textContent = 'Escribe la cantidad.';
+        errorCantidad.hidden = false;
+        valido = false;
+      } else if (Number(campoCantidad.value) <= 0) {
+        campoCantidad.setAttribute('aria-invalid', 'true');
+        errorCantidad.textContent = 'La cantidad debe ser mayor que cero.';
+        errorCantidad.hidden = false;
+        valido = false;
+      }
+      if (!valido) return;
 
       botonGuardar.disabled = true;
       botonGuardar.textContent = 'Guardando…';

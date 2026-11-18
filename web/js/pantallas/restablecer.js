@@ -1,13 +1,14 @@
 import { api, ApiError } from '../api.js';
 import { el, vaciar, aviso, iniciarCuentaRegresiva, etiquetaCampo, describirErrorApi } from '../ui.js';
-import { leyendaObligatorios } from '../componentes.js';
 
 const CAMPOS = { nueva: 'Contraseña nueva' };
 
 function campoContrasena(id, texto) {
-  const input = el('input', { id, type: 'password', autocomplete: 'new-password', required: true, minlength: 12 });
-  const contenedor = el('div', { class: 'campo' }, etiquetaCampo(texto, { for: id }), input);
-  return { input, contenedor };
+  const input = el('input', { id, type: 'password', autocomplete: 'new-password', required: true, minlength: 12, 'aria-describedby': `${id}-error` });
+  const error = el('p', { class: 'campo-error', id: `${id}-error`, role: 'alert' });
+  error.hidden = true;
+  const contenedor = el('div', { class: 'campo' }, etiquetaCampo(texto, { for: id }), input, error);
+  return { input, error, contenedor };
 }
 
 // Pantalla pública (sin sesión): se llega aquí desde el enlace que generó Administración.
@@ -16,8 +17,8 @@ function campoContrasena(id, texto) {
 export function renderRestablecer(main, irA, token) {
   let temporizador = null;
 
-  const { input: nueva, contenedor: contenedorNueva } = campoContrasena('restablecer-nueva', 'Contraseña nueva');
-  const { input: repetir, contenedor: contenedorRepetir } = campoContrasena('restablecer-repetir', 'Repetir contraseña nueva');
+  const { input: nueva, error: errorNueva, contenedor: contenedorNueva } = campoContrasena('restablecer-nueva', 'Contraseña nueva');
+  const { input: repetir, error: errorRepetir, contenedor: contenedorRepetir } = campoContrasena('restablecer-repetir', 'Repetir contraseña nueva');
 
   const contenedorAviso = el('div');
   const boton = el('button', { type: 'submit', class: 'boton boton-primario boton-ancho-completo' }, 'Guardar contraseña nueva');
@@ -26,10 +27,20 @@ export function renderRestablecer(main, irA, token) {
     vaciar(contenedorAviso);
     contenedorAviso.appendChild(aviso('error', mensaje));
   }
+  function limpiarErroresCampo() {
+    for (const [input, error] of [[nueva, errorNueva], [repetir, errorRepetir]]) {
+      input.removeAttribute('aria-invalid');
+      error.hidden = true;
+    }
+  }
+  function marcarErrorCampo(input, error, mensaje) {
+    input.setAttribute('aria-invalid', 'true');
+    error.textContent = mensaje;
+    error.hidden = false;
+  }
 
   const form = el('form', { novalidate: true },
     contenedorAviso,
-    leyendaObligatorios(),
     contenedorNueva,
     contenedorRepetir,
     boton,
@@ -46,11 +57,16 @@ export function renderRestablecer(main, irA, token) {
   form.addEventListener('submit', async (evento) => {
     evento.preventDefault();
     vaciar(contenedorAviso);
+    limpiarErroresCampo();
 
     const valorNueva = nueva.value;
     const valorRepetir = repetir.value;
-    if (valorNueva.length < 12) return mostrarError('La contraseña nueva debe tener al menos 12 caracteres.');
-    if (valorNueva !== valorRepetir) return mostrarError('Las contraseñas nuevas no coinciden.');
+    let valido = true;
+    if (!valorNueva) { marcarErrorCampo(nueva, errorNueva, 'Escribe tu contraseña nueva.'); valido = false; }
+    else if (valorNueva.length < 12) { marcarErrorCampo(nueva, errorNueva, 'Debe tener al menos 12 caracteres.'); valido = false; }
+    if (!valorRepetir) { marcarErrorCampo(repetir, errorRepetir, 'Repite la contraseña nueva.'); valido = false; }
+    else if (valido && valorNueva !== valorRepetir) { marcarErrorCampo(repetir, errorRepetir, 'No coincide con la contraseña nueva.'); valido = false; }
+    if (!valido) return;
 
     boton.disabled = true;
     boton.textContent = 'Guardando…';
@@ -61,7 +77,7 @@ export function renderRestablecer(main, irA, token) {
       botonIngresar.focus();
     } catch (err) {
       if (err instanceof ApiError && err.status === 400 && err.cuerpo?.motivo === 'TOKEN_INVALIDO') {
-        mostrarError('Este enlace ya no es válido: venció, ya se usó o no existe. Pídele a Administración que te genere uno nuevo.');
+        mostrarError('Este enlace ya no es válido: venció, ya se usó o no existe. Una persona de Administración puede generarte uno nuevo.');
       } else if (err instanceof ApiError && err.status === 400) {
         mostrarError(describirErrorApi(err, CAMPOS, 'La contraseña nueva no cumple la política.'));
       } else if (err instanceof ApiError && err.status === 429) {

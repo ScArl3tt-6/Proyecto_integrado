@@ -1,6 +1,6 @@
 import { api, ApiError } from '../api.js';
 import { el, vaciar, aviso, etiquetaCampo, describirErrorApi } from '../ui.js';
-import { tarjetaTrabajo, estadoVacio, estadoCarga, estadoError, paginador, leyendaObligatorios, TEXTO_ESTADO } from '../componentes.js';
+import { tarjetaTrabajo, estadoVacio, estadoCarga, estadoError, paginador, TEXTO_ESTADO } from '../componentes.js';
 
 const CAMPOS_NUEVA_SOLICITUD = { idTipo: 'Tipo de trabajo', descripcion: 'Descripción', cantidad: 'Cantidad', fechaCompromiso: 'Fecha comprometida' };
 
@@ -53,22 +53,39 @@ export function renderMisSolicitudes(main, sesion, irA) {
 
 export function renderNuevaSolicitud(main, sesion, irA) {
   const contenedorAviso = el('div');
-  const campoTipo = el('select', { id: 'tipo', required: true }, el('option', { value: '' }, 'Selecciona un tipo'));
-  const campoDescripcion = el('input', { id: 'descripcion', type: 'text', required: true, minlength: 5, maxlength: 300, placeholder: 'Ej.: 40 poleras bordadas con logo del club' });
+  const campoTipo = el('select', { id: 'tipo', required: true, 'aria-describedby': 'tipo-error' }, el('option', { value: '' }, 'Selecciona un tipo'));
+  const errorTipo = el('p', { class: 'campo-error', id: 'tipo-error', role: 'alert' });
+  errorTipo.hidden = true;
+  const campoDescripcion = el('input', { id: 'descripcion', type: 'text', required: true, minlength: 5, maxlength: 300, placeholder: 'Ej.: 40 poleras bordadas con logo del club', 'aria-describedby': 'descripcion-error' });
+  const errorDescripcion = el('p', { class: 'campo-error', id: 'descripcion-error', role: 'alert' });
+  errorDescripcion.hidden = true;
   const campoCantidad = el('input', { id: 'cantidad', type: 'number', required: true, min: 1, max: 100000, value: '1' });
   const hoy = new Date().toISOString().slice(0, 10);
-  const campoFecha = el('input', { id: 'fecha', type: 'date', required: true, min: hoy });
+  const campoFecha = el('input', { id: 'fecha', type: 'date', required: true, min: hoy, 'aria-describedby': 'fecha-error' });
+  const errorFecha = el('p', { class: 'campo-error', id: 'fecha-error', role: 'alert' });
+  errorFecha.hidden = true;
   const botonGuardar = el('button', { type: 'submit', class: 'boton boton-primario' }, 'Registrar solicitud');
 
   const form = el('form', { novalidate: true },
     contenedorAviso,
-    leyendaObligatorios(),
-    el('div', { class: 'campo' }, etiquetaCampo('Tipo de trabajo', { for: 'tipo' }), campoTipo),
-    el('div', { class: 'campo' }, etiquetaCampo('Descripción', { for: 'descripcion' }), campoDescripcion),
+    el('div', { class: 'campo' }, etiquetaCampo('Tipo de trabajo', { for: 'tipo' }), campoTipo, errorTipo),
+    el('div', { class: 'campo' }, etiquetaCampo('Descripción', { for: 'descripcion' }), campoDescripcion, errorDescripcion),
     el('div', { class: 'campo' }, etiquetaCampo('Cantidad', { for: 'cantidad' }), campoCantidad),
-    el('div', { class: 'campo' }, etiquetaCampo('Fecha comprometida', { for: 'fecha' }), campoFecha),
+    el('div', { class: 'campo' }, etiquetaCampo('Fecha comprometida', { for: 'fecha' }), campoFecha, errorFecha),
     botonGuardar,
   );
+
+  function limpiarErroresCampo() {
+    for (const [input, nodo] of [[campoTipo, errorTipo], [campoDescripcion, errorDescripcion], [campoFecha, errorFecha]]) {
+      input.removeAttribute('aria-invalid');
+      nodo.hidden = true;
+    }
+  }
+  function marcarErrorCampo(input, nodo, mensaje) {
+    input.setAttribute('aria-invalid', 'true');
+    nodo.textContent = mensaje;
+    nodo.hidden = false;
+  }
 
   main.appendChild(
     el('section', { class: 'contenedor' },
@@ -88,9 +105,15 @@ export function renderNuevaSolicitud(main, sesion, irA) {
   form.addEventListener('submit', async (evento) => {
     evento.preventDefault();
     vaciar(contenedorAviso);
-    if (!campoTipo.value) return mostrar('error', 'Selecciona un tipo de trabajo.');
-    if (campoDescripcion.value.trim().length < 5) return mostrar('error', 'La descripción debe tener al menos 5 caracteres.');
-    if (campoFecha.value < hoy) return mostrar('error', 'La fecha comprometida no puede ser anterior a hoy.');
+    limpiarErroresCampo();
+    let valido = true;
+    if (!campoTipo.value) { marcarErrorCampo(campoTipo, errorTipo, 'Elige un tipo de trabajo.'); valido = false; }
+    const descripcion = campoDescripcion.value.trim();
+    if (!descripcion) { marcarErrorCampo(campoDescripcion, errorDescripcion, 'Escribe una descripción.'); valido = false; }
+    else if (descripcion.length < 5) { marcarErrorCampo(campoDescripcion, errorDescripcion, 'Escribe al menos 5 caracteres.'); valido = false; }
+    if (!campoFecha.value) { marcarErrorCampo(campoFecha, errorFecha, 'Elige una fecha comprometida.'); valido = false; }
+    else if (campoFecha.value < hoy) { marcarErrorCampo(campoFecha, errorFecha, 'Elige una fecha desde hoy en adelante.'); valido = false; }
+    if (!valido) return;
 
     botonGuardar.disabled = true;
     botonGuardar.textContent = 'Guardando…';

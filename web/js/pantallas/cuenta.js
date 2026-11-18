@@ -1,6 +1,6 @@
 import { api, ApiError } from '../api.js';
 import { el, vaciar, aviso, iniciarCuentaRegresiva, etiquetaCampo, describirErrorApi } from '../ui.js';
-import { estadoCarga, leyendaObligatorios } from '../componentes.js';
+import { estadoCarga } from '../componentes.js';
 import { cerrarSesion, guardarSesion, obtenerSesion } from '../estado.js';
 import { ROL_TEXTO } from '../permisos.js';
 
@@ -79,8 +79,7 @@ function seccionMfa(sesion) {
       cuerpo.appendChild(el('img', { src: qr, alt: 'Código QR para activar la verificación en dos pasos' }));
       cuerpo.appendChild(el('p', { class: 'campo-ayuda' }, '¿No puedes escanearlo? Ingresa esta clave a mano en tu aplicación: ', el('strong', {}, secreto)));
       cuerpo.appendChild(el('div', { class: 'campo' }, etiquetaCampo('Código de 6 dígitos', { for: 'mfa-codigo-nuevo' }), campoCodigo, errorCodigo));
-      cuerpo.appendChild(botonConfirmar);
-      cuerpo.appendChild(botonCancelar);
+      cuerpo.appendChild(el('div', { class: 'acciones-decision' }, botonConfirmar, botonCancelar));
       campoCodigo.focus();
     }).catch((err) => {
       vaciar(cuerpo);
@@ -110,7 +109,7 @@ function seccionMfa(sesion) {
     botonCancelar.addEventListener('click', () => pintarActiva());
     botonConfirmar.addEventListener('click', async () => {
       if (!campoClave.value) {
-        errorClave.textContent = 'Ingresa tu contraseña actual.';
+        errorClave.textContent = 'Escribe tu contraseña actual.';
         errorClave.hidden = false;
         return;
       }
@@ -131,8 +130,7 @@ function seccionMfa(sesion) {
 
     cuerpo.appendChild(el('p', {}, 'Para desactivarla, confirma tu contraseña actual.'));
     cuerpo.appendChild(el('div', { class: 'campo' }, etiquetaCampo('Contraseña actual (para desactivar la verificación en dos pasos)', { for: 'mfa-contrasena-actual' }), campoClave, errorClave));
-    cuerpo.appendChild(botonConfirmar);
-    cuerpo.appendChild(botonCancelar);
+    cuerpo.appendChild(el('div', { class: 'acciones-decision' }, botonConfirmar, botonCancelar));
     campoClave.focus();
   }
 
@@ -143,7 +141,9 @@ function seccionMfa(sesion) {
 export function renderCuenta(main, sesion) {
   let temporizador = null;
 
-  const actual = el('input', { id: 'contrasena-actual', type: 'password', autocomplete: 'current-password', required: true });
+  const actual = el('input', { id: 'contrasena-actual', type: 'password', autocomplete: 'current-password', required: true, 'aria-describedby': 'contrasena-actual-error' });
+  const errorActual = el('p', { class: 'campo-error', id: 'contrasena-actual-error', role: 'alert' });
+  errorActual.hidden = true;
   const { input: nueva, contenedor: contenedorNueva } = campoContrasena('contrasena-nueva', 'Contraseña nueva');
   const { input: repetir, contenedor: contenedorRepetir } = campoContrasena('contrasena-repetir', 'Repetir contraseña nueva');
   nueva.setAttribute('minlength', '12');
@@ -155,11 +155,19 @@ export function renderCuenta(main, sesion) {
     vaciar(contenedorAviso);
     contenedorAviso.appendChild(aviso('error', mensaje));
   }
+  function limpiarErrorActual() {
+    actual.removeAttribute('aria-invalid');
+    errorActual.hidden = true;
+  }
+  function marcarErrorActual(mensaje) {
+    actual.setAttribute('aria-invalid', 'true');
+    errorActual.textContent = mensaje;
+    errorActual.hidden = false;
+  }
 
   const form = el('form', { novalidate: true },
     contenedorAviso,
-    leyendaObligatorios(),
-    el('div', { class: 'campo' }, etiquetaCampo('Contraseña actual', { for: 'contrasena-actual' }), actual),
+    el('div', { class: 'campo' }, etiquetaCampo('Contraseña actual', { for: 'contrasena-actual' }), actual, errorActual),
     contenedorNueva,
     contenedorRepetir,
     boton,
@@ -168,12 +176,16 @@ export function renderCuenta(main, sesion) {
   form.addEventListener('submit', async (evento) => {
     evento.preventDefault();
     vaciar(contenedorAviso);
+    limpiarErrorActual();
 
     const valorActual = actual.value;
     const valorNueva = nueva.value;
     const valorRepetir = repetir.value;
 
+    if (!valorActual) return marcarErrorActual('Escribe tu contraseña actual.');
+    if (!valorNueva) return mostrarError('Escribe tu contraseña nueva.');
     if (valorNueva.length < 12) return mostrarError('La contraseña nueva debe tener al menos 12 caracteres.');
+    if (!valorRepetir) return mostrarError('Repite la contraseña nueva.');
     if (valorNueva !== valorRepetir) return mostrarError('Las contraseñas nuevas no coinciden.');
     if (valorNueva === valorActual) return mostrarError('La nueva contraseña debe ser distinta de la actual.');
 
@@ -186,7 +198,7 @@ export function renderCuenta(main, sesion) {
       form.reset();
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
-        mostrarError('La contraseña actual no es correcta.');
+        marcarErrorActual('La contraseña actual no es correcta.');
       } else if (err instanceof ApiError && err.status === 400) {
         mostrarError(describirErrorApi(err, { actual: 'Contraseña actual', nueva: 'Contraseña nueva' }, 'La contraseña nueva no cumple la política.'));
       } else if (err instanceof ApiError && err.status === 429) {

@@ -1,6 +1,6 @@
 import { api, ApiError } from '../api.js';
 import { el, vaciar, aviso, abrirDialogoConfirmacion, enlaceVolver, etiquetaCampo, describirErrorApi } from '../ui.js';
-import { tarjetaTrabajo, estadoVacio, estadoCarga, estadoError, leyendaObligatorios } from '../componentes.js';
+import { tarjetaTrabajo, estadoVacio, estadoCarga, estadoError } from '../componentes.js';
 
 const CAMPOS_PROPUESTA = { archivos: 'Archivos', 'archivos.0.nombre': 'Archivos', 'archivos.0.contenidoBase64': 'Archivos', comentario: 'Comentario' };
 
@@ -100,7 +100,9 @@ function archivoValido(archivo) {
 
 export function renderEnviarPropuesta(main, sesion, codigo, irA) {
   const contenedorAviso = el('div');
-  const campoArchivos = el('input', { id: 'archivos', type: 'file', accept: '.pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg', multiple: true, required: true });
+  const campoArchivos = el('input', { id: 'archivos', type: 'file', accept: '.pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg', multiple: true, required: true, 'aria-describedby': 'archivos-error' });
+  const errorArchivos = el('p', { class: 'campo-error', id: 'archivos-error', role: 'alert' });
+  errorArchivos.hidden = true;
   const campoTecnica = el('input', { id: 'tecnica', type: 'text', maxlength: 60, placeholder: 'Ej.: bordado' });
   const campoUbicacion = el('input', { id: 'ubicacion', type: 'text', maxlength: 60, placeholder: 'Ej.: pecho izquierdo' });
   const campoMedidas = el('input', { id: 'medidas', type: 'text', maxlength: 60, placeholder: 'Ej.: 8 x 8 cm' });
@@ -110,13 +112,12 @@ export function renderEnviarPropuesta(main, sesion, codigo, irA) {
 
   const form = el('form', { novalidate: true },
     contenedorAviso,
-    leyendaObligatorios(),
-    el('div', { class: 'campo' }, etiquetaCampo('Archivos (PDF, PNG o JPG, hasta 15 MB)', { for: 'archivos' }), campoArchivos),
+    el('div', { class: 'campo' }, etiquetaCampo('Archivos (PDF, PNG o JPG, hasta 15 MB)', { for: 'archivos' }), campoArchivos, errorArchivos),
     el('div', { class: 'campo' }, etiquetaCampo('Técnica', { for: 'tecnica', opcional: true }), campoTecnica),
     el('div', { class: 'campo' }, etiquetaCampo('Ubicación', { for: 'ubicacion', opcional: true }), campoUbicacion),
     el('div', { class: 'campo' }, etiquetaCampo('Medidas', { for: 'medidas', opcional: true }), campoMedidas),
     el('div', { class: 'campo' }, etiquetaCampo('Colores', { for: 'colores', opcional: true }), campoColores),
-    el('div', { class: 'campo' }, etiquetaCampo('Comentario (opcional)', { for: 'comentario', opcional: true }), campoComentario),
+    el('div', { class: 'campo' }, etiquetaCampo('Comentario', { for: 'comentario', opcional: true }), campoComentario),
     boton,
   );
 
@@ -131,8 +132,15 @@ export function renderEnviarPropuesta(main, sesion, codigo, irA) {
   form.addEventListener('submit', async (evento) => {
     evento.preventDefault();
     vaciar(contenedorAviso);
+    errorArchivos.hidden = true;
+    campoArchivos.removeAttribute('aria-invalid');
     const archivos = [...campoArchivos.files];
-    if (!archivos.length) return mostrar('error', 'Adjunta al menos un archivo.');
+    if (!archivos.length) {
+      campoArchivos.setAttribute('aria-invalid', 'true');
+      errorArchivos.textContent = 'Adjunta al menos un archivo.';
+      errorArchivos.hidden = false;
+      return;
+    }
     for (const archivo of archivos) {
       const error = archivoValido(archivo);
       if (error) return mostrar('error', `"${archivo.name}": ${error}`);

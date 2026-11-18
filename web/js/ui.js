@@ -20,12 +20,13 @@ export function el(etiqueta, atributos = {}, ...hijos) {
   return nodo;
 }
 
-// Etiqueta de un campo de formulario, con un asterisco visible (y anunciado a lectores de
-// pantalla vía el atributo "required" del propio campo, no solo por el texto) cuando es
-// obligatorio. Usar junto con leyendaObligatorios() (componentes.js) al principio del formulario.
+// Etiqueta de un campo de formulario. Lo obligatorio no se marca con un asterisco (no todas las
+// personas conocen esa convención): se marca lo opcional con "(opcional)", y que un campo
+// obligatorio no tenga esa palabra ya dice que hace falta llenarlo. El atributo "required" del
+// propio campo sigue anunciándolo a lectores de pantalla.
 export function etiquetaCampo(texto, { for: paraId, opcional = false } = {}) {
-  if (opcional) return el('label', { for: paraId }, texto);
-  return el('label', { for: paraId }, texto, el('span', { class: 'campo-obligatorio', 'aria-hidden': 'true' }, ' *'));
+  if (opcional) return el('label', { for: paraId }, texto, el('span', { class: 'campo-opcional' }, ' (opcional)'));
+  return el('label', { for: paraId }, texto);
 }
 
 // Traduce una ApiError a un mensaje que diga, cuando se pueda saber, QUÉ campo falló, en vez de

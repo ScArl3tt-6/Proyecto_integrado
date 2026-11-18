@@ -11,16 +11,11 @@
 .tarjeta-ingreso h1 { font-size: var(--texto-20); margin-bottom: 4px; }
 .tarjeta-ingreso .subtitulo { color: var(--color-texto-secundario); margin-bottom: var(--espacio-3); font-size: var(--texto-14); }
 
-.mfa-proximamente {
-  max-width: 380px;
-  width: 100%;
-  text-align: center;
-  color: var(--color-texto-secundario);
-  font-size: var(--texto-14);
-  margin: 0;
-}
-
 .seccion-cuenta { max-width: 480px; }
+/* La regla general "* + h2" (base.css) no alcanza al título de "Verificación en dos pasos": queda
+   anidado dentro de su propio contenedor, así que no tiene un hermano anterior directo. Selector
+   de descendiente para que de todas formas quede separado de la sección de arriba. */
+.seccion-cuenta h2 { margin-top: var(--espacio-4); }
 .lista-reglas { margin: 0 0 var(--espacio-2); padding-left: var(--espacio-3); color: var(--color-texto-secundario); font-size: var(--texto-14); }
 .lista-reglas li { margin-bottom: 4px; }
 

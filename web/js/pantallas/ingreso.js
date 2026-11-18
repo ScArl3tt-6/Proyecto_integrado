@@ -1,6 +1,5 @@
 import { api, ApiError } from '../api.js';
 import { el, vaciar, aviso, iniciarCuentaRegresiva, etiquetaCampo } from '../ui.js';
-import { leyendaObligatorios } from '../componentes.js';
 import { guardarSesion, consumirBanderaSesionExpirada } from '../estado.js';
 
 const CORREO_PATRON = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -32,12 +31,11 @@ export function renderIngreso(main, irA) {
 
   const contenedorAviso = el('div');
   const botonEnviar = el('button', { type: 'submit', class: 'boton boton-primario boton-ancho-completo' }, 'Ingresar');
-  const pistaOlvido = el('p', { class: 'campo-ayuda' }, '¿Olvidaste tu contraseña? Pídele a Administración que te genere un enlace para crear una nueva (pantalla "Usuarios" → "Generar enlace"). Ábrelo apenas te lo entregue: vence en 30 minutos y sirve una sola vez.');
+  const pistaOlvido = el('p', { class: 'campo-ayuda' }, '¿Olvidaste tu contraseña? Una persona de Administración puede generarte un enlace para crear una nueva (pantalla "Usuarios" → "Generar enlace"). Ábrelo apenas te lo entregue: vence en 30 minutos y sirve una sola vez.');
   pistaOlvido.hidden = true;
 
   const form = el('form', { novalidate: true },
     contenedorAviso,
-    leyendaObligatorios(),
     el('div', { class: 'campo' },
       etiquetaCampo('Correo', { for: 'correo' }),
       campoCorreo,
@@ -68,7 +66,6 @@ export function renderIngreso(main, irA) {
   const formMfa = el('form', { novalidate: true },
     contenedorAvisoMfa,
     el('p', {}, 'Escribe el código de 6 dígitos de tu aplicación de verificación.'),
-    leyendaObligatorios(),
     el('div', { class: 'campo' },
       etiquetaCampo('Código de verificación', { for: 'codigo-mfa' }),
       campoCodigoMfa,

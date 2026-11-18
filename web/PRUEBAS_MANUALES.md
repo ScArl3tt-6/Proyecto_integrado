@@ -26,7 +26,7 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 1. Ve a `#/ingreso`. Escribe un correo que no existe (`nadie@kotoduo.test`) y cualquier contraseña. Ingresar.
 2. Repite con un correo real de `.demo-credenciales.txt` pero con la contraseña cambiada.
 3. **Esperado:** en ambos casos aparece el mismo aviso: «Correo o contraseña incorrectos. Si fallas 5 veces, tu cuenta se bloquea 15 minutos por seguridad.». Nada en la pantalla ni en la pestaña de Red del navegador distingue un caso del otro.
-4. Tras el segundo intento fallido con el mismo correo debe aparecer además «¿Olvidaste tu contraseña? Pídele a Administración que te genere un enlace para crear una nueva (pantalla "Usuarios" → "Generar enlace"). Ábrelo apenas te lo entregue: vence en 30 minutos y sirve una sola vez.».
+4. Tras el segundo intento fallido con el mismo correo debe aparecer además «¿Olvidaste tu contraseña? Una persona de Administración puede generarte un enlace para crear una nueva (pantalla "Usuarios" → "Generar enlace"). Ábrelo apenas te lo entregue: vence en 30 minutos y sirve una sola vez.».
 
 ### PM-02 — Bloqueo por intentos (429)
 1. Con un correo de prueba, envía la contraseña incorrecta repetidamente (10 veces en 15 minutos agota el límite de intentos por cuenta).
@@ -99,7 +99,7 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 3. Copia el enlace y ábrelo en una ventana nueva (o en modo incógnito) **sin haber iniciado sesión**. **Esperado:** aparece «Crear una contraseña nueva» con las mismas reglas que en «Mi cuenta».
 4. Escribe una contraseña nueva válida y repítela. **Esperado:** «Contraseña actualizada. Ya puedes ingresar con tu contraseña nueva.» y un botón «Ir a Ingresar».
 5. Ingresa con la cuenta y la contraseña nueva: debe funcionar. Con la contraseña antigua ya no debe entrar.
-6. Intenta abrir el mismo enlace otra vez y guardar otra contraseña. **Esperado:** «Este enlace ya no es válido: venció, ya se usó o no existe. Pídele a Administración que te genere uno nuevo.».
+6. Intenta abrir el mismo enlace otra vez y guardar otra contraseña. **Esperado:** «Este enlace ya no es válido: venció, ya se usó o no existe. Una persona de Administración puede generarte uno nuevo.».
 7. Genera un enlace nuevo para la misma cuenta sin usar el anterior: el enlace viejo debe dejar de servir apenas se genera el nuevo.
 8. Si la cuenta tenía otra sesión abierta en otro navegador, confirma que esa sesión también se cierra al completar el restablecimiento (igual que al cambiar la contraseña desde «Mi cuenta»).
 
