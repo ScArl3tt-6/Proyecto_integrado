@@ -634,6 +634,47 @@ completa para el informe (sección de validación de resultados).
   comprobar que el puerto 3000 queda libre; (2) toda prueba con navegador va solo al entorno
   aislado (`scripts/entorno-efimero.js`), nunca a `npm run demo`; (3) ninguna acción irreversible
   (borrar datos, etc.) sin una orden explícita del equipo en el mismo mensaje.
+- **Resolución (con el "adelante" explícito del equipo):** se ejecutó
+  `npm run db:limpiar-trabajos-prueba -- --si` con la lista ampliada (14 códigos ya borrados en la
+  ronda anterior + los 8 nuevos). Resultado: los 8 nuevos (`KT-2026-0010` a `KT-2026-0017`) se
+  borraron correctamente junto con todo lo que dependía de ellos; los 14 anteriores salieron como
+  "no encontrados" (ya estaban borrados de la ronda previa), como se esperaba.
+  - **Conteos antes → después:** `trabajo` 14 → 6; `diseno` 10 → 3; `etapa_trabajo` 8 → 2;
+    `propuestas_diseno` (Mongo) 10 → 6; `bitacora_eventos` (Mongo) 128 → 108; `disenos.files`
+    (Mongo) 6 → 1.
+  - **Revisión de huérfanos en Mongo** (script propio, no comiteado) sobre las 4 colecciones que
+    pidió el equipo: `propuestas_diseno` (¿`trabajoCodigo` sin trabajo real?), `bitacora_eventos`
+    (¿`entidad.codigo` de tipo trabajo sin trabajo real?), `disenos.files` (¿archivo sin ninguna
+    propuesta que lo referencie?) y `disenos.chunks` (¿chunk sin su `files_id` en `disenos.files`?):
+    **0 huérfanos en las 4**, sobre los 6 trabajos reales que quedan (`KT-2026-0001` a `0006`).
+  - Los 6 `trabajo` reales que quedan son exactamente los del seed original
+    (`scripts/sembrar-demo.js`); los 6 `propuestas_diseno` y el único `disenos.files` restante
+    (`Glosario.pdf`, 4 860 009 bytes, 19 chunks) pertenecen a esos mismos trabajos — no hay rastro
+    de los 22 trabajos de prueba borrados en ninguna de las 4 colecciones.
+- **Hallazgo nuevo, encontrado al revisar ese único `disenos.files` restante — contaminación
+  distinta, NO ejecutada ninguna corrección todavía:** el archivo `Glosario.pdf` que quedó en
+  GridFS no es basura huérfana (por eso el chequeo de huérfanos no lo marcó), pero tampoco
+  pertenece al guion de la demo: es una **segunda versión real de diseño** que esta misma sesión
+  envió contra `KT-2026-0003` ("Letrero luminoso fachada local centro") durante la primera
+  verificación manual de GridFS (Funcionalidad 2), antes de que existiera el entorno aislado.
+  - **Guion original de `sembrar-demo.js` para `KT-2026-0003`:** una sola versión de diseño
+    (v1), **RECHAZADA** por Marcela con motivo "El tamaño del letrero supera el ancho permitido
+    por la fachada", y el trabajo debía quedar en estado `EN_DISENO` (vuelve a diseño con el
+    motivo visible), para mostrar ese caso en la bandeja.
+  - **Estado real actual (verificado ahora):** el trabajo tiene una **v2** de diseño
+    (`id_diseno 9`, `Glosario.pdf`, 4 860 009 bytes), en estado `PENDIENTE`, enviada el
+    2026-11-18T01:46:17 (fecha/hora de esta sesión). Al enviarse esa v2, el trabajo cambió de
+    `EN_DISENO` a **`PENDIENTE_APROBACION`** — ya no muestra el caso "rechazado" que el guion de
+    la demo necesita; en su lugar aparece como una aprobación pendiente real, con un archivo de
+    prueba (`Glosario.pdf`, 4,6 MB) que cualquiera podría aprobar o rechazar por error.
+  - **Por qué no se tocó:** no estaba en la lista de 8/14 trabajos autorizada para borrar (el
+    trabajo en sí es real y legítimo), y corregir esto implica una acción irreversible distinta
+    (borrar la v2 del diseño, su archivo en GridFS y su propuesta en Mongo, y devolver
+    `KT-2026-0003` a `EN_DISENO`) que no estaba autorizada en el mismo mensaje. Queda pendiente de
+    una orden explícita del equipo.
+- **Estado:** Incidente de proceso corregido y verificado de forma estable. Limpieza de los 22
+  trabajos de prueba completada y verificada sin huérfanos. Contaminación nueva en `KT-2026-0003`
+  **encontrada y documentada, corrección pendiente de autorización explícita**.
 
 ## DEF-19 — En "Aprobaciones", el placeholder del buscador se corta y la flecha del selector tapa el texto
 
