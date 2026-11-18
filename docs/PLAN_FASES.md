@@ -89,6 +89,9 @@ Estado real de cada punto, revisado directamente en el código (no por memoria):
   esquema) que `sst_app` tiene de verdad los permisos mínimos sobre la tabla nueva
   (`restablecimiento_contrasena`): INSERT, SELECT y UPDATE, sin DELETE — la misma comprobación que
   DEF-09 enseñó a no omitir.
+  **Pregunta abierta del equipo (sin implementar, pendiente de confirmación):** qué pasa si
+  Administración (único rol con permiso para generar enlaces) es quien queda sin acceso. Propuesta
+  documentada en `docs/CAMBIOS_RESPECTO_AL_DISENO.md` (Fase 1, punto 1).
 - **Cierre de sesión por inactividad:** ✅ terminado. Antes solo existía un temporizador en el
   cliente (JavaScript, 30 minutos) que avisaba de la inactividad pero no cerraba nada en el
   servidor: si el navegador seguía renovando el token de acceso solo, la sesión real podía durar

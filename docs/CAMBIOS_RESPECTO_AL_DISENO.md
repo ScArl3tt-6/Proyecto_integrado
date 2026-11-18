@@ -175,3 +175,57 @@ en `coverage/coverage-final.json`):**
   que ver con el cambio de motor (cada prueba crea una base nueva, así que esa colección nunca
   existe de antemano; y las pruebas arman su propio objeto `entorno` a mano en vez de llamar a
   `cargarEntorno()`). No se tocaron en esta fase.
+
+## Fase 1 — Materiales, archivos reales, restablecimiento, cierre por inactividad, MFA (16 al 19-11-2026)
+
+### 1. Restablecimiento de contraseña: qué pasa si Administración queda sin acceso
+
+- **Pregunta del equipo:** la Funcionalidad 4 (restablecimiento por enlace) solo la puede generar
+  una cuenta con el permiso `USUARIO_GESTIONAR` (hoy, solo ADMINISTRADOR). ¿Qué pasa si la persona
+  de Administración es justo la que olvida su contraseña o queda bloqueada, y es la única cuenta
+  con ese permiso?
+- **Cómo está cubierto hoy:**
+  - Un **bloqueo por intentos fallidos** (`usuario.bloqueado_hasta`) se autodesbloquea solo a los
+    15 minutos (`entorno.minutosBloqueo`), para cualquier rol, incluida Administración. No es un
+    callejón sin salida.
+  - Una **contraseña olvidada** (no solo bloqueada) sí lo es hoy si Administración es la única
+    cuenta con `USUARIO_GESTIONAR`: `POST /api/auth/cambiar-contrasena` exige la contraseña actual
+    (no sirve si se olvidó) y el enlace de restablecimiento solo lo genera otra cuenta con ese
+    permiso. En el seed de la demostración (`scripts/sembrar-demo.js`) y en el diseño general no
+    hay ninguna obligación de tener más de una cuenta ADMINISTRADOR: hoy existe exactamente una
+    (`koto`). Si esa cuenta queda sin acceso, nadie dentro de la aplicación puede generarle un
+    enlace.
+  - La única vía que existe hoy fuera de la aplicación es que alguien con acceso directo al
+    servidor y a las credenciales de `.env` (`SST_PG_PROPIETARIO_URL`) edite la fila a mano con
+    SQL. Funciona, pero no queda en la bitácora, no respeta la política de contraseñas, y depende
+    de que esa persona escriba el SQL correcto — es exactamente lo que no se quiere dejar como
+    único camino.
+- **Propuesta (NO implementada; pendiente de confirmación del equipo antes de tocar código):**
+  1. **Práctica inmediata, sin código:** mantener siempre al menos dos cuentas ADMINISTRADOR
+     activas. Con eso, el mecanismo que ya existe (Funcionalidad 4) resuelve el caso común: una le
+     genera el enlace a la otra. No resuelve el caso en que las dos pierdan el acceso a la vez.
+  2. **Red de seguridad técnica, para ese caso catastrófico:** un script nuevo,
+     `scripts/db/generar-enlace-emergencia.js`, que se ejecuta solo en el servidor (nunca por
+     HTTP, nunca alcanzable desde la red) con las credenciales de `sst_propietario` de `.env` — el
+     mismo nivel de confianza que ya tienen `scripts/db/limpiar-trabajos-prueba.js` o
+     `scripts/db/reiniciar-base-postgres.js`, no uno nuevo. Recibiría el correo de la cuenta por
+     argumento, reutilizaría EXACTAMENTE el mismo mecanismo de la Funcionalidad 4 (token de un solo
+     uso, solo su hash guardado, vencimiento de 30 minutos, la misma política de contraseña al
+     consumirlo) y exigiría `--si` para ejecutarse, igual que los demás scripts que cambian datos.
+     Quedaría registrado en la bitácora con un tipo distinto
+     (`RESTABLECIMIENTO_GENERADO_EMERGENCIA`, con `creado_por = NULL` en vez del id de un
+     administrador) para que, al revisar el historial, se note con claridad que no lo generó
+     ninguna cuenta desde la pantalla, sino alguien con acceso directo al servidor.
+  - **Por qué esto no es una puerta trasera ni una cuenta con clave fija:** no agrega ninguna ruta
+    nueva alcanzable por la red, no crea ninguna cuenta ni contraseña fija, no evita la política de
+    contraseñas, y cada uso queda en la bitácora. El nivel de acceso que necesita (el archivo
+    `.env` real, en el servidor) es el mismo que ya se necesita hoy para la vía no oficial (editar
+    la fila a mano con SQL); la diferencia es que esta vía queda auditada y es segura por diseño,
+    en vez de depender de que alguien escriba el SQL correcto a mano.
+  - **Alternativa considerada y descartada por ahora:** códigos de recuperación de un solo uso
+    generados al crear cada cuenta ADMINISTRADOR (como Google o GitHub). Se descartó por ahora
+    porque agrega bastante más superficie para un proyecto de este tamaño (mostrarlos una sola vez
+    al crearse la cuenta, guardarlos hasheados, pantalla para regenerarlos, qué pasa si también se
+    pierden); el script de emergencia cubre el mismo caso con mucho menos código.
+- **Estado:** documentado y a la espera de la decisión del equipo. No se creó ningún archivo ni se
+  tocó código para esto todavía.
