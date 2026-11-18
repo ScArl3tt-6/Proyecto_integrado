@@ -1,0 +1,97 @@
+=== DEF-11 — "Datos de entrada inválidos" al enviar una propuesta real: reproducción, causa y verificación ===
+
+Todo lo de abajo se ejecutó contra el servidor real (npm run demo), las bases reales, y un
+navegador real controlado con Playwright (headless), no solo con las pruebas de Jest.
+
+--- Casos que el equipo pidió probar explícitamente, y su resultado ANTES de corregir nada ---
+
+1) PDF real de ~4,6 MB (Glosario.pdf de prueba), todos los campos llenos:
+   Respuesta: 201 (funcionó bien, no reprodujo el fallo)
+
+2) JPG real de 500 KB con nombre "#mi archivo #1.jpg" (espacios y símbolos, el ejemplo que
+   sugirió el equipo), todos los campos llenos:
+   Respuesta real:
+     "avisoEnPantalla": "Archivo \"#mi archivo #1.jpg\" rechazado: Nombre de archivo inválido"
+     "respuestaServidor": { "status": 400, "body": { "error": "Archivo \"#mi archivo #1.jpg\" rechazado: Nombre de archivo inválido" } }
+   -> DEFECTO REAL #1 encontrado.
+
+3) PDF de más de 15 MB (16 777 225 bytes): bloqueado en el navegador antes de enviarse, con el
+   mensaje correcto ("El archivo supera los 15 MB permitidos."). No es un defecto.
+
+4) Archivo vacío (0 bytes): rechazado con mensaje específico ("Tamaño fuera de rango, El
+   contenido no corresponde al tipo declarado"). No es un defecto.
+
+5) .docx: bloqueado en el navegador ("Solo se aceptan archivos PDF, PNG o JPG."). No es un
+   defecto, y no se agregó soporte para .docx (se mantiene solo PDF/PNG/JPG, según instrucción).
+
+6) .exe renombrado a .pdf: rechazado con "El contenido no corresponde al tipo declarado" (la
+   firma real del archivo no coincide). No es un defecto.
+
+7) Especificaciones con frases largas (más de 60 caracteres por color), dos archivos juntos en
+   una propuesta, y un comentario de casi 500 caracteres: los tres casos respondieron 201. No
+   reprodujeron el fallo.
+
+--- El segundo defecto real: la frase EXACTA que reportó el equipo ---
+
+Se confirmó enviando directamente, contra el servidor YA actualizado, el mismo cuerpo que
+mandaba la versión ANTERIOR del formulario (antes del cambio a GridFS de esta sesión):
+
+  POST /api/disenos/trabajos/KT-2026-0001
+  { archivos: [{ nombre: 'viejo.pdf', tipoMime: 'application/pdf', tamanoBytes: 250000, cabeceraBase64: 'JVBERi0xLjc=' }] }
+
+Resultado real, literal:
+  {
+    "status": 400,
+    "body": {
+      "error": "Datos de entrada inválidos",
+      "campos": ["archivos.0.contenidoBase64", "archivos.0"]
+    }
+  }
+
+Esto reproduce exactamente la frase que reportó el equipo. La explicación más consistente con
+toda la evidencia (declarada como inferencia, no como hecho confirmado): es una aplicación de una
+sola página (SPA) con rutas por "#", sin recarga completa entre pantallas; si la pestaña ya estaba
+abierta desde antes de que el servidor se actualizara, el navegador sigue usando el JavaScript
+viejo en memoria hasta que se recarga la página completa (F5), aunque el servidor ya cambió.
+
+--- Correcciones aplicadas ---
+
+1) src/dominio/archivosDiseno.js: el nombre de archivo pasó de lista blanca a lista negra (solo
+   se rechazan caracteres de control, "/", "\" y ".."). Verificado con el mismo archivo real:
+
+   Respuesta real del servidor tras el fix, subiendo "#mi archivo #1.jpg" por el formulario real:
+     {"status":201,"body":{"idDiseno":14,"version":1,"refDocumento":"6afd06e9f1ae10c44ba1c9b0"}}
+
+2) src/middleware/seguridad.js: cuando el error de Zod incluye "unrecognized_keys" (la firma de
+   un cuerpo con campos que el esquema actual no conoce), el mensaje ahora agrega una pista.
+   Verificado enviando la forma antigua del cuerpo contra el servidor ya corregido:
+
+     {
+       "status": 400,
+       "body": {
+         "error": "Datos de entrada inválidos. Si la aplicación se actualizó hace poco, recarga esta página (Ctrl+F5) e inténtalo de nuevo.",
+         "campos": ["archivos.0.contenidoBase64", "archivos.0"]
+       }
+     }
+
+--- Pruebas automáticas ---
+
+$ npm run pruebas
+Test Suites: 13 passed, 13 total
+Tests:       55 passed, 55 total
+Statements   : 94.49% ( 652/690 )
+Branches     : 80.4%  ( 238/296 )
+Functions    : 93.37% ( 141/151 )
+Lines        : 98.31% ( 583/593 )
+
+Pruebas nuevas: CP-55 (nombre de archivo con símbolos reales se acepta), CP-56 (la forma antigua
+del cuerpo avisa recargar la página). CP-07 (tests/unit/dominio.test.js) se amplió con casos de
+nombre con símbolos (debe aceptarse) y con barras (debe rechazarse).
+
+--- Lo que queda sin confirmar al 100% ---
+
+No fue posible confirmar de forma directa con la persona que reportó el fallo si en efecto tenía
+la pestaña abierta desde antes de la actualización del servidor. Es la explicación más consistente
+con toda la evidencia recolectada (incluida la reproducción exacta de la frase del error), pero
+sigue siendo una inferencia. Si el fallo vuelve a aparecer después de confirmar que se hizo un
+refresh completo de la página, hay que avisar para seguir investigando otra causa.

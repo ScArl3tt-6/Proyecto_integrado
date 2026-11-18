@@ -63,4 +63,23 @@ describe('Pruebas de integración - archivo real de una propuesta de diseño en 
     expect(res.status).toBe(404);
     expect(await ctx.mongoDb.collection('disenos.files').countDocuments()).toBe(antes);
   });
+
+  test('CP-55 (DEF-11) acepta un nombre de archivo real con espacios y símbolos comunes (#, &, paréntesis)', async () => {
+    const otro = await jorge.post('/api/trabajos', {
+      idTipo: 1, descripcion: 'Trabajo para probar nombres de archivo reales', cantidad: 3, fechaCompromiso: fechaEnDias(10),
+    });
+    await valentina.post(`/api/trabajos/${otro.body.codigo}/tomar-diseno`);
+    const res = await valentina.post(`/api/disenos/trabajos/${otro.body.codigo}`, {
+      archivos: [{ nombre: '#foto final (v2) & boceto.pdf', tipoMime: 'application/pdf', contenidoBase64: contenidoReal.toString('base64') }],
+    });
+    expect(res.status).toBe(201);
+  });
+
+  test('CP-56 (DEF-11) un cuerpo con la forma antigua (tamanoBytes/cabeceraBase64, sin contenidoBase64) avisa que la página puede estar desactualizada', async () => {
+    const res = await valentina.post(`/api/disenos/trabajos/${codigo}`, {
+      archivos: [{ nombre: 'viejo.pdf', tipoMime: 'application/pdf', tamanoBytes: 250000, cabeceraBase64: contenidoReal.toString('base64').slice(0, 16) }],
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/recarga esta página/);
+  });
 });

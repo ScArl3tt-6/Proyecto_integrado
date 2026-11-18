@@ -66,5 +66,10 @@ describe('Pruebas unitarias - seguridad del dominio', () => {
     expect(validarArchivoDiseno({ ...base, cabeceraBase64: CABECERAS.png }).errores).toContain('El contenido no corresponde al tipo declarado');
     expect(validarArchivoDiseno({ ...base, nombre: '../../etc/passwd.pdf' }).valido).toBe(false);
     expect(validarArchivoDiseno({ ...base, tamanoBytes: 16 * 1024 * 1024 }).valido).toBe(false);
+    // DEF-11: un nombre real con símbolos comunes (#, &, paréntesis, tilde) debe aceptarse;
+    // solo los caracteres de control y las barras (no es una ruta real) se rechazan.
+    expect(validarArchivoDiseno({ ...base, nombre: '#foto #1 (diseño) & boceto.pdf' }).valido).toBe(true);
+    expect(validarArchivoDiseno({ ...base, nombre: 'ruta/con/barra.pdf' }).valido).toBe(false);
+    expect(validarArchivoDiseno({ ...base, nombre: 'ruta\\con\\barra.pdf' }).valido).toBe(false);
   });
 });

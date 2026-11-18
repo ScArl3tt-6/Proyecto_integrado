@@ -305,3 +305,73 @@ completa para el informe (sección de validación de resultados).
   (`tests/integracion/flujoTrabajo.test.js`) que exige `idDiseno` en la respuesta, para que este
   campo no vuelva a quedar sin probar.
 - **Estado:** Corregido.
+
+## DEF-11 — El equipo reportó "Datos de entrada inválidos" al enviar una propuesta real; causa real: dos defectos distintos, no uno
+
+- **Encontrado en:** aviso directo del equipo (prioridad absoluta), reproducido con el servidor
+  real (`npm run demo`), las bases reales y un navegador real controlado con Playwright (no con
+  las pruebas de Jest, que usan su propio contexto aislado).
+- **Caso de prueba:** como `valentina` (Diseño), "Enviar propuesta" con un PDF real de ~4,6 MB, con
+  una imagen JPG real de 500 KB cuyo nombre tiene espacios y símbolos (`#mi archivo #1.jpg`, el
+  ejemplo que el propio equipo sugirió probar), y con todos los campos de especificaciones llenos.
+  También se probaron: archivo vacío, archivo de más de 15 MB, `.docx`, y un `.exe` renombrado a
+  `.pdf`.
+- **Qué NO reprodujo el fallo** (para que quede constancia de lo que sí se probó y funcionó bien):
+  un PDF real de ~4,6 MB con todos los campos llenos (201); especificaciones con frases largas,
+  más de 60 caracteres por color (201); dos archivos en la misma propuesta (201); un comentario de
+  casi 500 caracteres (201); un archivo vacío (rechazado con un mensaje claro y específico, no el
+  genérico); un archivo de más de 15 MB (bloqueado en el navegador antes de enviarse, con el
+  mensaje correcto); `.docx` (bloqueado en el navegador con "Solo se aceptan archivos PDF, PNG o
+  JPG."); un `.exe` renombrado a `.pdf` (rechazado con "El contenido no corresponde al tipo
+  declarado", el mensaje correcto).
+- **Lo que SÍ reprodujo un fallo real, y la causa confirmada de cada uno:**
+  1. **El nombre de archivo con espacios y símbolos comunes se rechazaba** (`#mi archivo #1.jpg`,
+     el ejemplo exacto que sugirió el equipo), con el mensaje `Archivo "..." rechazado: Nombre de
+     archivo inválido`. Causa: `src/dominio/archivosDiseno.js` usaba una lista BLANCA de
+     caracteres permitidos que no incluía `#`, `&`, comas, ni varios otros símbolos comunes en
+     nombres de archivo reales (fotos descargadas de WhatsApp, de una cámara, etc.).
+  2. **Un cuerpo con la forma ANTERIOR a esta sesión** (campos `tamanoBytes` y `cabeceraBase64`,
+     sin `contenidoBase64`) sí produce, literal, exactamente `"Datos de entrada inválidos"` — la
+     frase textual que reportó el equipo. Se confirmó enviando esa forma antigua directamente
+     contra el servidor real ya actualizado:
+     ```
+     POST /api/disenos/trabajos/KT-2026-0001
+     { archivos: [{ nombre: 'viejo.pdf', tipoMime: 'application/pdf', tamanoBytes: 250000, cabeceraBase64: '...' }] }
+     -> 400 { "error": "Datos de entrada inválidos", "campos": ["archivos.0.contenidoBase64", "archivos.0"] }
+     ```
+     La causa más probable (no se pudo confirmar con certeza absoluta, se declara así de forma
+     honesta): quien hizo la prueba ya tenía la pantalla de "Enviar propuesta" abierta en el
+     navegador desde ANTES de que el servidor se actualizara con los cambios de GridFS de esta
+     misma sesión (commit `d56e017`). Esta aplicación es una SPA (enrutamiento por `#`, sin
+     recarga de página entre pantallas): si la pestaña ya estaba abierta, el navegador sigue
+     usando el JavaScript viejo en memoria (el que mandaba `cabeceraBase64`/`tamanoBytes`) aunque
+     el servidor ya espere `contenidoBase64`, y eso nunca se corrige solo con cerrar sesión: hace
+     falta recargar la página entera (F5 o Ctrl+F5). El código actual de
+     `web/js/pantallas/diseno.js` ya manda `contenidoBase64`; no se encontró ningún lugar del
+     código vigente que siga mandando la forma antigua.
+- **Corrección:**
+  1. Se cambió la validación del nombre de archivo (`src/dominio/archivosDiseno.js`) de lista
+     blanca a lista negra: ahora solo se rechazan los caracteres de control, las barras (`/` y
+     `\`, que no tienen sentido en un nombre real, no es una ruta de archivo) y `..`. Cualquier
+     otro símbolo (`#`, `&`, paréntesis, comas, tildes, etc.) se acepta.
+  2. Se mejoró el mensaje genérico de `src/middleware/seguridad.js` (función `validar`): cuando
+     el error de Zod incluye `unrecognized_keys` (la firma exacta de un cuerpo con campos que el
+     esquema actual no conoce, como pasa con una página desactualizada), el mensaje ahora agrega
+     "Si la aplicación se actualizó hace poco, recarga esta página (Ctrl+F5) e inténtalo de
+     nuevo." en vez de dejar solo el texto genérico sin ninguna pista. No se tradujo cada error de
+     Zod a un mensaje por campo todavía: eso es trabajo de la Etapa 2 (mensajes claros en toda la
+     aplicación), no de esta corrección puntual.
+  3. No se agregó ningún tipo de archivo nuevo (se mantienen solo PDF, PNG, JPG), según la
+     instrucción explícita de esperar la decisión del equipo antes de ampliar esa lista.
+- **Nueva ejecución:** con ambas correcciones, se repitió el flujo completo en un navegador real
+  contra el servidor real: subir `#mi archivo #1.jpg` como Diseño ahora responde `201` (antes,
+  `400`). Enviar la forma antigua del cuerpo ahora responde con el mensaje que sugiere recargar la
+  página. Pruebas automáticas nuevas: CP-55 (nombre con símbolos) y CP-56 (forma antigua avisa
+  recargar), más una ampliación de CP-07 (`tests/unit/dominio.test.js`) para nombres con símbolos
+  y para rutas con barras. Las 55 pruebas de la suite completa pasan en verde
+  (`npm run pruebas`).
+- **Estado:** Corregido (los dos defectos reales encontrados). Pendiente: no se pudo confirmar con
+  el equipo, de forma 100% certera, que la causa del segundo defecto fue en efecto una pestaña
+  vieja sin recargar (es la explicación más consistente con toda la evidencia, pero es una
+  inferencia, no una observación directa de la pantalla de quien lo reportó). Si vuelve a pasar
+  después de un refresh confirmado, hay que avisar para seguir investigando.

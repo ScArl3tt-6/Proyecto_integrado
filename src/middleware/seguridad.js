@@ -74,7 +74,14 @@ function validar(esquema, origen = 'body') {
     const resultado = esquema.safeParse(req[origen]);
     if (!resultado.success) {
       const campos = resultado.error.issues.map((i) => i.path.join('.') || '(general)');
-      return res.status(400).json({ error: 'Datos de entrada inválidos', campos: [...new Set(campos)] });
+      // "unrecognized_keys" aparece cuando el cuerpo trae campos que el esquema no conoce: la
+      // causa real casi siempre es una página con JavaScript desactualizado (de antes de un cambio
+      // en la API), no un error de quien llena el formulario. Encontrado como DEF-11.
+      const paginaDesactualizada = resultado.error.issues.some((i) => i.code === 'unrecognized_keys');
+      const error = paginaDesactualizada
+        ? 'Datos de entrada inválidos. Si la aplicación se actualizó hace poco, recarga esta página (Ctrl+F5) e inténtalo de nuevo.'
+        : 'Datos de entrada inválidos';
+      return res.status(400).json({ error, campos: [...new Set(campos)] });
     }
     req.datos = { ...(req.datos || {}), [origen]: resultado.data };
     return next();
