@@ -286,8 +286,9 @@ const contenido = [
   tabla(
     ['Colección', 'Para qué sirve', 'Índices'],
     [
-      ['propuestas_diseno', 'Una propuesta de diseño por versión: archivos (nombre, tipo, tamaño, sha256), especificaciones técnicas de forma libre y comentarios. Tiene un validador $jsonSchema que rechaza documentos con forma inválida (por ejemplo, un archivo .svg).', '{_id:1}, {trabajoCodigo:1, version:-1}'],
+      ['propuestas_diseno', 'Una propuesta de diseño por versión: archivos (nombre, tipo, tamaño, sha256 y archivoId: el _id real en GridFS), especificaciones técnicas de forma libre y comentarios. Tiene un validador $jsonSchema que rechaza documentos con forma inválida (por ejemplo, un archivo .svg o uno sin archivoId).', '{_id:1}, {trabajoCodigo:1, version:-1}'],
       ['bitacora_eventos', 'Un documento por evento del sistema (RNF-03): tipo, usuario, entidad afectada, detalle y fecha. Solo se inserta, nunca se modifica ni se borra.', '{_id:1}, {"entidad.codigo":1, fecha:-1}, {tipo:1, fecha:-1}'],
+      ['disenos.files / disenos.chunks', 'El bucket de GridFS (sección 3.6): el contenido real de cada archivo de una propuesta, partido en fragmentos de hasta 255 KB. Las crea y las indexa el driver de MongoDB automáticamente, no un script del proyecto.', '(automáticos del driver) {files_id:1, n:1} en chunks; {filename:1, uploadDate:1} en files'],
     ],
     [20, 60, 20],
   ),
@@ -312,11 +313,28 @@ const contenido = [
   ]),
   espacio(),
   h2('3.6 GridFS'),
-  noVerificado('GridFS todavía NO está implementado en este proyecto. Hoy solo se recibe la '
-    + 'cabecera del archivo en base64 para validar su firma (src/dominio/archivosDiseno.js); ni el '
-    + 'archivo completo ni su contenido real se guardan en ningún lado (ni GridFS ni disco). Es una '
-    + 'brecha conocida, ya anotada en docs/PLAN_FASES.md (Fase 1, punto 2) y en CLAUDE.md. Esta '
-    + 'sección se completará cuando GridFS exista de verdad, con una prueba real, no antes.'),
+  p('Implementado en la Fase 1 (src/modulos/disenos/servicioDisenos.js). Antes de esta fase solo '
+    + 'se recibía la cabecera del archivo en base64 para validar su firma '
+    + '(src/dominio/archivosDiseno.js); ni el archivo completo ni su contenido real se guardaban en '
+    + 'ningún lado. Ahora Diseño envía el archivo completo en base64, el servidor mide su tamaño y '
+    + 'valida su firma sobre el contenido real (ya no sobre un dato declarado por el cliente), y lo '
+    + 'guarda en el bucket de GridFS "disenos" (colecciones disenos.files y disenos.chunks dentro de '
+    + 'sst_kotoduo). El _id real que GridFS le asigna queda guardado, en texto hexadecimal, en '
+    + 'archivos[].archivoId dentro del documento de propuestas_diseno.'),
+  bullet('Quién puede verlo/descargarlo: GET /api/disenos/:idDiseno/archivos/:idArchivo, con el mismo permiso DISENO_VER que ya protegía el detalle (Producción y Diseño). La ruta verifica que ese archivoId pertenezca de verdad a ese idDiseno antes de servirlo, para que nadie con el permiso pueda adivinar el id de un archivo de otro trabajo.'),
+  bullet('Si algo falla después de subir el archivo (el trabajo no existe, la transacción de PostgreSQL falla, Mongo falla al guardar la propuesta), el archivo ya subido se borra de GridFS: no quedan archivos reales sin ningún diseño que los referencie (ver CP-16 y CP-54, y DEF-10 en evidencias/defectos.md).'),
+  espacio(),
+  p('Ejemplo real, tomado de evidencias/fase1_archivos_diseno.txt (verificado con un navegador real, no solo con las pruebas automáticas):'),
+  pre([
+    '-- En MongoDB, el archivo real de una propuesta:',
+    'db.propuestas_diseno.findOne({ idDiseno: 8 }).archivos[0].archivoId',
+    '-- resultado: "6afcf585d3b3d88c67ec02d6"',
+    '',
+    '-- Pedido por HTTP con permiso DISENO_VER:',
+    'GET /api/disenos/8/archivos/6afcf585d3b3d88c67ec02d6',
+    '-- resultado: 200, Content-Type: application/pdf, 10409 bytes, idénticos byte a byte',
+    '-- al PDF real que Diseño adjuntó en el formulario (no solo su cabecera).',
+  ]),
 
   // 4 ----------------------------------------------------------------------------------------
   h1('4. Roles y mínimo privilegio'),
