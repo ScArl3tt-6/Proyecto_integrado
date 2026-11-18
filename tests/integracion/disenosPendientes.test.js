@@ -17,10 +17,11 @@ describe('Propuestas de diseño pendientes de decisión', () => {
   });
   afterAll(async () => ctx.cerrar());
 
-  test('CP-44 producción ve las propuestas pendientes; diseño no tiene permiso para esa bandeja', async () => {
+  test('CP-44 producción ve las propuestas pendientes, con contador; diseño no tiene permiso para esa bandeja', async () => {
     const vista = await marcela.get('/api/disenos/pendientes');
     expect(vista.status).toBe(200);
-    expect(vista.body).toEqual(expect.arrayContaining([expect.objectContaining({ idDiseno, codigo, disenador: 'Valentina Rojas' })]));
+    expect(vista.body.total).toBe(vista.body.items.length);
+    expect(vista.body.items).toEqual(expect.arrayContaining([expect.objectContaining({ idDiseno, codigo, disenador: 'Valentina Rojas' })]));
 
     const sinPermiso = await valentina.get('/api/disenos/pendientes');
     expect(sinPermiso.status).toBe(403);
@@ -36,10 +37,28 @@ describe('Propuestas de diseño pendientes de decisión', () => {
         archivos: [{ nombre: `adicional-${i}.pdf`, tipoMime: 'application/pdf', contenidoBase64: CABECERAS.pdf }],
       });
     }
-    const vista = await marcela.get('/api/disenos/pendientes');
-    const idsDiseno = vista.body.map((p) => p.idDiseno);
-    const codigos = vista.body.map((p) => p.codigo);
+    const vista = await marcela.get('/api/disenos/pendientes?limite=50');
+    const idsDiseno = vista.body.items.map((p) => p.idDiseno);
+    const codigos = vista.body.items.map((p) => p.codigo);
     expect(idsDiseno).toHaveLength(new Set(idsDiseno).size);
     expect(codigos).toHaveLength(new Set(codigos).size);
+  });
+
+  test('CP-59 (Parte B) la bandeja de pendientes admite búsqueda por código y por descripción, orden por fecha y paginación', async () => {
+    const porCodigo = await marcela.get(`/api/disenos/pendientes?busqueda=${codigo}`);
+    expect(porCodigo.body.items.map((p) => p.codigo)).toEqual([codigo]);
+
+    const porDescripcion = await marcela.get('/api/disenos/pendientes?busqueda=Letrero fachada');
+    expect(porDescripcion.body.items.some((p) => p.codigo === codigo)).toBe(true);
+
+    const sinCoincidencias = await marcela.get('/api/disenos/pendientes?busqueda=esto-no-existe-en-ningun-trabajo');
+    expect(sinCoincidencias.body).toEqual({ total: 0, items: [] });
+
+    const primeraPagina = await marcela.get('/api/disenos/pendientes?limite=1&pagina=1');
+    expect(primeraPagina.body.items).toHaveLength(1);
+    expect(primeraPagina.body.total).toBeGreaterThan(1);
+
+    const ordenInvalido = await marcela.get('/api/disenos/pendientes?orden=no-es-valido');
+    expect(ordenInvalido.status).toBe(400);
   });
 });

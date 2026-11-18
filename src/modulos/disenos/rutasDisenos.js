@@ -19,6 +19,13 @@ const esquemaDecision = z.strictObject({
   decision: z.enum(['APROBADO', 'RECHAZADO']),
   motivo: z.string().trim().min(5).max(300).optional(),
 }).refine((d) => d.decision === 'APROBADO' || d.motivo, { path: ['motivo'], message: 'El rechazo requiere motivo' });
+// Lista de aprobaciones pendientes: contador, orden, búsqueda y paginación (DEF-12/Parte B).
+const esquemaPendientes = z.strictObject({
+  busqueda: z.string().trim().min(1).max(60).optional(),
+  orden: z.enum(['fecha_compromiso', 'enviado_en']).default('fecha_compromiso'),
+  pagina: z.coerce.number().int().min(1).max(500).default(1),
+  limite: z.coerce.number().int().min(1).max(50).default(20),
+});
 
 function rutasDisenos({ disenos }) {
   const r = express.Router();
@@ -35,8 +42,8 @@ function rutasDisenos({ disenos }) {
       res.json(await disenos.decidir(req.usuario, req.datos.params.idDiseno, req.datos.body));
     });
 
-  r.get('/pendientes', autorizar('DISENO_APROBAR'), async (req, res) => {
-    res.json(await disenos.pendientes());
+  r.get('/pendientes', autorizar('DISENO_APROBAR'), validar(esquemaPendientes, 'query'), async (req, res) => {
+    res.json(await disenos.pendientes(req.datos.query));
   });
 
   r.get('/:idDiseno', autorizar('DISENO_VER'),

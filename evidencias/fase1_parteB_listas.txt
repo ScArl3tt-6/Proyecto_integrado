@@ -1,0 +1,37 @@
+=== Parte B — Listas y bandejas: contador, orden, búsqueda, paginación y botón sin subrayado ===
+
+Todo lo de abajo se verificó contra el entorno de verificación aislado (scripts/entorno-efimero.js,
+no la base real), con Playwright y un navegador real.
+
+--- Cambios ---
+1. GET /api/disenos/pendientes ahora admite "busqueda" (por código o descripción, ILIKE),
+   "orden" ("fecha_compromiso", el valor por defecto -los más urgentes primero-, o "enviado_en"),
+   y paginación ("pagina"/"limite", igual que el resto de la API). La respuesta pasó de ser un
+   arreglo plano a `{ total, items }`, para poder mostrar un contador real ("N propuestas
+   pendientes de decisión").
+2. web/js/pantallas/produccion.js (bandeja de Aprobaciones): se agregó un campo de búsqueda (con
+   espera de 350 ms para no mandar una solicitud por cada letra), un selector de orden, el
+   contador, y el paginador "Anterior/Siguiente" que ya se usaba en "Mis solicitudes".
+3. DEF-13: se encontró y corrigió que CUALQUIER botón con forma de enlace (`<a class="boton">`,
+   no solo "Ver y decidir") se veía subrayado, porque la clase .boton nunca reseteaba
+   text-decoration. Corregido una sola vez en la clase base.
+
+--- Verificación funcional (navegador real, entorno aislado) ---
+- Buscar "tazones" -> devuelve solo KT-2026-0002 (coincide por descripción).
+- Buscar algo que no existe -> estado vacío con el mensaje correcto ("No hay propuestas
+  pendientes que coincidan con la búsqueda.").
+- Estilo computado de "Ver y decidir": textDecorationLine pasó de "underline" a "none".
+- Captura real: evidencias/capturas/fase1_parteB_aprobaciones.png (contador, buscador, orden,
+  paginador y el botón ya sin subrayado, todo visible).
+
+--- Pruebas automáticas nuevas ---
+CP-59 (tests/integracion/disenosPendientes.test.js): búsqueda por código, por descripción, sin
+coincidencias, paginación con "limite=1", y un valor de "orden" inválido responde 400.
+Suite completa: 58 pruebas, 13 suites, todas en verde.
+
+--- Alcance de esta parte ---
+Se aplicó a la bandeja de Producción (Aprobaciones), que es la que el equipo señaló
+explícitamente. El botón sin subrayado se corrigió para TODA la aplicación (es una sola clase
+CSS). Las demás listas (bandeja de Diseño, Mis solicitudes, Mis actividades, Usuarios, Bitácora)
+quedan para revisar en la Parte C (auditoría completa de experiencia por perfil), donde se
+revisará cada pantalla una por una con el mismo criterio.

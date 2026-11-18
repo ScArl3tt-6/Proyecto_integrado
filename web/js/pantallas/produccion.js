@@ -1,6 +1,15 @@
 import { api, ApiError } from '../api.js';
 import { el, vaciar, aviso, abrirDialogoConfirmacion, abrirDialogoMotivo, enlaceVolver } from '../ui.js';
-import { estadoVacio, estadoCarga, estadoError } from '../componentes.js';
+import { estadoVacio, estadoCarga, estadoError, paginador } from '../componentes.js';
+
+// Para no mandar una solicitud por cada letra escrita en el buscador.
+function conEspera(fn, esperaMs = 350) {
+  let temporizador = null;
+  return (...args) => {
+    clearTimeout(temporizador);
+    temporizador = setTimeout(() => fn(...args), esperaMs);
+  };
+}
 
 const MOTIVOS_RECHAZO = [
   'El diseño no cumple las medidas solicitadas',
@@ -34,23 +43,48 @@ function tarjetaArchivo(idDiseno, archivo) {
 }
 
 export function renderAprobaciones(main, sesion, irA) {
-  const contenedor = el('section', { class: 'contenedor' }, el('h1', {}, 'Aprobaciones'));
+  const campoBusqueda = el('input', { id: 'buscar-aprobaciones', type: 'text', placeholder: 'Ej.: KT-2026-0005 o "poleras"' });
+  const campoOrden = el('select', { id: 'orden-aprobaciones' },
+    el('option', { value: 'fecha_compromiso' }, 'Más urgentes primero (fecha comprometida)'),
+    el('option', { value: 'enviado_en' }, 'Más recientes primero'));
+  const contador = el('p', { class: 'campo-ayuda' }, '');
+
+  const contenedor = el('section', { class: 'contenedor' },
+    el('h1', {}, 'Aprobaciones'),
+    el('div', { class: 'filtros-lista' },
+      el('div', { class: 'campo' }, el('label', { for: 'buscar-aprobaciones' }, 'Buscar por código o descripción'), campoBusqueda),
+      el('div', { class: 'campo' }, el('label', { for: 'orden-aprobaciones' }, 'Ordenar por'), campoOrden),
+    ),
+    contador,
+  );
   const listaNodo = el('div', { class: 'lista-trabajos' });
+  const piePagina = el('div');
   contenedor.appendChild(listaNodo);
+  contenedor.appendChild(piePagina);
   main.appendChild(contenedor);
+
+  let pagina = 1;
+  campoBusqueda.addEventListener('input', conEspera(() => { pagina = 1; cargar(); }));
+  campoOrden.addEventListener('change', () => { pagina = 1; cargar(); });
   cargar();
 
   async function cargar() {
     vaciar(listaNodo);
+    vaciar(piePagina);
+    vaciar(contador);
     listaNodo.appendChild(estadoCarga());
     try {
-      const pendientes = await api.get('/disenos/pendientes');
+      const busqueda = campoBusqueda.value.trim() ? `&busqueda=${encodeURIComponent(campoBusqueda.value.trim())}` : '';
+      const { total, items } = await api.get(`/disenos/pendientes?pagina=${pagina}&limite=20&orden=${campoOrden.value}${busqueda}`);
       vaciar(listaNodo);
-      if (!pendientes.length) {
-        listaNodo.appendChild(estadoVacio('No hay propuestas esperando decisión.'));
+      contador.textContent = total === 0 ? '' : `${total} propuesta${total === 1 ? '' : 's'} pendiente${total === 1 ? '' : 's'} de decisión`;
+      if (!items.length) {
+        listaNodo.appendChild(estadoVacio(campoBusqueda.value.trim()
+          ? 'No hay propuestas pendientes que coincidan con la búsqueda.'
+          : 'No hay propuestas esperando decisión.'));
         return;
       }
-      for (const p of pendientes) {
+      for (const p of items) {
         const boton = el('a', { class: 'boton boton-primario', href: `#/disenos/${p.idDiseno}` }, 'Ver y decidir');
         listaNodo.appendChild(el('article', { class: 'tarjeta tarjeta-trabajo' },
           el('div', { class: 'tarjeta-trabajo-encabezado' }, el('span', { class: 'codigo-trabajo' }, p.codigo), el('span', { class: 'chip chip-aviso' }, `Versión ${p.version}`)),
@@ -61,6 +95,7 @@ export function renderAprobaciones(main, sesion, irA) {
           el('div', { class: 'tarjeta-trabajo-accion' }, boton),
         ));
       }
+      piePagina.appendChild(paginador({ pagina, llena: pagina * 20 < total, alCambiar: (p) => { pagina = p; cargar(); } }));
     } catch {
       vaciar(listaNodo);
       listaNodo.appendChild(estadoError('No pudimos cargar las aprobaciones. Revisa tu conexión e inténtalo otra vez.', cargar));

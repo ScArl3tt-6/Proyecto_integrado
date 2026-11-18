@@ -10,6 +10,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+  text-decoration: none; /* DEF-13: un <a class="boton"> heredaba el subrayado del navegador */
 }
 .boton:disabled { opacity: .6; cursor: not-allowed; }
 

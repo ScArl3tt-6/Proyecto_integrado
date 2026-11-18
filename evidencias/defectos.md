@@ -430,3 +430,21 @@ completa para el informe (sección de validación de resultados).
   las pruebas de regresión (CP-57, CP-58) para detectarlo de inmediato si alguna vez ocurre de
   verdad. Si el equipo lo ve de nuevo en una base recién limpiada, avisar con el código exacto y
   cuántas veces se repite para seguir investigando con datos más precisos.
+
+## DEF-13 — los botones con forma de enlace (`<a class="boton">`) se veían subrayados
+
+- **Encontrado en:** revisión de la Parte B (listas y bandejas), al verificar que "Ver y decidir"
+  no se viera como un enlace de texto.
+- **Caso de prueba:** estilo computado de "Ver y decidir" (`getComputedStyle`) en un navegador
+  real, contra el entorno de verificación aislado.
+- **Causa confirmada:** la clase `.boton` (`web/css/componentes.css`) nunca definía
+  `text-decoration`, así que un `<button>` se veía bien (los botones nunca subrayan su texto por
+  defecto), pero cualquier `<a class="boton ...">` heredaba el subrayado por defecto del
+  navegador para los enlaces. Esto afectaba a TODOS los botones con forma de enlace de la
+  aplicación ("Ver y decidir", "Ver archivo completo", "Nueva solicitud", "Ver detalle", etc.), no
+  solo a uno. Confirmado antes de corregir: `textDecorationLine: "underline"`.
+- **Corrección:** se agregó `text-decoration: none` a la clase base `.boton`, una sola vez, para
+  que corrija los casos ya existentes y cualquier botón-enlace nuevo que se agregue después.
+- **Nueva ejecución:** mismo estilo computado, después del cambio: `textDecorationLine: "none"`.
+  Captura en `evidencias/capturas/fase1_parteB_aprobaciones.png`.
+- **Estado:** Corregido.

@@ -144,18 +144,36 @@ function crearServicioDisenos({ pg, mongoDb, bitacora }) {
     return resultado;
   }
 
-  // Versiones esperando decisión de Producción (sección 4.4)
-  async function pendientes() {
+  // Versiones esperando decisión de Producción (sección 4.4). Contador, orden, búsqueda y
+  // paginación (Parte B, a partir del aviso del equipo sobre DEF-12): sin esto, una bandeja con
+  // muchas propuestas pendientes no se puede usar de verdad.
+  async function pendientes({ busqueda, orden = 'fecha_compromiso', pagina = 1, limite = 20 } = {}) {
+    const condiciones = ["d.estado = 'PENDIENTE'"];
+    const valores = [];
+    if (busqueda) {
+      valores.push(`%${busqueda}%`);
+      condiciones.push(`(t.codigo ILIKE $${valores.length} OR t.descripcion ILIKE $${valores.length})`);
+    }
+    const whereSql = condiciones.join(' AND ');
+    const ordenSql = orden === 'enviado_en' ? 'd.enviado_en ASC' : 't.fecha_compromiso ASC';
+
+    const { rows: totalRows } = await pg.query(
+      `SELECT COUNT(*)::int AS n FROM diseno d JOIN trabajo t ON t.id_trabajo = d.id_trabajo WHERE ${whereSql}`, valores,
+    );
+    const valoresPagina = [...valores, limite, (pagina - 1) * limite];
     const { rows } = await pg.query(
-      `SELECT d.id_diseno AS "idDiseno", d.version, t.codigo, tt.nombre AS tipo, t.descripcion, t.cantidad, u.nombre AS disenador, d.enviado_en
+      `SELECT d.id_diseno AS "idDiseno", d.version, t.codigo, tt.nombre AS tipo, t.descripcion, t.cantidad,
+              t.fecha_compromiso, u.nombre AS disenador, d.enviado_en
          FROM diseno d
          JOIN trabajo t ON t.id_trabajo = d.id_trabajo
          JOIN tipo_trabajo tt ON tt.id_tipo = t.id_tipo
          JOIN usuario u ON u.id_usuario = d.id_disenador
-        WHERE d.estado = 'PENDIENTE'
-        ORDER BY d.enviado_en ASC`,
+        WHERE ${whereSql}
+        ORDER BY ${ordenSql}
+        LIMIT $${valoresPagina.length - 1} OFFSET $${valoresPagina.length}`,
+      valoresPagina,
     );
-    return rows;
+    return { total: totalRows[0].n, items: rows };
   }
 
   // Consulta integrada: estado relacional + documento de la propuesta
