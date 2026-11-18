@@ -17,6 +17,7 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-09 | Producción registra materiales de un trabajo; otros perfiles solo los consultan | |
 | PM-10 | Diseño adjunta el archivo real de una propuesta y Producción puede verlo/descargarlo antes de decidir | |
 | PM-11 | Cierre de sesión por inactividad real: sin usar el sistema durante el límite, la próxima acción vuelve a Ingreso con el aviso correcto | |
+| PM-12 | Restablecimiento de contraseña: Administración genera el enlace y la persona lo usa, sin sesión, para crear una contraseña nueva | |
 
 ## Pasos detallados
 
@@ -24,7 +25,7 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 1. Ve a `#/ingreso`. Escribe un correo que no existe (`nadie@kotoduo.test`) y cualquier contraseña. Ingresar.
 2. Repite con un correo real de `.demo-credenciales.txt` pero con la contraseña cambiada.
 3. **Esperado:** en ambos casos aparece el mismo aviso: «Correo o contraseña incorrectos. Si fallas 5 veces, tu cuenta se bloquea 15 minutos por seguridad.». Nada en la pantalla ni en la pestaña de Red del navegador distingue un caso del otro.
-4. Tras el segundo intento fallido con el mismo correo debe aparecer además «¿Olvidaste tu contraseña? Pídele a Administración que revise tu cuenta.».
+4. Tras el segundo intento fallido con el mismo correo debe aparecer además «¿Olvidaste tu contraseña? Pídele a Administración que te genere un enlace para crear una nueva (pantalla "Usuarios" → "Generar enlace"). Ábrelo apenas te lo entregue: vence en 30 minutos y sirve una sola vez.».
 
 ### PM-02 — Bloqueo por intentos (429)
 1. Con un correo de prueba, envía la contraseña incorrecta repetidamente (10 veces en 15 minutos agota el límite de intentos por cuenta).
@@ -90,3 +91,13 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 3. **Esperado:** la pantalla vuelve a `#/ingreso` con el aviso «Tu sesión se cerró por inactividad. Ingresa de nuevo.» (distinto del aviso genérico de PM-03). La sesión queda cerrada de verdad en el servidor, no solo en esta pestaña: si quedó abierta en otra pestaña o dispositivo, la siguiente acción ahí también la cierra.
 4. Para no esperar 30 minutos reales al probar esto: lanza el entorno aislado con un límite corto, por ejemplo `SST_MINUTOS_INACTIVIDAD=0.2 node scripts/entorno-efimero.js` (12 segundos), nunca contra `npm run demo` ni la base real.
 5. Nota aparte: usar el sistema con normalidad (ir cambiando de pantalla, registrar algo) antes de los 30 minutos no debe cerrar la sesión aunque pase mucho tiempo total desde el ingreso — cada acción real reinicia el conteo.
+
+### PM-12 — Restablecimiento de contraseña por enlace (Funcionalidad 4)
+1. Ingresa como `koto` (Administrador), ve a «Usuarios» y presiona «Generar enlace» en la fila de cualquier cuenta activa.
+2. **Esperado:** se abre un diálogo con el enlace completo (se puede copiar con «Copiar enlace») y el aviso «Vence en 30 minutos y sirve una sola vez. Entrégaselo a [nombre] de forma segura…».
+3. Copia el enlace y ábrelo en una ventana nueva (o en modo incógnito) **sin haber iniciado sesión**. **Esperado:** aparece «Crear una contraseña nueva» con las mismas reglas que en «Mi cuenta».
+4. Escribe una contraseña nueva válida y repítela. **Esperado:** «Contraseña actualizada. Ya puedes ingresar con tu contraseña nueva.» y un botón «Ir a Ingresar».
+5. Ingresa con la cuenta y la contraseña nueva: debe funcionar. Con la contraseña antigua ya no debe entrar.
+6. Intenta abrir el mismo enlace otra vez y guardar otra contraseña. **Esperado:** «Este enlace ya no es válido: venció, ya se usó o no existe. Pídele a Administración que te genere uno nuevo.».
+7. Genera un enlace nuevo para la misma cuenta sin usar el anterior: el enlace viejo debe dejar de servir apenas se genera el nuevo.
+8. Si la cuenta tenía otra sesión abierta en otro navegador, confirma que esa sesión también se cierra al completar el restablecimiento (igual que al cambiar la contraseña desde «Mi cuenta»).

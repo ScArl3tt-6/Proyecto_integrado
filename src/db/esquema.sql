@@ -40,6 +40,19 @@ CREATE TABLE sesion (
   ultima_actividad  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Enlaces de un solo uso, generados por Administración, para que una persona que olvidó su
+-- contraseña pueda crear una nueva sin conocer la anterior. Ver Funcionalidad 4. El token real
+-- nunca se guarda, solo su hash (mismo patrón que "sesion.hash_token").
+CREATE TABLE restablecimiento_contrasena (
+  id_restablecimiento  UUID PRIMARY KEY,
+  id_usuario           INTEGER NOT NULL REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+  hash_token           CHAR(64) NOT NULL UNIQUE,
+  expira_en            TIMESTAMPTZ NOT NULL,
+  usado                BOOLEAN NOT NULL DEFAULT FALSE,
+  creado_por           INTEGER NOT NULL REFERENCES usuario(id_usuario),
+  creado_en            TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE tipo_trabajo (
   id_tipo     SMALLSERIAL PRIMARY KEY,
   nombre      VARCHAR(40) NOT NULL UNIQUE,

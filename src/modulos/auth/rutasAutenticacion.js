@@ -14,6 +14,10 @@ const esquemaCambioContrasena = z.strictObject({
   actual: z.string().min(1).max(128),
   nueva: z.string().min(1).max(128),
 });
+const esquemaRestablecer = z.strictObject({
+  token: z.string().min(1).max(200),
+  nueva: z.string().min(1).max(128),
+});
 
 function rutasAutenticacion({ autenticacion, entorno, autenticar, verificarCsrf }) {
   const r = express.Router();
@@ -25,6 +29,8 @@ function rutasAutenticacion({ autenticacion, entorno, autenticar, verificarCsrf 
     keyGenerator: (req) => `${ipKeyGenerator(req.ip)}|${String(req.body?.correo || '').toLowerCase().slice(0, 120)}`,
   });
   const limitePorIp = rateLimit({ windowMs: 15 * 60 * 1000, limit: 200, standardHeaders: 'draft-7', legacyHeaders: false, message: mensaje });
+  // El token ya es impracticable de adivinar (32 bytes al azar); el límite es solo contra el abuso del endpoint
+  const limiteRestablecer = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: 'draft-7', legacyHeaders: false, message: mensaje });
   // Cambio de contraseña: se limita por usuario para que una sesión robada no permita adivinar la contraseña actual
   const limiteCambio = rateLimit({
     windowMs: 15 * 60 * 1000, limit: 5, standardHeaders: 'draft-7', legacyHeaders: false, message: mensaje,
@@ -60,6 +66,14 @@ function rutasAutenticacion({ autenticacion, entorno, autenticar, verificarCsrf 
 
   r.post('/cambiar-contrasena', autenticar, verificarCsrf, limiteCambio, validar(esquemaCambioContrasena), async (req, res) => {
     await autenticacion.cambiarContrasena(req.usuario, req.datos.body);
+    return res.status(204).end();
+  });
+
+  // Sin sesión: quien lo usa todavía no puede ingresar. El enlace (con el token) lo generó
+  // Administración desde Usuarios. No se distingue "no existe" de "venció" o "ya se usó".
+  r.post('/restablecer', limitePorIp, limiteRestablecer, validar(esquemaRestablecer), async (req, res) => {
+    const resultado = await autenticacion.restablecerContrasena({ ...req.datos.body, ip: req.ip });
+    if (!resultado.ok) return res.status(400).json({ error: 'Este enlace ya no es válido: venció, ya se usó o no existe.', motivo: 'TOKEN_INVALIDO' });
     return res.status(204).end();
   });
 

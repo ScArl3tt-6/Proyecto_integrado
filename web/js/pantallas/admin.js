@@ -127,6 +127,11 @@ export function renderUsuarios(main, sesion, irA) {
     );
 
     const acciones = el('td', { class: 'celda-acciones' }, botonPerfil);
+    if (usuario.activo) {
+      const botonRestablecer = el('button', { type: 'button', class: 'boton boton-secundario' }, 'Generar enlace');
+      botonRestablecer.addEventListener('click', () => abrirDialogoRestablecimiento(usuario));
+      acciones.appendChild(botonRestablecer);
+    }
     if (!esUnoMismo) {
       const botonEstado = el('button', { type: 'button', class: usuario.activo ? 'boton boton-peligro' : 'boton boton-secundario' }, usuario.activo ? 'Desactivar' : 'Activar');
       botonEstado.addEventListener('click', async () => {
@@ -191,6 +196,44 @@ export function renderUsuarios(main, sesion, irA) {
     dialogo.addEventListener('close', () => dialogo.remove());
     document.body.appendChild(dialogo);
     dialogo.showModal();
+  }
+
+  function abrirDialogoRestablecimiento(usuario) {
+    const cuerpo = el('div', {}, estadoCarga());
+    const cerrar = el('button', { type: 'button', class: 'boton boton-secundario' }, 'Cerrar');
+    cerrar.addEventListener('click', () => dialogo.close());
+    const dialogo = el('dialog', { class: 'dialogo' },
+      el('h2', {}, `Enlace para restablecer la contraseña de ${usuario.nombre}`),
+      cuerpo,
+      el('div', { class: 'dialogo-acciones' }, cerrar),
+    );
+    dialogo.addEventListener('close', () => dialogo.remove());
+    document.body.appendChild(dialogo);
+    dialogo.showModal();
+
+    api.post(`/usuarios/${usuario.id_usuario}/restablecimiento`, {}).then(({ token, minutos }) => {
+      const enlace = `${location.origin}/#/restablecer/${token}`;
+      const campoEnlace = el('input', { type: 'text', value: enlace, readonly: true, 'aria-label': 'Enlace para restablecer la contraseña' });
+      const botonCopiar = el('button', { type: 'button', class: 'boton boton-secundario' }, 'Copiar enlace');
+      botonCopiar.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(enlace);
+          botonCopiar.textContent = 'Copiado';
+          setTimeout(() => { botonCopiar.textContent = 'Copiar enlace'; }, 2000);
+        } catch {
+          campoEnlace.select();
+        }
+      });
+      vaciar(cuerpo);
+      cuerpo.appendChild(el('div', { class: 'campo' }, campoEnlace, botonCopiar));
+      cuerpo.appendChild(el('p', { class: 'campo-ayuda' },
+        `Vence en ${minutos} minutos y sirve una sola vez. Entrégaselo a ${usuario.nombre} de forma segura (en persona o por un canal que ya uses con ella).`));
+      campoEnlace.focus();
+      campoEnlace.select();
+    }).catch(() => {
+      vaciar(cuerpo);
+      cuerpo.appendChild(aviso('error', 'No pudimos generar el enlace. Inténtalo otra vez.'));
+    });
   }
 }
 

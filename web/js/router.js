@@ -6,6 +6,7 @@ import {
 } from './estado.js';
 import { tieneAlgunPermiso, INICIO_POR_ROL, MENU_POR_ROL, ROL_TEXTO } from './permisos.js';
 import { renderIngreso } from './pantallas/ingreso.js';
+import { renderRestablecer } from './pantallas/restablecer.js';
 import { renderCuenta } from './pantallas/cuenta.js';
 import { renderProhibido, renderNoEncontrado } from './pantallas/errores.js';
 import { renderMisSolicitudes, renderNuevaSolicitud } from './pantallas/vendedor.js';
@@ -96,6 +97,16 @@ function pintarMenu(sesion) {
 async function enrutar() {
   const hash = location.hash || '#/ingreso';
   vaciar(main);
+
+  // Pública y con parámetro: no calza con RUTAS_PUBLICAS (comparación exacta), así que se revisa aparte
+  const parametrosRestablecer = emparejar('#/restablecer/:token', hash);
+  if (parametrosRestablecer) {
+    cabecera.hidden = true;
+    navPrincipal.hidden = true;
+    renderRestablecer(main, irA, parametrosRestablecer.token);
+    enfocarTitulo();
+    return;
+  }
 
   if (RUTAS_PUBLICAS.has(hash)) {
     cabecera.hidden = true;

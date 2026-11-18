@@ -37,6 +37,11 @@ function rutasUsuarios({ usuarios }) {
       res.json(await usuarios.cambiarEstado(req.usuario, req.datos.params.id, req.datos.body.activo));
     });
 
+  r.post('/:id/restablecimiento', validar(z.strictObject({ id: z.coerce.number().int().positive() }), 'params'),
+    async (req, res) => {
+      res.status(201).json(await usuarios.generarEnlaceRestablecimiento(req.usuario, req.datos.params.id));
+    });
+
   return r;
 }
 

@@ -52,7 +52,7 @@ async function crearBasePruebaPostgres() {
 async function crearContexto({ envolverMongo, entornoExtra = {} } = {}) {
   const entorno = {
     puerto: 0, produccion: false, secretoJwt: crypto.randomBytes(48).toString('hex'),
-    minutosAcceso: 15, horasSesion: 8, intentosMaximos: 5, minutosBloqueo: 15, minutosInactividad: 30,
+    minutosAcceso: 15, horasSesion: 8, intentosMaximos: 5, minutosBloqueo: 15, minutosInactividad: 30, minutosRestablecimiento: 30,
     limiteGeneral: 100000, // sin límite general en las pruebas, salvo que una prueba lo fije
     ...entornoExtra,
   };

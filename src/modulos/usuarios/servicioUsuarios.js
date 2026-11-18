@@ -1,8 +1,13 @@
 'use strict';
+const crypto = require('node:crypto');
 const { ErrorNegocio } = require('../../dominio/errores');
 const { validarContrasena } = require('../../dominio/politicaContrasena');
 
-function crearServicioUsuarios({ pg, bitacora, autenticacion }) {
+function sha256(valor) {
+  return crypto.createHash('sha256').update(valor).digest('hex');
+}
+
+function crearServicioUsuarios({ pg, bitacora, autenticacion, entorno }) {
   // Alta de usuarios solo por administración (no existe autorregistro)
   async function crear(admin, { nombre, correo, contrasena, rol, area }) {
     const politica = validarContrasena(contrasena, { correo, nombre });
@@ -66,7 +71,25 @@ function crearServicioUsuarios({ pg, bitacora, autenticacion }) {
     return rows.map((u) => ({ ...u, ultimoAcceso: ultimos[u.id_usuario] || null }));
   }
 
-  return { crear, cambiarPerfil, cambiarEstado, listar };
+  // HU: restablecimiento de contraseña (Funcionalidad 4). Solo Administración genera el enlace;
+  // quien lo recibe lo usa sin sesión en POST /api/auth/restablecer. Un enlace nuevo invalida
+  // cualquier otro que haya quedado sin usar, para que solo exista uno vigente a la vez.
+  async function generarEnlaceRestablecimiento(admin, idUsuario) {
+    const { rows } = await pg.query('SELECT id_usuario FROM usuario WHERE id_usuario = $1', [idUsuario]);
+    if (!rows[0]) throw new ErrorNegocio('Usuario no encontrado', 404);
+
+    const token = crypto.randomBytes(32).toString('base64url');
+    await pg.query('UPDATE restablecimiento_contrasena SET usado = TRUE WHERE id_usuario = $1 AND NOT usado', [idUsuario]);
+    await pg.query(
+      `INSERT INTO restablecimiento_contrasena (id_restablecimiento, id_usuario, hash_token, expira_en, creado_por)
+       VALUES ($1, $2, $3, now() + ($4 || ' minutes')::interval, $5)`,
+      [crypto.randomUUID(), idUsuario, sha256(token), String(entorno.minutosRestablecimiento), admin.id],
+    );
+    await bitacora.registrar({ tipo: 'RESTABLECIMIENTO_GENERADO', usuario: admin, entidad: { tipo: 'usuario', codigo: String(idUsuario) } });
+    return { token, minutos: entorno.minutosRestablecimiento };
+  }
+
+  return { crear, cambiarPerfil, cambiarEstado, listar, generarEnlaceRestablecimiento };
 }
 
 module.exports = { crearServicioUsuarios };

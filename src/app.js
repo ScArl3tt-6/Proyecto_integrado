@@ -27,7 +27,7 @@ function crearApp({ entorno, pg, mongoDb, registro = console }) {
     trabajos: crearServicioTrabajos({ pg, bitacora }),
     disenos: crearServicioDisenos({ pg, mongoDb, bitacora }),
     panel: crearServicioPanel({ pg }),
-    usuarios: crearServicioUsuarios({ pg, bitacora, autenticacion }),
+    usuarios: crearServicioUsuarios({ pg, bitacora, autenticacion, entorno }),
     catalogos: crearServicioCatalogos({ pg }),
   };
 

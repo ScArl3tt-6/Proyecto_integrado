@@ -100,7 +100,43 @@ function crearServicioAutenticacion({ pg, entorno, bitacora }) {
     await bitacora.registrar({ tipo: 'CIERRE_SESION', usuario, entidad: { tipo: 'usuario', codigo: String(usuario.id) } });
   }
 
-  return { hashContrasena, iniciarSesion, renovarSesion, cambiarContrasena, cerrarSesion };
+  // Consume el enlace que generó Administración (Funcionalidad 4): sin sesión, solo con el token.
+  // No distingue "no existe" de "venció" o "ya se usó": decirlo abriría la puerta a probar tokens
+  // al tanteo para saber cuáles sí existieron alguna vez.
+  async function restablecerContrasena({ token, nueva, ip }) {
+    const { rows } = await pg.query(
+      `SELECT r.id_restablecimiento, r.id_usuario, r.expira_en, r.usado, u.correo, u.nombre, u.activo, rl.nombre AS rol
+         FROM restablecimiento_contrasena r
+         JOIN usuario u ON u.id_usuario = r.id_usuario
+         JOIN rol rl ON rl.id_rol = u.id_rol
+        WHERE r.hash_token = $1`,
+      [sha256(token)],
+    );
+    const registro = rows[0];
+    if (!registro || registro.usado || !registro.activo || new Date(registro.expira_en) < new Date()) {
+      return { ok: false };
+    }
+
+    const politica = validarContrasena(nueva, { correo: registro.correo, nombre: registro.nombre });
+    if (!politica.valida) throw new ErrorNegocio(`Contraseña no cumple la política: ${politica.errores.join('; ')}`, 400);
+
+    const hash = await hashContrasena(nueva);
+    await pg.query(
+      'UPDATE usuario SET hash_contrasena = $1, intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id_usuario = $2',
+      [hash, registro.id_usuario],
+    );
+    await pg.query('UPDATE restablecimiento_contrasena SET usado = TRUE WHERE id_restablecimiento = $1', [registro.id_restablecimiento]);
+    await pg.query('UPDATE sesion SET revocada = TRUE WHERE id_usuario = $1 AND NOT revocada', [registro.id_usuario]);
+    await bitacora.registrar({
+      tipo: 'CONTRASENA_RESTABLECIDA',
+      usuario: { id: registro.id_usuario, rol: registro.rol },
+      entidad: { tipo: 'usuario', codigo: String(registro.id_usuario) },
+      ip,
+    });
+    return { ok: true };
+  }
+
+  return { hashContrasena, iniciarSesion, renovarSesion, cambiarContrasena, cerrarSesion, restablecerContrasena };
 }
 
 function sha256(valor) {

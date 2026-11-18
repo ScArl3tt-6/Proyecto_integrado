@@ -75,9 +75,20 @@ Estado real de cada punto, revisado directamente en el código (no por memoria):
   limpieza (Postgres + Mongo) documentado en `evidencias/fase1_def12_y_ux.txt`.
 - **MFA (TOTP):** no empezado. Solo existe la columna `mfa_habilitado` en `usuario`
   (`src/db/esquema.sql`), siempre en `FALSE`; no hay ninguna lógica de TOTP en `src/`.
-- **Restablecimiento de contraseña:** no empezado. No existe ningún endpoint ni servicio para esto;
-  hoy solo existe el cambio de contraseña estando con la sesión abierta
-  (`POST /api/auth/cambiar-contrasena`).
+- **Restablecimiento de contraseña:** ✅ terminado. Como no hay infraestructura de correo en este
+  prototipo, el camino real es: Administración genera un enlace de un solo uso desde «Usuarios» →
+  «Generar enlace» (`POST /api/usuarios/:id/restablecimiento`, solo `USUARIO_GESTIONAR`) y se lo
+  entrega a la persona por un canal que ya use con ella (en persona, chat, etc.). La persona lo abre
+  sin sesión y fija una contraseña nueva en `#/restablecer/:token`
+  (`POST /api/auth/restablecer`, público, limitado por IP). El token real nunca se guarda (solo su
+  hash, igual que `sesion.hash_token`); vence en 30 minutos, sirve una sola vez, un enlace nuevo
+  invalida cualquier otro sin usar de la misma cuenta, y al completarse revoca todas las sesiones
+  activas y desbloquea la cuenta si estaba bloqueada por intentos fallidos. El texto "¿Olvidaste tu
+  contraseña?" de Ingreso ahora explica este camino real en vez de solo remitir a Administración.
+  Pruebas CP-62 a CP-65 y PM-12; se verificó a mano (no solo con Jest, que corre como el dueño del
+  esquema) que `sst_app` tiene de verdad los permisos mínimos sobre la tabla nueva
+  (`restablecimiento_contrasena`): INSERT, SELECT y UPDATE, sin DELETE — la misma comprobación que
+  DEF-09 enseñó a no omitir.
 - **Cierre de sesión por inactividad:** ✅ terminado. Antes solo existía un temporizador en el
   cliente (JavaScript, 30 minutos) que avisaba de la inactividad pero no cerraba nada en el
   servidor: si el navegador seguía renovando el token de acceso solo, la sesión real podía durar

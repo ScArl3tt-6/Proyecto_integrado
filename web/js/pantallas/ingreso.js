@@ -31,7 +31,7 @@ export function renderIngreso(main, irA) {
 
   const contenedorAviso = el('div');
   const botonEnviar = el('button', { type: 'submit', class: 'boton boton-primario boton-ancho-completo' }, 'Ingresar');
-  const pistaOlvido = el('p', { class: 'campo-ayuda' }, '¿Olvidaste tu contraseña? Pídele a Administración que revise tu cuenta.');
+  const pistaOlvido = el('p', { class: 'campo-ayuda' }, '¿Olvidaste tu contraseña? Pídele a Administración que te genere un enlace para crear una nueva (pantalla "Usuarios" → "Generar enlace"). Ábrelo apenas te lo entregue: vence en 30 minutos y sirve una sola vez.');
   pistaOlvido.hidden = true;
 
   const form = el('form', { novalidate: true },
