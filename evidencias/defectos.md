@@ -585,3 +585,37 @@ completa para el informe (sección de validación de resultados).
   autoexplicativos (nombre, correo, rol, chip de estado), salvo quizás la fecha de "Último
   acceso", que podría confundirse con otra fecha sin el rótulo. No se consideró de gravedad media
   por ahora; si el equipo lo nota confuso en su propia prueba, subir su prioridad.
+
+## Incidente de proceso — un servidor de demostración real quedó corriendo sin cerrarse, y la "limpieza" anterior quedó incompleta
+
+- **Encontrado en:** verificación de rutina antes/después de una prueba con el entorno aislado:
+  el conteo de `bitacora_eventos` de la base real no coincidía con el de la vez anterior (122 →
+  125), cuando debía ser idéntico.
+- **Causa 1 (proceso):** un `node scripts/arrancar-demo.js` (el servidor REAL, puerto 3000),
+  lanzado durante la investigación de DEF-11 (antes de que existiera
+  `scripts/entorno-efimero.js`), nunca se cerró del todo: quedó corriendo en segundo plano más de
+  tres horas. Los 3 eventos nuevos de bitácora fueron solo inicios/cierres de sesión
+  (`ACCESO_EXITOSO`/`CIERRE_SESION`/`SESION_RENOVADA` de las cuentas `marcela`/`valentina`), sin
+  ninguna otra escritura — no se creó, modificó ni borró ningún trabajo mientras este proceso
+  quedó abierto después de la limpieza. Corregido: el proceso se identificó por su PID real (no
+  solo por el puerto) y se cerró.
+- **Causa 2 (más importante, datos):** al revisar la base completa para entender el conteo, se
+  encontró que **todavía quedaban 8 trabajos de prueba sin borrar**: `KT-2026-0010` a
+  `KT-2026-0017`, todos con la descripción `"Caso de prueba DEF-11"`, creados por los primeros
+  scripts de reproducción de DEF-11 (antes de que existiera el entorno aislado), con propuestas,
+  archivos reales en GridFS y eventos de bitácora propios. **`KT-2026-0010` es justamente el
+  código que el equipo había identificado como el trabajo real que no había que tocar** — un error
+  real: no era un trabajo del equipo, era un resto de esta misma investigación que nadie había
+  identificado todavía (ni el equipo en su revisión con pgAdmin, ni esta sesión al armar la lista
+  de los primeros 14).
+- **Corrección propuesta, NO ejecutada:** se amplió `scripts/db/limpiar-trabajos-prueba.js` con
+  estos 8 códigos nuevos (separados con un comentario de los 14 ya confirmados). Se corrió
+  **solo en modo vista previa** (sin `--si`): confirma los 8, con el detalle de qué depende de
+  cada uno, y no borra nada. Falta la orden explícita del equipo para ejecutar
+  `npm run db:limpiar-trabajos-prueba -- --si` con la lista ampliada.
+- **Estado:** Hallazgo documentado; corrección de datos pendiente de autorización explícita. El
+  incidente de proceso (servidor abierto) está corregido.
+- **Lección para el protocolo de esta sesión:** antes de declarar una limpieza "completa", conviene
+  hacer una auditoría de TODA la tabla `trabajo` (no solo de la lista de códigos que uno recuerda
+  haber creado), precisamente por lo que pasó acá: una lista armada de memoria dejó ocho casos
+  afuera.

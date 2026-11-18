@@ -22,10 +22,16 @@ if (process.env.NODE_ENV === 'production') {
 // Códigos exactos confirmados por el equipo (consulta en pgAdmin) como datos de prueba de esta
 // sesión de verificación, no datos reales ni creados por el equipo.
 const CODIGOS = [
+  // Encontrados y confirmados por el equipo (primera ronda):
   'KT-2026-0007', 'KT-2026-0008', 'KT-2026-0009', // "Verificacion real de GridFS (Fase 1)"
   'KT-2026-0018', 'KT-2026-0019', // "Verificacion del fix de DEF-11"
   'KT-2026-0020', 'KT-2026-0021', 'KT-2026-0022', 'KT-2026-0023', 'KT-2026-0024',
   'KT-2026-0025', 'KT-2026-0026', 'KT-2026-0027', 'KT-2026-0028', // "Verificacion de vista previa de archivos (UX)"
+  // Encontrados después, al investigar un conteo que no cuadraba (segunda ronda, sin confirmar
+  // todavía por el equipo): "Caso de prueba DEF-11", incluido KT-2026-0010, que se había dejado
+  // como "real" por error la primera vez. Ver evidencias/defectos.md para el detalle completo.
+  'KT-2026-0010', 'KT-2026-0011', 'KT-2026-0012', 'KT-2026-0013', 'KT-2026-0014',
+  'KT-2026-0015', 'KT-2026-0016', 'KT-2026-0017',
 ];
 const EJECUTAR = process.argv.includes('--si');
 
