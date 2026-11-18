@@ -25,4 +25,21 @@ describe('Propuestas de diseño pendientes de decisión', () => {
     const sinPermiso = await valentina.get('/api/disenos/pendientes');
     expect(sinPermiso.status).toBe(403);
   });
+
+  test('CP-57 (DEF-12) ninguna propuesta aparece más de una vez en la bandeja de pendientes', async () => {
+    for (let i = 0; i < 3; i += 1) {
+      const otro = await jorge.post('/api/trabajos', {
+        idTipo: 1, descripcion: `Trabajo adicional ${i} para probar duplicados`, cantidad: 2, fechaCompromiso: fechaEnDias(15),
+      });
+      await valentina.post(`/api/trabajos/${otro.body.codigo}/tomar-diseno`);
+      await valentina.post(`/api/disenos/trabajos/${otro.body.codigo}`, {
+        archivos: [{ nombre: `adicional-${i}.pdf`, tipoMime: 'application/pdf', contenidoBase64: CABECERAS.pdf }],
+      });
+    }
+    const vista = await marcela.get('/api/disenos/pendientes');
+    const idsDiseno = vista.body.map((p) => p.idDiseno);
+    const codigos = vista.body.map((p) => p.codigo);
+    expect(idsDiseno).toHaveLength(new Set(idsDiseno).size);
+    expect(codigos).toHaveLength(new Set(codigos).size);
+  });
 });

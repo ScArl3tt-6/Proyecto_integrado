@@ -64,4 +64,25 @@ describe('Listado y detalle de trabajos con alcance por rol', () => {
     expect((await marcela.get('/api/trabajos?estado=INEXISTENTE')).status).toBe(400);
     expect((await marcela.get('/api/trabajos?pagina=0')).status).toBe(400);
   });
+
+  test('CP-58 (DEF-12) ningún trabajo aparece más de una vez en el listado, incluido uno ya en producción con una etapa en curso', async () => {
+    const { body: trabajo } = await jorge.post('/api/trabajos', {
+      idTipo: 1, descripcion: 'Trabajo en produccion para probar duplicados en el listado', cantidad: 5, fechaCompromiso: fechaEnDias(10),
+    });
+    await valentina.post(`/api/trabajos/${trabajo.codigo}/tomar-diseno`);
+    const { body: diseno } = await valentina.post(`/api/disenos/trabajos/${trabajo.codigo}`, {
+      archivos: [{ nombre: 'listado.pdf', tipoMime: 'application/pdf', contenidoBase64: Buffer.from('%PDF-1.7').toString('base64') }],
+    });
+    await marcela.post(`/api/disenos/${diseno.idDiseno}/decision`, { decision: 'APROBADO' });
+
+    const res = await koto.get('/api/trabajos?limite=50');
+    expect(res.status).toBe(200);
+    const codigos = res.body.map((t) => t.codigo);
+    expect(codigos.filter((c) => c === trabajo.codigo)).toHaveLength(1);
+    expect(codigos).toHaveLength(new Set(codigos).size);
+
+    const panel = await koto.get('/api/panel');
+    const codigosPanel = Object.values(panel.body.grupos).flat().map((t) => t.codigo);
+    expect(codigosPanel.filter((c) => c === trabajo.codigo)).toHaveLength(1);
+  });
 });

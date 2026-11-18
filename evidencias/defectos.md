@@ -375,3 +375,58 @@ completa para el informe (sección de validación de resultados).
   vieja sin recargar (es la explicación más consistente con toda la evidencia, pero es una
   inferencia, no una observación directa de la pantalla de quien lo reportó). Si vuelve a pasar
   después de un refresh confirmado, hay que avisar para seguir investigando.
+
+## Hallazgo adicional sobre DEF-11: el service worker servía archivos estáticos viejos para siempre
+
+- Al investigar por qué una página podía quedarse con JavaScript desactualizado (DEF-11), se
+  encontró una causa adicional, más fuerte que la de "una pestaña abierta": `web/sw.js` cacheaba
+  los archivos estáticos con una estrategia "cache-first" (`enCache || enRed`): si un archivo ya
+  estaba en la caché del service worker, se devolvía de inmediato, SIN comparar con el servidor,
+  para siempre (el nombre de la caché nunca cambiaba entre versiones). Esto podía mantener
+  JavaScript viejo incluso después de cerrar y volver a abrir el navegador, no solo en una pestaña
+  que seguía abierta.
+- **Corrección:** se cambió la estrategia a "network-first": siempre intenta la red primero y solo
+  usa la caché si de verdad no hay conexión; se subió el nombre de la caché a `sst-kotoduo-v2`
+  (purga la caché vieja) y se agregó `self.skipWaiting()` para que la versión nueva tome el control
+  sin esperar a que se cierren las pestañas abiertas con la vieja.
+- **Estado:** Corregido (`web/sw.js`).
+
+## DEF-12 — "la misma propuesta aparecía repetida" en las bandejas de Producción y Diseño
+
+- **Encontrado en:** aviso directo del equipo, tras confirmar DEF-11 funcionando en su propia
+  máquina.
+- **Hipótesis del equipo:** una consulta SQL que une con etapas sin agrupar duplicaría filas.
+- **Investigación realizada** (servidor real, base real, y también código fuente):
+  1. Se revisaron, una por una, TODAS las consultas de la aplicación que devuelven listas
+     (`disenos.pendientes`, `trabajos.listar`, `trabajos.actividadesDeMiArea`, `panel.resumen`,
+     `usuarios.listar`): ninguna une con una tabla de forma que pueda multiplicar filas. La que el
+     equipo señaló como sospechosa (`disenos.pendientes`, la bandeja de Aprobaciones) ni siquiera
+     une con `etapa_trabajo`: une `diseno` con `trabajo`, `tipo_trabajo` y `usuario`, las tres
+     relaciones 1 a 1 por llave foránea. Las que sí unen con `etapa_trabajo` (`trabajos.listar`,
+     `panel.resumen`) lo hacen con un `LEFT JOIN ... AND et.estado = 'EN_CURSO'`, y solo puede
+     haber una etapa EN_CURSO por trabajo a la vez (lo impone la lógica de `completarEtapa`), así
+     que tampoco pueden multiplicar filas.
+  2. Se probó en vivo, contra el servidor real y la base real: `GET /api/disenos/pendientes` (11
+     filas, ninguna repetida) y `GET /api/trabajos?limite=50` (sin repetidos), y con Playwright se
+     confirmó que la pantalla de Aprobaciones pinta exactamente una tarjeta por fila de la API,
+     incluso navegando de ida y vuelta sin recargar la página.
+  3. Se agregaron pruebas automáticas nuevas que crean varias propuestas/trabajos reales,
+     incluido uno que llega hasta producción con una etapa EN_CURSO (el caso exacto que el equipo
+     sospechaba), y verifican que ningún `idDiseno` ni `codigo` se repita: CP-57
+     (`tests/integracion/disenosPendientes.test.js`) y CP-58
+     (`tests/integracion/trabajosListadoDetalle.test.js`). Las 57 pruebas de la suite completa
+     pasan en verde.
+- **No se logró reproducir el defecto**, ni en el código (análisis de cada consulta) ni en vivo
+  (API y navegador real) ni con pruebas automáticas dirigidas al caso sospechado.
+- **Explicación más probable (declarada como inferencia, no como hecho confirmado):** la base de
+  demostración es compartida entre las pruebas del equipo y las pruebas de esta sesión. Durante la
+  investigación de DEF-11 se crearon muchos trabajos de prueba (descripciones como "Caso de prueba
+  DEF-11", "Verificación...") reutilizando archivos de prueba parecidos entre sí. Es probable que
+  lo que se vio como "la misma propuesta repetida" fueran en realidad varios trabajos DISTINTOS
+  pero muy parecidos entre sí (mismo tipo de archivo de prueba, descripciones similares), no filas
+  duplicadas de un mismo trabajo. Esto se conecta directamente con el punto de dejar una base de
+  demostración limpia (ver `scripts/db/mongo-limpiar-demo.js` y el procedimiento de limpieza).
+- **Estado:** No reproducido; sin corrección de código (no se encontró nada que corregir). Quedan
+  las pruebas de regresión (CP-57, CP-58) para detectarlo de inmediato si alguna vez ocurre de
+  verdad. Si el equipo lo ve de nuevo en una base recién limpiada, avisar con el código exacto y
+  cuántas veces se repite para seguir investigando con datos más precisos.

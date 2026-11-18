@@ -16,6 +16,7 @@
     "mongo:iniciar": "node scripts/db/mongo-iniciar.js",
     "mongo:crear-usuarios": "node scripts/db/mongo-crear-usuarios.js",
     "mongo:actualizar-validador": "node scripts/db/mongo-actualizar-validador-disenos.js",
+    "mongo:limpiar-demo": "node scripts/db/mongo-limpiar-demo.js",
     "verificar": "node scripts/verificar-entorno.js",
     "docs:guia-bases": "node scripts/generar-guia-bases.js"
   },

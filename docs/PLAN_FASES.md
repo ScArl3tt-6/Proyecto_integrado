@@ -51,6 +51,28 @@ Estado real de cada punto, revisado directamente en el código (no por memoria):
   y corrigió DEF-10 (`detalle()` no traía `idDiseno` en la respuesta: el enlace nuevo quedaba roto
   hasta agregar el alias que faltaba). Detalle en `evidencias/defectos.md` y
   `evidencias/fase1_archivos_diseno.txt`.
+- **Aviso del equipo (prioridad absoluta) — DEF-11:** el equipo reprodujo un fallo real al enviar
+  una propuesta ("Datos de entrada inválidos"). Se encontraron y corrigieron dos defectos reales:
+  nombres de archivo con símbolos comunes (`#`, `&`, etc.) se rechazaban por una lista blanca
+  demasiado estricta, y un cuerpo con la forma anterior a GridFS ahora avisa recargar la página en
+  vez de solo mostrar el mensaje genérico. El equipo confirmó DEF-11 corregido en su propia
+  máquina. Detalle en `evidencias/defectos.md` y `evidencias/fase1_def11.txt`.
+- **Service worker (hallazgo adicional sobre DEF-11):** `web/sw.js` cacheaba los archivos
+  estáticos con "cache-first" (JavaScript viejo podía quedar servido para siempre). Corregido a
+  "network-first" con purga de la caché vieja.
+- **DEF-12 (investigado, no reproducido):** el equipo reportó propuestas/trabajos repetidos en las
+  bandejas. Se auditó el código de cada consulta de lista de la aplicación (ninguna puede
+  duplicar filas) y se probó en vivo sin reproducir el fallo; se agregaron pruebas de regresión
+  (CP-57, CP-58) que lo detectarían si ocurre de verdad. Detalle en `evidencias/defectos.md`.
+- **Etapa 2 (en curso) — "Ver archivo" con vista previa:** la pantalla de aprobación ahora muestra
+  cada archivo en una tarjeta con un botón claro ("📄 Ver archivo completo") y una vista previa
+  real en la misma pantalla (`<img>` para PNG/JPG, `<iframe>` para PDF), verificado con Playwright
+  contra el servidor real. Falta el resto de la Etapa 2: asteriscos de campo obligatorio,
+  ejemplos visibles por campo, y traducir los errores del servidor a mensajes por campo en TODAS
+  las pantallas (hoy solo se corrigió el caso puntual de "página desactualizada" en DEF-11).
+- **Base de demostración:** se agregó `scripts/db/mongo-limpiar-demo.js` para vaciar las
+  colecciones de MongoDB de la demostración sin tocar usuarios ni roles. Procedimiento completo de
+  limpieza (Postgres + Mongo) documentado en `evidencias/fase1_def12_y_ux.txt`.
 - **MFA (TOTP):** no empezado. Solo existe la columna `mfa_habilitado` en `usuario`
   (`src/db/esquema.sql`), siempre en `FALSE`; no hay ninguna lógica de TOTP en `src/`.
 - **Restablecimiento de contraseña:** no empezado. No existe ningún endpoint ni servicio para esto;
