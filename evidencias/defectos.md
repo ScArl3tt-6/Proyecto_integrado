@@ -448,3 +448,24 @@ completa para el informe (sección de validación de resultados).
 - **Nueva ejecución:** mismo estilo computado, después del cambio: `textDecorationLine: "none"`.
   Captura en `evidencias/capturas/fase1_parteB_aprobaciones.png`.
 - **Estado:** Corregido.
+
+## DEF-14 — "Mis actividades" (Operario) no tiene paginación ni contador
+
+- **Encontrado en:** Parte C, revisión de experiencia de usuario del perfil Operario (ver
+  `docs/REVISION_EXPERIENCIA_USUARIO.md`).
+- **Causa:** `web/js/pantallas/operario.js` pide siempre la misma página sin límite explícito, y no
+  muestra ningún control de paginación, aunque `GET /api/trabajos/mis-actividades` ya admite
+  `pagina`/`limite` en el servidor (mismo patrón que ya se usa en "Mis solicitudes" y, desde la
+  Parte B de esta sesión, en "Aprobaciones").
+- **Severidad:** Media (no se nota con pocas actividades; un operario con muchas etapas en curso a
+  la vez no vería un aviso ni una forma de pedir más).
+- **Estado:** Pendiente de corregir (anotado, no implementado en esta sesión).
+
+## DEF-15 — Ningún formulario marca los campos obligatorios ("* obligatorio")
+
+- **Encontrado en:** Parte C, revisión de "Mi cuenta"; es el mismo patrón en todos los formularios
+  de la aplicación (Nueva solicitud, Enviar propuesta, Registrar material, Cambiar contraseña,
+  etc.), no un error de una sola pantalla.
+- **Severidad:** Media.
+- **Estado:** Pendiente de corregir. Se deja para resolver de una sola vez (una convención
+  compartida) en la continuación de la Parte C, en vez de parchear pantalla por pantalla.
