@@ -17,8 +17,10 @@
     "mongo:crear-usuarios": "node scripts/db/mongo-crear-usuarios.js",
     "mongo:actualizar-validador": "node scripts/db/mongo-actualizar-validador-disenos.js",
     "mongo:limpiar-demo": "node scripts/db/mongo-limpiar-demo.js",
+    "db:limpiar-trabajos-prueba": "node scripts/db/limpiar-trabajos-prueba.js",
     "verificar": "node scripts/verificar-entorno.js",
-    "docs:guia-bases": "node scripts/generar-guia-bases.js"
+    "docs:guia-bases": "node scripts/generar-guia-bases.js",
+    "entorno:verificacion": "node scripts/entorno-efimero.js"
   },
   "keywords": [],
   "author": "",
