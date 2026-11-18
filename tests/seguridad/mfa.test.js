@@ -124,4 +124,39 @@ describe('Verificación en dos pasos por TOTP (Funcionalidad 5)', () => {
     const eventos = await ctx.mongoDb.collection('bitacora_eventos').find({ 'entidad.codigo': String(objetivo.idUsuario), tipo: 'MFA_DESACTIVADO_ADMIN' }).toArray();
     expect(eventos.length).toBe(1);
   });
+
+  test('CP-70 el otpauth:// URI incluye explícitamente el algoritmo, los dígitos y el período', async () => {
+    const cuenta = await crearCuentaElegible('ADMINISTRADOR');
+    const sesion = await iniciarSesionDirecta(cuenta.correo, cuenta.contrasena);
+    const { body: { otpauth, secreto } } = await sesion.post('/api/auth/mfa/iniciar', {});
+    expect(otpauth).toContain(`secret=${secreto}`);
+    expect(otpauth).toMatch(/algorithm=SHA1/);
+    expect(otpauth).toMatch(/digits=6/);
+    expect(otpauth).toMatch(/period=30/);
+  });
+
+  test('CP-71 el secreto pendiente es estable: recargar "Mi cuenta" antes de confirmar no genera otro', async () => {
+    const cuenta = await crearCuentaElegible('PRODUCCION');
+    const sesion = await iniciarSesionDirecta(cuenta.correo, cuenta.contrasena);
+    const primero = await sesion.post('/api/auth/mfa/iniciar', {});
+    const segundo = await sesion.post('/api/auth/mfa/iniciar', {});
+    expect(primero.body.secreto).toBe(segundo.body.secreto);
+
+    // Cancelar sí limpia el secreto pendiente: la siguiente activación genera uno distinto
+    expect((await sesion.post('/api/auth/mfa/cancelar', {})).status).toBe(204);
+    const tercero = await sesion.post('/api/auth/mfa/iniciar', {});
+    expect(tercero.body.secreto).not.toBe(primero.body.secreto);
+  });
+
+  test('CP-72 tolera hasta un paso de 30s de diferencia de reloj (pasado o futuro) al verificar', async () => {
+    const cuenta = await crearCuentaElegible('PRODUCCION');
+    const { secreto } = await activarMfaPara(cuenta.correo, cuenta.contrasena);
+
+    const ahora = Math.floor(Date.now() / 1000);
+    const codigoDelPasoAnterior = generateSync({ secret: secreto, epoch: ahora - 30 });
+
+    const login = await request(ctx.app).post('/api/auth/login').send({ correo: cuenta.correo, contrasena: cuenta.contrasena });
+    const verificar = await request(ctx.app).post('/api/auth/login/verificar').send({ desafio: login.body.desafio, codigo: codigoDelPasoAnterior });
+    expect(verificar.status).toBe(200);
+  });
 });

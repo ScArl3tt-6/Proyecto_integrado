@@ -178,12 +178,13 @@ en `coverage/coverage-final.json`):**
 
 ## Fase 1 — Materiales, archivos reales, restablecimiento, cierre por inactividad, MFA (16 al 19-11-2026)
 
-### 1. Restablecimiento de contraseña: qué pasa si Administración queda sin acceso
+### 1. Restablecimiento de contraseña y MFA: qué pasa si Administración queda sin acceso
 
-- **Pregunta del equipo:** la Funcionalidad 4 (restablecimiento por enlace) solo la puede generar
-  una cuenta con el permiso `USUARIO_GESTIONAR` (hoy, solo ADMINISTRADOR). ¿Qué pasa si la persona
-  de Administración es justo la que olvida su contraseña o queda bloqueada, y es la única cuenta
-  con ese permiso?
+- **Pregunta del equipo (ampliada tras la Funcionalidad 5):** la Funcionalidad 4 (restablecimiento
+  por enlace) solo la puede generar una cuenta con el permiso `USUARIO_GESTIONAR` (hoy, solo
+  ADMINISTRADOR). ¿Qué pasa si la persona de Administración es justo la que olvida su contraseña o
+  queda bloqueada? Y ahora, con la Funcionalidad 5: ¿qué pasa si en vez de (o además de) eso pierde
+  el teléfono con la aplicación de verificación en dos pasos?
 - **Cómo está cubierto hoy:**
   - Un **bloqueo por intentos fallidos** (`usuario.bloqueado_hasta`) se autodesbloquea solo a los
     15 minutos (`entorno.minutosBloqueo`), para cualquier rol, incluida Administración. No es un
@@ -195,27 +196,42 @@ en `coverage/coverage-final.json`):**
     hay ninguna obligación de tener más de una cuenta ADMINISTRADOR: hoy existe exactamente una
     (`koto`). Si esa cuenta queda sin acceso, nadie dentro de la aplicación puede generarle un
     enlace.
-  - La única vía que existe hoy fuera de la aplicación es que alguien con acceso directo al
-    servidor y a las credenciales de `.env` (`SST_PG_PROPIETARIO_URL`) edite la fila a mano con
-    SQL. Funciona, pero no queda en la bitácora, no respeta la política de contraseñas, y depende
-    de que esa persona escriba el SQL correcto — es exactamente lo que no se quiere dejar como
-    único camino.
+  - **Perder el teléfono con MFA (Funcionalidad 5) es el mismo problema, un nivel más adentro:**
+    `POST /api/usuarios/:id/mfa/desactivar` sí permite que Administración desactive el MFA de
+    **otra** cuenta sin pedirle nada a esa persona — pero si la propia Administración es quien
+    perdió el teléfono, necesita pasar primero el segundo factor para llegar a usar esa misma
+    función sobre su propia cuenta, y no puede. Con una sola cuenta ADMINISTRADOR, perder el
+    teléfono (incluso con la contraseña intacta) deja exactamente en el mismo callejón sin salida
+    que olvidar la contraseña.
+  - La única vía que existe hoy fuera de la aplicación, para cualquiera de los dos casos, es que
+    alguien con acceso directo al servidor y a las credenciales de `.env`
+    (`SST_PG_PROPIETARIO_URL`) edite la fila a mano con SQL. Funciona, pero no queda en la
+    bitácora, no respeta la política de contraseñas, y depende de que esa persona escriba el SQL
+    correcto — es exactamente lo que no se quiere dejar como único camino.
 - **Propuesta (NO implementada; pendiente de confirmación del equipo antes de tocar código):**
   1. **Práctica inmediata, sin código:** mantener siempre al menos dos cuentas ADMINISTRADOR
      activas. Con eso, el mecanismo que ya existe (Funcionalidad 4) resuelve el caso común: una le
      genera el enlace a la otra. No resuelve el caso en que las dos pierdan el acceso a la vez.
   2. **Red de seguridad técnica, para ese caso catastrófico:** un script nuevo,
-     `scripts/db/generar-enlace-emergencia.js`, que se ejecuta solo en el servidor (nunca por
+     `scripts/db/recuperar-acceso-emergencia.js`, que se ejecuta solo en el servidor (nunca por
      HTTP, nunca alcanzable desde la red) con las credenciales de `sst_propietario` de `.env` — el
      mismo nivel de confianza que ya tienen `scripts/db/limpiar-trabajos-prueba.js` o
-     `scripts/db/reiniciar-base-postgres.js`, no uno nuevo. Recibiría el correo de la cuenta por
-     argumento, reutilizaría EXACTAMENTE el mismo mecanismo de la Funcionalidad 4 (token de un solo
-     uso, solo su hash guardado, vencimiento de 30 minutos, la misma política de contraseña al
-     consumirlo) y exigiría `--si` para ejecutarse, igual que los demás scripts que cambian datos.
-     Quedaría registrado en la bitácora con un tipo distinto
-     (`RESTABLECIMIENTO_GENERADO_EMERGENCIA`, con `creado_por = NULL` en vez del id de un
-     administrador) para que, al revisar el historial, se note con claridad que no lo generó
-     ninguna cuenta desde la pantalla, sino alguien con acceso directo al servidor.
+     `scripts/db/reiniciar-base-postgres.js`, no uno nuevo. Recibiría el correo de la cuenta y qué
+     recuperar, por ejemplo:
+     - `--contrasena`: reutiliza EXACTAMENTE el mismo mecanismo de la Funcionalidad 4 (token de un
+       solo uso, solo su hash guardado, vencimiento de 30 minutos, la misma política de contraseña
+       al consumirlo), registrado como `RESTABLECIMIENTO_GENERADO_EMERGENCIA`.
+     - `--mfa`: reutiliza EXACTAMENTE el mismo UPDATE que ya usa
+       `POST /api/usuarios/:id/mfa/desactivar` (desactivar, borrar el secreto), registrado como
+       `MFA_DESACTIVADO_EMERGENCIA`.
+     Ambas opciones exigen `--si` para ejecutarse, igual que los demás scripts que cambian datos, y
+     se pueden usar juntas (por ejemplo, si se perdieron las dos cosas a la vez). En los dos casos,
+     el registro queda sin ningún administrador asociado, para que al revisar el historial se note
+     con claridad que no lo hizo ninguna cuenta desde la pantalla, sino alguien con acceso directo
+     al servidor: el evento de bitácora de `--mfa` queda sin `usuario`, y para `--contrasena` haría
+     falta un cambio chico de esquema (`restablecimiento_contrasena.creado_por` es hoy
+     `NOT NULL`; tendría que admitir `NULL` para este único caso, cosa que no se tocó todavía
+     porque es justo el tipo de cambio que se documenta aquí antes de hacerlo, no después).
   - **Por qué esto no es una puerta trasera ni una cuenta con clave fija:** no agrega ninguna ruta
     nueva alcanzable por la red, no crea ninguna cuenta ni contraseña fija, no evita la política de
     contraseñas, y cada uso queda en la bitácora. El nivel de acceso que necesita (el archivo
@@ -229,3 +245,25 @@ en `coverage/coverage-final.json`):**
     pierden); el script de emergencia cubre el mismo caso con mucho menos código.
 - **Estado:** documentado y a la espera de la decisión del equipo. No se creó ningún archivo ni se
   tocó código para esto todavía.
+
+### 2. CSP: se agregó `img-src 'self' data:` para el código QR del MFA
+
+- **Qué cambió:** `src/app.js` configura `helmet` con una Política de Seguridad de Contenido
+  (CSP) explícita. Antes no declaraba `img-src`, así que las imágenes caían en el valor por
+  defecto `default-src 'self'` (solo imágenes del propio origen, nunca `data:`). Al agregar la
+  Funcionalidad 5 (MFA), el código QR de activación se genera en el servidor como una imagen
+  `data:image/png;base64,...` incrustada directamente en la respuesta JSON (librería `qrcode`,
+  sin subir ni servir ningún archivo) y el navegador la bloqueaba. Se agregó
+  `imgSrc: ["'self'", 'data:']` a las directivas existentes.
+- **Por qué es seguro ampliarlo así:** `data:` en `img-src` (y solo ahí, no en `script-src` ni en
+  ninguna otra directiva, que seguirían bloqueando `data:`) no abre ninguna puerta para ejecutar
+  código: una imagen incrustada no puede ejecutar JavaScript ni cargar ningún recurso externo. El
+  QR nunca llega desde el usuario ni desde ningún tercero, lo genera el propio servidor a partir
+  del secreto recién creado; no hay manera de que algo que no sea una imagen PNG de verdad llegue
+  por esa vía.
+- **Dónde se usa:** `web/js/pantallas/cuenta.js`, el `<img>` del paso "Activar verificación en dos
+  pasos".
+- **Cómo se encontró:** revisando el código antes de probarlo en el navegador (no al revés): al
+  escribir el `<img src="data:...">`, se revisó la CSP existente y se notó que `img-src` no estaba
+  declarado, así que heredaba el valor por defecto sin `data:`. El recorrido real en navegador
+  (Playwright) confirmó después que el QR se ve correctamente con el cambio.

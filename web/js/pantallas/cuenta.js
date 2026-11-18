@@ -30,7 +30,12 @@ function seccionMfa(sesion) {
     vaciar(cuerpo);
     const boton = el('button', { type: 'button', class: 'boton boton-primario' }, 'Activar verificación en dos pasos');
     boton.addEventListener('click', () => pintarActivando());
-    cuerpo.appendChild(el('p', {}, 'Agrega un código temporal de tu teléfono, además de la contraseña, al ingresar.'));
+    cuerpo.appendChild(el('ol', { class: 'lista-reglas' },
+      el('li', {}, 'Instala una aplicación de verificación en tu teléfono, como Google Authenticator o Microsoft Authenticator.'),
+      el('li', {}, 'Escanea el código QR que te mostramos a continuación (solo una vez).'),
+      el('li', {}, 'Escribe el código de 6 dígitos que te muestre la aplicación para confirmarlo.'),
+    ));
+    cuerpo.appendChild(el('p', {}, 'Una vez activada, te pediremos ese código cada vez que ingreses, además de tu contraseña.'));
     cuerpo.appendChild(boton);
   }
 
@@ -44,7 +49,10 @@ function seccionMfa(sesion) {
       errorCodigo.hidden = true;
       const botonConfirmar = el('button', { type: 'button', class: 'boton boton-primario' }, 'Confirmar y activar');
       const botonCancelar = el('button', { type: 'button', class: 'boton boton-secundario' }, 'Cancelar');
-      botonCancelar.addEventListener('click', () => pintarInactiva());
+      botonCancelar.addEventListener('click', () => {
+        api.post('/auth/mfa/cancelar', {}).catch(() => { /* no quedó activada; se puede reintentar igual */ });
+        pintarInactiva();
+      });
       botonConfirmar.addEventListener('click', async () => {
         const codigo = campoCodigo.value.trim();
         if (!/^\d{6}$/.test(codigo)) {
@@ -67,7 +75,7 @@ function seccionMfa(sesion) {
         }
       });
 
-      cuerpo.appendChild(el('p', {}, 'Escanea este código con Google Authenticator, Authy u otra aplicación de verificación.'));
+      cuerpo.appendChild(el('p', {}, 'Escanea este código QR con la aplicación que instalaste.'));
       cuerpo.appendChild(el('img', { src: qr, alt: 'Código QR para activar la verificación en dos pasos' }));
       cuerpo.appendChild(el('p', { class: 'campo-ayuda' }, '¿No puedes escanearlo? Ingresa esta clave a mano en tu aplicación: ', el('strong', {}, secreto)));
       cuerpo.appendChild(el('div', { class: 'campo' }, etiquetaCampo('Código de 6 dígitos', { for: 'mfa-codigo-nuevo' }), campoCodigo, errorCodigo));

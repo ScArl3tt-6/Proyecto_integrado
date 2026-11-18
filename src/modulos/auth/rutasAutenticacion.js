@@ -114,6 +114,11 @@ function rutasAutenticacion({ autenticacion, entorno, autenticar, verificarCsrf 
     return res.status(204).end();
   });
 
+  r.post('/mfa/cancelar', autenticar, verificarCsrf, async (req, res) => {
+    await autenticacion.cancelarMfa(req.usuario);
+    return res.status(204).end();
+  });
+
   r.post('/mfa/desactivar', autenticar, verificarCsrf, validar(esquemaDesactivarMfa), async (req, res) => {
     await autenticacion.desactivarMfaPropio(req.usuario, req.datos.body.contrasena);
     return res.status(204).end();

@@ -2,7 +2,7 @@
 const crypto = require('node:crypto');
 const argon2 = require('argon2');
 const jwt = require('jsonwebtoken');
-const { generateSecret, verify: verificarCodigoMfa, generateURI } = require('otplib');
+const { generateSecret, verify: verificarCodigoMfaOtplib } = require('otplib');
 const QRCode = require('qrcode');
 const { validarContrasena } = require('../../dominio/politicaContrasena');
 const { ErrorNegocio } = require('../../dominio/errores');
@@ -12,6 +12,36 @@ const EMISOR_MFA = 'SST Kotoduo';
 // La verificación en dos pasos es, por ahora, para los dos roles con las acciones más sensibles
 // (gestión de cuentas y aprobación de diseños); ver la pantalla de Ingreso y PLAN_FASES.md.
 const ROLES_CON_MFA = new Set(['ADMINISTRADOR', 'PRODUCCION']);
+
+// Parámetros de TOTP (RFC 6238) explícitos y fijos, en vez de depender de los valores por defecto
+// de la librería (que podrían cambiar entre versiones sin que el código lo note): se usan tanto al
+// construir el otpauth:// URI como al verificar, para que el QR y la verificación real nunca puedan
+// quedar desincronizados entre sí.
+const MFA_ALGORITMO = 'sha1';
+const MFA_DIGITOS = 6;
+const MFA_PERIODO_SEGUNDOS = 30;
+// ±1 paso de 30 s (RFC 6238 sección 5.2): tolera que el reloj del teléfono y el del servidor no
+// coincidan exactamente, en cualquiera de los dos sentidos.
+const MFA_TOLERANCIA_SEGUNDOS = MFA_PERIODO_SEGUNDOS;
+
+function construirOtpauthUri({ issuer, label, secreto }) {
+  const ruta = `${encodeURIComponent(issuer)}:${encodeURIComponent(label)}`;
+  const parametros = [
+    `secret=${encodeURIComponent(secreto)}`,
+    `issuer=${encodeURIComponent(issuer)}`,
+    `algorithm=${MFA_ALGORITMO.toUpperCase()}`,
+    `digits=${MFA_DIGITOS}`,
+    `period=${MFA_PERIODO_SEGUNDOS}`,
+  ].join('&');
+  return `otpauth://totp/${ruta}?${parametros}`;
+}
+
+function verificarCodigoMfa({ secret, token, afterTimeStep }) {
+  return verificarCodigoMfaOtplib({
+    secret, token, afterTimeStep,
+    algorithm: MFA_ALGORITMO, digits: MFA_DIGITOS, period: MFA_PERIODO_SEGUNDOS, epochTolerance: MFA_TOLERANCIA_SEGUNDOS,
+  });
+}
 
 function crearServicioAutenticacion({ pg, entorno, bitacora }) {
   // Hash simulado para igualar tiempos cuando el correo no existe (evita enumeración de usuarios)
@@ -112,9 +142,13 @@ function crearServicioAutenticacion({ pg, entorno, bitacora }) {
     if (!usuario || !usuario.activo || !usuario.mfa_habilitado) return { ok: false };
     if (usuario.bloqueado_hasta && new Date(usuario.bloqueado_hasta) > new Date()) return { ok: false, motivo: 'BLOQUEADO' };
 
-    const resultado = await verificarCodigoMfa({ secret: usuario.mfa_secreto, token: codigo });
-    const yaUsado = resultado.valid && usuario.mfa_ultimo_paso !== null && resultado.timeStep <= Number(usuario.mfa_ultimo_paso);
-    if (!resultado.valid || yaUsado) {
+    // afterTimeStep delega en la propia librería el anti-reuso (rechaza un paso ya consumido),
+    // en vez de comparar el conteo a mano después de verificar.
+    const resultado = await verificarCodigoMfa({
+      secret: usuario.mfa_secreto, token: codigo,
+      afterTimeStep: usuario.mfa_ultimo_paso === null ? undefined : Number(usuario.mfa_ultimo_paso),
+    });
+    if (!resultado.valid) {
       const intentos = usuario.intentos_fallidos + 1;
       const bloquear = intentos >= entorno.intentosMaximos;
       await pg.query(
@@ -140,15 +174,29 @@ function crearServicioAutenticacion({ pg, entorno, bitacora }) {
     if (!ROLES_CON_MFA.has(usuarioSesion.rol)) {
       throw new ErrorNegocio('La verificación en dos pasos está disponible para Administración y Producción.', 403);
     }
-    const { rows } = await pg.query('SELECT correo, mfa_habilitado FROM usuario WHERE id_usuario = $1', [usuarioSesion.id]);
+    const { rows } = await pg.query('SELECT correo, mfa_habilitado, mfa_secreto FROM usuario WHERE id_usuario = $1', [usuarioSesion.id]);
     const u = rows[0];
     if (u.mfa_habilitado) throw new ErrorNegocio('La verificación en dos pasos ya está activada en tu cuenta.', 409);
 
-    const secreto = await generateSecret();
-    await pg.query('UPDATE usuario SET mfa_secreto = $1, mfa_ultimo_paso = NULL WHERE id_usuario = $2', [secreto, usuarioSesion.id]);
-    const otpauth = generateURI({ issuer: EMISOR_MFA, label: u.correo, secret: secreto });
+    // Si ya había una activación en curso (recargó la página, o volvió a "Mi cuenta" sin terminar),
+    // se reutiliza el mismo secreto: generar uno nuevo invalidaría en silencio el QR que la persona
+    // ya pudo haber escaneado con su aplicación.
+    const secreto = u.mfa_secreto || await generateSecret();
+    if (!u.mfa_secreto) {
+      await pg.query('UPDATE usuario SET mfa_secreto = $1, mfa_ultimo_paso = NULL WHERE id_usuario = $2', [secreto, usuarioSesion.id]);
+    }
+    const otpauth = construirOtpauthUri({ issuer: EMISOR_MFA, label: u.correo, secreto });
     const qr = await QRCode.toDataURL(otpauth, { width: 220 });
     return { secreto, otpauth, qr };
+  }
+
+  // Cancela una activación en curso sin dejar un secreto abandonado en la base. No afecta a una
+  // cuenta que ya tiene el MFA activado (para eso existe desactivarMfaPropio, que sí pide la contraseña).
+  async function cancelarMfa(usuarioSesion) {
+    await pg.query(
+      'UPDATE usuario SET mfa_secreto = NULL, mfa_ultimo_paso = NULL WHERE id_usuario = $1 AND NOT mfa_habilitado',
+      [usuarioSesion.id],
+    );
   }
 
   async function confirmarMfa(usuarioSesion, codigo) {
@@ -157,9 +205,11 @@ function crearServicioAutenticacion({ pg, entorno, bitacora }) {
     if (!u.mfa_secreto || u.mfa_habilitado) {
       throw new ErrorNegocio('No hay ninguna activación en curso. Vuelve a empezar desde "Mi cuenta".', 409);
     }
-    const resultado = await verificarCodigoMfa({ secret: u.mfa_secreto, token: codigo });
-    const yaUsado = resultado.valid && u.mfa_ultimo_paso !== null && resultado.timeStep <= Number(u.mfa_ultimo_paso);
-    if (!resultado.valid || yaUsado) {
+    const resultado = await verificarCodigoMfa({
+      secret: u.mfa_secreto, token: codigo,
+      afterTimeStep: u.mfa_ultimo_paso === null ? undefined : Number(u.mfa_ultimo_paso),
+    });
+    if (!resultado.valid) {
       throw new ErrorNegocio('Código incorrecto o vencido. Genera uno nuevo desde tu aplicación y vuelve a intentarlo.', 400);
     }
     await pg.query('UPDATE usuario SET mfa_habilitado = TRUE, mfa_ultimo_paso = $1 WHERE id_usuario = $2', [String(resultado.timeStep), usuarioSesion.id]);
@@ -250,7 +300,7 @@ function crearServicioAutenticacion({ pg, entorno, bitacora }) {
 
   return {
     hashContrasena, iniciarSesion, completarIngresoMfa, renovarSesion, cambiarContrasena, cerrarSesion,
-    restablecerContrasena, iniciarMfa, confirmarMfa, desactivarMfaPropio,
+    restablecerContrasena, iniciarMfa, cancelarMfa, confirmarMfa, desactivarMfaPropio,
   };
 }
 

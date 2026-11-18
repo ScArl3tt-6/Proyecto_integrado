@@ -113,3 +113,5 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 7. Intenta entrar con un correo o perfil que no tenga permiso de MFA (por ejemplo `jorge`, Vendedor): en «Mi cuenta» no debe aparecer la opción de activarlo.
 8. Vuelve a «Mi cuenta» y presiona «Desactivar verificación en dos pasos»: pide la contraseña actual; con la incorrecta no desactiva, con la correcta sí, y el ingreso vuelve a ser directo (sin segundo paso).
 9. Como `koto` (Administrador), activa el MFA de otra cuenta de prueba, ve a «Usuarios»: la fila debe mostrar el chip «2FA» y un botón «Desactivar 2FA» que no pide ninguna contraseña (para cubrir el caso de alguien que perdió su aplicación de autenticación). Tras usarlo, esa persona vuelve a ingresar directo.
+
+**Confirmado por el equipo, 18-11-2026:** prueba real con un teléfono físico (no solo con una librería calculando el código). El bloqueo tras equivocarse y el ingreso con el segundo paso funcionaron como se esperaba.
