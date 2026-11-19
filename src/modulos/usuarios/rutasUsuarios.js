@@ -6,10 +6,11 @@ const { autorizar, validar } = require('../../middleware/seguridad');
 const roles = z.enum(['ADMINISTRADOR', 'PRODUCCION', 'DISENO', 'VENDEDOR', 'OPERARIO']);
 const areas = z.enum(['Ventas', 'Diseño', 'Bordado', 'Sublimación', 'Letreros', 'Grabado', 'Impresión gran formato', 'Administración']);
 
+// Sin "contrasena": Administración no la fija (ni la conoce). La cuenta se crea con un enlace de
+// primer acceso, igual que un restablecimiento (punto 7 de la revisión del equipo, 19-11-2026).
 const esquemaNuevo = z.strictObject({
   nombre: z.string().trim().min(3).max(80),
   correo: z.email().max(120),
-  contrasena: z.string().max(128),
   rol: roles,
   area: areas.optional(),
 });

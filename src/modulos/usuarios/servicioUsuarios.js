@@ -8,11 +8,25 @@ function sha256(valor) {
 }
 
 function crearServicioUsuarios({ pg, bitacora, autenticacion, entorno }) {
-  // Alta de usuarios solo por administración (no existe autorregistro)
+  // Alta de usuarios solo por administración (no existe autorregistro). Punto 7 de la revisión del
+  // equipo (19-11-2026): Administración no debe conocer la contraseña de nadie; la ruta pública
+  // (rutasUsuarios.js) ya no acepta "contrasena" en el cuerpo, así que en los hechos nunca llega
+  // aquí desde la aplicación real. Sigue aceptándose como parámetro interno opcional solo para la
+  // siembra de datos de demostración y la suite de pruebas (tests/contexto.js,
+  // scripts/sembrar-demo.js), que sí necesitan contraseñas conocidas para iniciar sesión sin pasar
+  // por el enlace. Sin ella, se guarda una contraseña aleatoria que nadie ve ni necesita conocer (la
+  // cuenta queda, en los hechos, "bloqueada" hasta que su dueña entre por el enlace de primer
+  // acceso, que crear() entrega junto con el id — mismo mecanismo que
+  // generarEnlaceRestablecimiento, para no duplicar nada).
   async function crear(admin, { nombre, correo, contrasena, rol, area }) {
-    const politica = validarContrasena(contrasena, { correo, nombre });
-    if (!politica.valida) throw new ErrorNegocio(`Contraseña no cumple la política: ${politica.errores.join('; ')}`, 400);
-    const hash = await autenticacion.hashContrasena(contrasena);
+    let contrasenaFinal = contrasena;
+    if (contrasenaFinal) {
+      const politica = validarContrasena(contrasenaFinal, { correo, nombre });
+      if (!politica.valida) throw new ErrorNegocio(`Contraseña no cumple la política: ${politica.errores.join('; ')}`, 400);
+    } else {
+      contrasenaFinal = crypto.randomBytes(32).toString('base64url');
+    }
+    const hash = await autenticacion.hashContrasena(contrasenaFinal);
     const { rows } = await pg.query(
       `INSERT INTO usuario (nombre, correo, hash_contrasena, id_rol, id_area)
        VALUES ($1, $2, $3, (SELECT id_rol FROM rol WHERE nombre = $4), (SELECT id_area FROM area WHERE nombre = $5))
@@ -22,8 +36,15 @@ function crearServicioUsuarios({ pg, bitacora, autenticacion, entorno }) {
       if (String(err.message).includes('usuario_correo_key')) throw new ErrorNegocio('El correo ya está registrado', 409);
       throw err;
     });
-    if (admin) await bitacora.registrar({ tipo: 'USUARIO_CREADO', usuario: admin, entidad: { tipo: 'usuario', codigo: String(rows[0].id_usuario) }, detalle: { rol } });
-    return { idUsuario: rows[0].id_usuario };
+    const idUsuario = rows[0].id_usuario;
+    if (admin) await bitacora.registrar({ tipo: 'USUARIO_CREADO', usuario: admin, entidad: { tipo: 'usuario', codigo: String(idUsuario) }, detalle: { rol } });
+    // Solo cuando no se dio una contraseña conocida (la ruta real de Administración, nunca la
+    // siembra ni las pruebas): generar un enlace de primer acceso que nadie usará nunca sería ruido.
+    if (!contrasena) {
+      const primerAcceso = await generarEnlaceRestablecimiento(admin, idUsuario, { tipoEvento: 'PRIMER_ACCESO_GENERADO' });
+      return { idUsuario, ...primerAcceso };
+    }
+    return { idUsuario };
   }
 
   // HU-07 / RF-07: cambio de perfil. Se revocan las sesiones activas para que el cambio rija de inmediato.
@@ -71,10 +92,13 @@ function crearServicioUsuarios({ pg, bitacora, autenticacion, entorno }) {
     return rows.map((u) => ({ ...u, ultimoAcceso: ultimos[u.id_usuario] || null }));
   }
 
-  // HU: restablecimiento de contraseña (Funcionalidad 4). Solo Administración genera el enlace;
-  // quien lo recibe lo usa sin sesión en POST /api/auth/restablecer. Un enlace nuevo invalida
-  // cualquier otro que haya quedado sin usar, para que solo exista uno vigente a la vez.
-  async function generarEnlaceRestablecimiento(admin, idUsuario) {
+  // HU: restablecimiento de contraseña (Funcionalidad 4) y primer acceso (punto 7). Solo
+  // Administración genera el enlace; quien lo recibe lo usa sin sesión en POST /api/auth/restablecer.
+  // Un enlace nuevo invalida cualquier otro que haya quedado sin usar, para que solo exista uno
+  // vigente a la vez. El enlace completo se arma aquí, con la URL base configurable del servidor
+  // (SST_URL_BASE), no con la URL que la pantalla de Administración tenga en el navegador en ese
+  // momento (que en desarrollo es "localhost" y no le sirve a quien lo recibe).
+  async function generarEnlaceRestablecimiento(admin, idUsuario, { tipoEvento = 'RESTABLECIMIENTO_GENERADO' } = {}) {
     const { rows } = await pg.query('SELECT id_usuario FROM usuario WHERE id_usuario = $1', [idUsuario]);
     if (!rows[0]) throw new ErrorNegocio('Usuario no encontrado', 404);
 
@@ -85,8 +109,8 @@ function crearServicioUsuarios({ pg, bitacora, autenticacion, entorno }) {
        VALUES ($1, $2, $3, now() + ($4 || ' minutes')::interval, $5)`,
       [crypto.randomUUID(), idUsuario, sha256(token), String(entorno.minutosRestablecimiento), admin.id],
     );
-    await bitacora.registrar({ tipo: 'RESTABLECIMIENTO_GENERADO', usuario: admin, entidad: { tipo: 'usuario', codigo: String(idUsuario) } });
-    return { token, minutos: entorno.minutosRestablecimiento };
+    await bitacora.registrar({ tipo: tipoEvento, usuario: admin, entidad: { tipo: 'usuario', codigo: String(idUsuario) } });
+    return { token, minutos: entorno.minutosRestablecimiento, enlace: `${entorno.urlBase}/#/restablecer/${token}` };
   }
 
   // Vía de recuperación si la persona perdió el acceso a su aplicación de autenticación: solo

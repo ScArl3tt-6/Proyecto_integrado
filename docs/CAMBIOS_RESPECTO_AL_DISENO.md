@@ -321,3 +321,31 @@ en `coverage/coverage-final.json`):**
   liberar una etapa que nadie tomó, un operario ajeno no puede liberar la de otro, quien la tomó (o
   Producción) sí puede, y queda de verdad disponible para cualquiera después. Detalle en
   `evidencias/defectos.md`, DEF-25.
+
+### 4. Alta de usuarios: Administración ya no fija ninguna contraseña (primer acceso por enlace)
+
+- **Qué decía el diseño original:** "Crear cuenta" incluía un campo de contraseña inicial que
+  Administración completaba y entregaba "en mano" a la persona.
+- **Qué cambió y por qué (punto 7 de la revisión del equipo, 19-11-2026):** Administración no debe
+  conocer la contraseña de nadie. `POST /api/usuarios` ya no acepta ningún campo de contraseña (se
+  rechaza con 400 si se envía); el servidor genera una aleatoria que nadie ve ni necesita conocer, y
+  entrega de inmediato un enlace de primer acceso, reutilizando tal cual el mecanismo de
+  restablecimiento de la Funcionalidad 4 (mismo token de un solo uso con vencimiento, misma pantalla
+  "Crear una contraseña nueva", mismo diálogo con "Copiar enlace" en "Usuarios").
+- **Impacto:** el formulario de "Crear cuenta" pierde el campo de contraseña; a cambio, al crear la
+  cuenta se abre el mismo diálogo que ya existía para "Generar enlace" en una cuenta existente. No
+  se agregó ninguna tabla ni mecanismo nuevo.
+- **De paso, URL base configurable (segunda mitad del punto 7):** el enlace completo (de primer
+  acceso o de un restablecimiento posterior) ahora lo arma el servidor con su propia URL base
+  (`entorno.urlBase`, variable de entorno `SST_URL_BASE`; por defecto `http://localhost:<puerto>`),
+  no el navegador de Administración con `location.origin`. Antes, si Administración generaba el
+  enlace mirando la pantalla desde una URL que no es la pública (por ejemplo, "localhost" en
+  desarrollo, o una IP interna), el enlace quedaba armado con ESA URL y no le servía a quien lo
+  recibía. Ver `.env.example` (`SST_URL_BASE`).
+- **Compatibilidad interna:** `usuarios.crear()` sigue aceptando una contraseña conocida como
+  parámetro interno opcional, usada solo por `scripts/sembrar-demo.js` y por
+  `tests/contexto.js` (necesitan credenciales deterministas para la demostración y para iniciar
+  sesión directo en las pruebas, sin pasar por un enlace); la ruta HTTP real nunca envía ese campo.
+- **Verificación:** CP-73 (reescrita) y CP-90 (`tests/integracion/usuariosListado.test.js`), y de
+  punta a punta con un navegador real contra el entorno aislado. Detalle en
+  `evidencias/defectos.md`, DEF-33.

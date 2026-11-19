@@ -54,6 +54,7 @@ async function crearContexto({ envolverMongo, entornoExtra = {} } = {}) {
     puerto: 0, produccion: false, secretoJwt: crypto.randomBytes(48).toString('hex'),
     minutosAcceso: 15, horasSesion: 8, intentosMaximos: 5, minutosBloqueo: 15, minutosInactividad: 30, minutosRestablecimiento: 30, minutosDesafioMfa: 5,
     limiteGeneral: 100000, // sin límite general en las pruebas, salvo que una prueba lo fije
+    urlBase: 'http://localhost:3000', // para los enlaces de primer acceso/restablecimiento; una prueba puede sobrescribirlo
     ...entornoExtra,
   };
 

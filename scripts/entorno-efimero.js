@@ -18,7 +18,11 @@ const minutosInactividad = process.env.SST_MINUTOS_INACTIVIDAD ? Number(process.
 
 async function principal() {
   console.log('Creando un entorno de verificación aislado (base de datos propia, no la real)...');
-  const ctx = await crearContexto(minutosInactividad !== undefined ? { entornoExtra: { minutosInactividad } } : undefined);
+  // urlBase: para que un enlace de primer acceso o restablecimiento generado aquí apunte de
+  // verdad a este puerto (si no, usaría el valor por defecto de tests/contexto.js, puerto 3000).
+  const entornoExtra = { urlBase: `http://localhost:${PUERTO}` };
+  if (minutosInactividad !== undefined) entornoExtra.minutosInactividad = minutosInactividad;
+  const ctx = await crearContexto({ entornoExtra });
 
   const u = (clave) => ({ id: ctx.usuarios[clave].idUsuario, rol: ctx.usuarios[clave].rol });
   const jorge = u('jorge');

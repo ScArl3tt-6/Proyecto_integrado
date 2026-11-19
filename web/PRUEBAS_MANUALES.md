@@ -29,6 +29,7 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-21 | Aprobar/rechazar una propuesta: la pantalla dice a quién corresponde, el diálogo dice la consecuencia (etapa que sigue, o a qué estado vuelve y quién lo retoma), y tras confirmar se ve el resultado en el detalle del trabajo | |
 | PM-22 | Novedades (Vendedor y Diseño): contador en el menú y lista cuando una solicitud propia se aprueba, se rechaza o termina; baja a 0 al visitarla; Diseño se entera incluso de propuestas que ya no puede ver en detalle | |
 | PM-23 | Vista previa de un PDF o imagen de una propuesta, dentro de la misma pantalla de "Decidir propuesta" (sin el ícono de contenido bloqueado) | |
+| PM-24 | La URL base de los enlaces de primer acceso/restablecimiento es configurable (`SST_URL_BASE`), no queda fija en "localhost" | |
 
 ## Pasos detallados
 
@@ -126,12 +127,15 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 
 **Confirmado por el equipo, 18-11-2026:** prueba real con un teléfono físico (no solo con una librería calculando el código). El bloqueo tras equivocarse y el ingreso con el segundo paso funcionaron como se esperaba.
 
-### PM-14 — Crear una cuenta nueva desde "Usuarios"
-1. Ingresa como `koto` (Administrador), ve a «Usuarios» y completa «Crear cuenta» con un nombre, un correo que no exista todavía, un rol, y una contraseña inicial de 12 o más caracteres.
-2. **Esperado:** «Cuenta creada. Entrégale la contraseña inicial en mano; ella la cambiará desde "Mi cuenta".» y la cuenta nueva aparece de inmediato en la lista de abajo, con el rol y el área correctos.
-3. Cierra sesión e ingresa con el correo y la contraseña que acabas de crear. **Esperado:** entra con normalidad a la pantalla de inicio del rol asignado.
-4. Vuelve a crear una cuenta con el mismo correo que ya usaste. **Esperado:** aviso claro de que el correo ya está registrado, sin crear una segunda cuenta.
-5. Intenta crear una cuenta con una contraseña de menos de 12 caracteres o con el nombre repetido dentro de la contraseña: el error aparece junto al campo antes de llamar a la API (ver PM-06).
+### PM-14 — Crear una cuenta nueva desde "Usuarios" (primer acceso, punto 7 de la revisión del equipo, 19-11-2026)
+1. Ingresa como `koto` (Administrador), ve a «Usuarios» y completa «Crear cuenta» con un nombre, un correo que no exista todavía y un rol. **Esperado:** el formulario NO pide ninguna contraseña — Administración no debe fijarla ni conocerla.
+2. **Esperado:** «Cuenta creada. Copia el enlace de primer acceso que se abre a continuación y entrégaselo a la persona.», la cuenta aparece de inmediato en la lista de abajo con el rol y el área correctos, y se abre un diálogo "Enlace de primer acceso para &lt;nombre&gt;" con el enlace completo, un botón «Copiar enlace», y el aviso de que vence en un tiempo limitado y sirve una sola vez.
+3. Copia el enlace y ábrelo en una ventana nueva (o incógnito) **sin haber iniciado sesión**. **Esperado:** se abre "Crear una contraseña nueva" (la misma pantalla que un restablecimiento).
+4. Crea una contraseña válida. **Esperado:** confirmación, y puedes ingresar con el correo de la cuenta nueva y la contraseña QUE ACABAS DE ELEGIR (nunca una que haya escrito Administración).
+5. Vuelve a crear una cuenta con el mismo correo que ya usaste. **Esperado:** aviso claro de que el correo ya está registrado, sin crear una segunda cuenta.
+6. Revisa que la URL del enlace corresponda al dominio real de la aplicación (configurable con `SST_URL_BASE`), no a "localhost" si el servidor está desplegado en otro lugar.
+
+**Confirmado, 19-11-2026:** verificado de punta a punta con un navegador real contra el entorno aislado: el formulario sin campo de contraseña, el diálogo con el enlace, abrir ese enlace sin sesión, crear la contraseña, e ingresar con ella. El enlace usó la URL base configurada del servidor (no "localhost:3000" por defecto), ver PM-24.
 
 ### PM-15 — "Comenzar etapa": reclamo y quién la está trabajando
 1. Crea (o usa) dos cuentas Operario de la misma área (por ejemplo, Bordado) y abre sesión con cada una en una ventana distinta del navegador.
@@ -221,3 +225,10 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 4. Con las herramientas de desarrollador del navegador (pestaña Red), confirma que la respuesta de `/api/disenos/.../archivos/...` trae `Content-Security-Policy: frame-ancestors 'self'` (no `'none'`) y `X-Frame-Options: SAMEORIGIN` (no `DENY`).
 
 **Confirmado, 19-11-2026 (parcial):** verificado con certeza a nivel de protocolo HTTP (prueba automática CP-52 extendida, y una llamada directa desde el navegador contra el servidor real: el encabezado cambió de `'none'` a `'self'`, que es la regla exacta que controla si el navegador bloquea el `<iframe>`). **No pude confirmar el paso 2 con una captura de pantalla** porque el navegador sin interfaz (headless) que uso para verificar no renderiza el PDF dentro del `<iframe>` de ninguna manera en esta automatización (se ve igual de vacío con el encabezado roto o corregido): es una limitación de automatizar este caso puntual, no de la corrección en sí. Pido que alguien del equipo haga el paso 2 y 3 a mano, con un navegador normal, para la confirmación visual final.
+
+### PM-24 — URL base configurable de los enlaces
+1. En `.env`, define `SST_URL_BASE=https://ejemplo-de-dominio-real.cl` (sin "/" al final) y reinicia el servidor.
+2. Como Administración, genera un enlace de primer acceso (PM-14) o de restablecimiento (PM-12). **Esperado:** el enlace completo empieza con `https://ejemplo-de-dominio-real.cl/#/restablecer/…`, sin importar en qué URL tenga Administración abierto el navegador en ese momento (por ejemplo, podría estar usando un túnel o una IP interna distinta).
+3. Sin definir `SST_URL_BASE` (quitarla de `.env` y reiniciar), genera otro enlace. **Esperado:** usa el valor por defecto `http://localhost:<SST_PUERTO>`.
+
+**Confirmado, 19-11-2026:** verificado con prueba automática (CP-90, con una URL base distinta configurada en el entorno de prueba) y con navegador real contra el entorno aislado (que fija `SST_URL_BASE` a su propio puerto 3100): el enlace generado usó ese puerto, no el 3000 por defecto.

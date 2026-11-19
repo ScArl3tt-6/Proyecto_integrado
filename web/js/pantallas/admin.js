@@ -3,7 +3,7 @@ import { el, vaciar, aviso, abrirDialogoConfirmacion, etiquetaCampo, describirEr
 import { estadoVacio, estadoCarga, estadoError, formatoFechaHora, filaEvento } from '../componentes.js';
 import { ROL_TEXTO, AREAS_POR_ROL } from '../permisos.js';
 
-const CAMPOS_CREAR_CUENTA = { nombre: 'Nombre', correo: 'Correo', rol: 'Rol', area: 'Área', contrasena: 'Contraseña inicial' };
+const CAMPOS_CREAR_CUENTA = { nombre: 'Nombre', correo: 'Correo', rol: 'Rol', area: 'Área' };
 
 const ROLES = ['ADMINISTRADOR', 'PRODUCCION', 'DISENO', 'VENDEDOR', 'OPERARIO'];
 
@@ -38,9 +38,6 @@ export function renderUsuarios(main, sesion, irA) {
   const campoRol = selectRoles('VENDEDOR', 'rol-nuevo');
   const campoArea = selectAreas('VENDEDOR', '', 'area-nuevo');
   campoRol.addEventListener('change', () => pintarOpcionesArea(campoArea, campoRol.value, null));
-  const campoContrasena = el('input', { id: 'contrasena-nueva-cuenta', type: 'text', required: true, minlength: 12, maxlength: 128, placeholder: 'Frase larga, 12 o más caracteres', 'aria-describedby': 'contrasena-nueva-cuenta-error' });
-  const errorContrasena = el('p', { class: 'campo-error', id: 'contrasena-nueva-cuenta-error', role: 'alert' });
-  errorContrasena.hidden = true;
   const botonCrear = el('button', { type: 'submit', class: 'boton boton-primario' }, 'Crear cuenta');
 
   const formAlta = el('form', { novalidate: true },
@@ -49,8 +46,10 @@ export function renderUsuarios(main, sesion, irA) {
     el('div', { class: 'campo' }, etiquetaCampo('Correo', { for: 'correo-nuevo' }), campoCorreo, errorCorreo),
     el('div', { class: 'campo' }, etiquetaCampo('Rol', { for: 'rol-nuevo' }), campoRol),
     el('div', { class: 'campo' }, etiquetaCampo('Área', { for: 'area-nuevo', opcional: true }), campoArea),
-    el('div', { class: 'campo' }, etiquetaCampo('Contraseña inicial', { for: 'contrasena-nueva-cuenta' }), campoContrasena, errorContrasena),
-    el('p', { class: 'campo-ayuda' }, 'Mínimo 12 caracteres, sin el nombre, el correo ni «kotoduo». Entrégasela a la persona en mano; ella la cambia luego desde "Mi cuenta".'),
+    // Punto 7 de la revisión del equipo (19-11-2026): Administración ya no fija ni conoce ninguna
+    // contraseña; tras crear la cuenta se le entrega un enlace de primer acceso (igual que un
+    // restablecimiento) para que la persona cree la suya.
+    el('p', { class: 'campo-ayuda' }, 'Al crear la cuenta se genera un enlace de primer acceso para que esa persona cree su propia contraseña.'),
     botonCrear,
   );
 
@@ -69,7 +68,7 @@ export function renderUsuarios(main, sesion, irA) {
   cargar();
 
   function limpiarErroresAlta() {
-    for (const [input, error] of [[campoNombre, errorNombre], [campoCorreo, errorCorreo], [campoContrasena, errorContrasena]]) {
+    for (const [input, error] of [[campoNombre, errorNombre], [campoCorreo, errorCorreo]]) {
       input.removeAttribute('aria-invalid');
       error.hidden = true;
     }
@@ -89,21 +88,20 @@ export function renderUsuarios(main, sesion, irA) {
     if (!nombre) { marcarErrorAlta(campoNombre, errorNombre, 'Escribe el nombre.'); valido = false; }
     else if (nombre.length < 3) { marcarErrorAlta(campoNombre, errorNombre, 'Escribe al menos 3 caracteres.'); valido = false; }
     if (!campoCorreo.value.trim()) { marcarErrorAlta(campoCorreo, errorCorreo, 'Escribe un correo.'); valido = false; }
-    if (!campoContrasena.value) { marcarErrorAlta(campoContrasena, errorContrasena, 'Escribe una contraseña inicial.'); valido = false; }
-    else if (campoContrasena.value.length < 12) { marcarErrorAlta(campoContrasena, errorContrasena, 'Debe tener al menos 12 caracteres.'); valido = false; }
     if (!valido) return;
 
     botonCrear.disabled = true;
     botonCrear.textContent = 'Creando…';
     try {
-      await api.post('/usuarios', {
-        nombre: campoNombre.value.trim(), correo: campoCorreo.value.trim(), contrasena: campoContrasena.value,
-        rol: campoRol.value, area: campoArea.value || undefined,
+      const nombreCreado = nombre;
+      const resultado = await api.post('/usuarios', {
+        nombre, correo: campoCorreo.value.trim(), rol: campoRol.value, area: campoArea.value || undefined,
       });
       formAlta.reset();
       pintarOpcionesArea(campoArea, campoRol.value, null);
-      mostrarAlta('exito', 'Cuenta creada. Entrégale la contraseña inicial en mano; ella la cambiará desde "Mi cuenta".');
+      mostrarAlta('exito', 'Cuenta creada. Copia el enlace de primer acceso que se abre a continuación y entrégaselo a la persona.');
       cargar();
+      abrirDialogoEnlace(`Enlace de primer acceso para ${nombreCreado}`, nombreCreado, Promise.resolve(resultado));
     } catch (err) {
       mostrarAlta('error', err instanceof ApiError ? describirErrorApi(err, CAMPOS_CREAR_CUENTA, 'No pudimos crear la cuenta.') : 'No pudimos crear la cuenta. Revisa tu conexión.');
     } finally {
@@ -237,42 +235,54 @@ export function renderUsuarios(main, sesion, irA) {
   }
 
   function abrirDialogoRestablecimiento(usuario) {
-    const cuerpo = el('div', {}, estadoCarga());
-    const cerrar = el('button', { type: 'button', class: 'boton boton-secundario' }, 'Cerrar');
-    cerrar.addEventListener('click', () => dialogo.close());
-    const dialogo = el('dialog', { class: 'dialogo' },
-      el('h2', {}, `Enlace para restablecer la contraseña de ${usuario.nombre}`),
-      cuerpo,
-      el('div', { class: 'dialogo-acciones' }, cerrar),
+    abrirDialogoEnlace(
+      `Enlace para restablecer la contraseña de ${usuario.nombre}`,
+      usuario.nombre,
+      api.post(`/usuarios/${usuario.id_usuario}/restablecimiento`, {}),
     );
-    dialogo.addEventListener('close', () => dialogo.remove());
-    document.body.appendChild(dialogo);
-    dialogo.showModal();
-
-    api.post(`/usuarios/${usuario.id_usuario}/restablecimiento`, {}).then(({ token, minutos }) => {
-      const enlace = `${location.origin}/#/restablecer/${token}`;
-      const campoEnlace = el('input', { type: 'text', value: enlace, readonly: true, 'aria-label': 'Enlace para restablecer la contraseña' });
-      const botonCopiar = el('button', { type: 'button', class: 'boton boton-secundario' }, 'Copiar enlace');
-      botonCopiar.addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText(enlace);
-          botonCopiar.textContent = 'Copiado';
-          setTimeout(() => { botonCopiar.textContent = 'Copiar enlace'; }, 2000);
-        } catch {
-          campoEnlace.select();
-        }
-      });
-      vaciar(cuerpo);
-      cuerpo.appendChild(el('div', { class: 'campo' }, campoEnlace, botonCopiar));
-      cuerpo.appendChild(el('p', { class: 'campo-ayuda' },
-        `Vence en ${minutos} minutos y sirve una sola vez. Entrégaselo a ${usuario.nombre} de forma segura (en persona o por un canal que ya uses con ella).`));
-      campoEnlace.focus();
-      campoEnlace.select();
-    }).catch(() => {
-      vaciar(cuerpo);
-      cuerpo.appendChild(aviso('error', 'No pudimos generar el enlace. Inténtalo otra vez.'));
-    });
   }
+}
+
+// Diálogo con un enlace de un solo uso para que alguien cree su contraseña sin que Administración
+// la conozca (primer acceso, al crear la cuenta, o restablecimiento desde "Usuarios"): mismo
+// mecanismo, misma pantalla (punto 7 de la revisión del equipo, 19-11-2026). "promesaDatos" resuelve
+// { enlace, minutos }, ya armado por el servidor con su URL base configurable (no con la URL que
+// Administración tenga abierta en el navegador en ese momento).
+function abrirDialogoEnlace(titulo, nombrePersona, promesaDatos) {
+  const cuerpo = el('div', {}, estadoCarga());
+  const cerrar = el('button', { type: 'button', class: 'boton boton-secundario' }, 'Cerrar');
+  cerrar.addEventListener('click', () => dialogo.close());
+  const dialogo = el('dialog', { class: 'dialogo' },
+    el('h2', {}, titulo),
+    cuerpo,
+    el('div', { class: 'dialogo-acciones' }, cerrar),
+  );
+  dialogo.addEventListener('close', () => dialogo.remove());
+  document.body.appendChild(dialogo);
+  dialogo.showModal();
+
+  promesaDatos.then(({ enlace, minutos }) => {
+    const campoEnlace = el('input', { type: 'text', value: enlace, readonly: true, 'aria-label': 'Enlace' });
+    const botonCopiar = el('button', { type: 'button', class: 'boton boton-secundario' }, 'Copiar enlace');
+    botonCopiar.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(enlace);
+        botonCopiar.textContent = 'Copiado';
+        setTimeout(() => { botonCopiar.textContent = 'Copiar enlace'; }, 2000);
+      } catch {
+        campoEnlace.select();
+      }
+    });
+    vaciar(cuerpo);
+    cuerpo.appendChild(el('div', { class: 'campo' }, campoEnlace, botonCopiar));
+    cuerpo.appendChild(el('p', { class: 'campo-ayuda' },
+      `Vence en ${minutos} minutos y sirve una sola vez. Entrégaselo a ${nombrePersona} de forma segura (en persona o por un canal que ya uses con ella).`));
+    campoEnlace.focus();
+    campoEnlace.select();
+  }).catch(() => {
+    vaciar(cuerpo);
+    cuerpo.appendChild(aviso('error', 'No pudimos generar el enlace. Inténtalo otra vez.'));
+  });
 }
 
 // Punto 1 de la revisión del equipo (18-11-2026): códigos internos traducidos, quién lo hizo (con

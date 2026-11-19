@@ -1024,3 +1024,38 @@ completa para el informe (sección de validación de resultados).
   Queda pendiente que alguien del equipo confirme visualmente con un navegador normal (no headless),
   aunque la causa y la corrección están verificadas con certeza a nivel de protocolo.
 - **Estado:** Corregido (verificado a nivel de protocolo HTTP; confirmación visual humana pendiente).
+
+## DEF-33 — Administración fijaba (y por lo tanto conocía) la contraseña inicial de cada cuenta nueva
+
+- **Encontrado en:** punto 7 de la revisión del equipo (19-11-2026).
+- **Severidad:** Alta (una persona de Administración podía, en teoría, ingresar con la contraseña
+  de cualquier cuenta recién creada hasta que la propia persona la cambiara; además, entregar esa
+  contraseña "en mano" es un canal informal y no deja ningún registro de cuándo se compartió).
+- **Causa confirmada:** el formulario "Crear cuenta" pedía una contraseña inicial que Administración
+  escribía directamente, y el servidor la guardaba tal cual (validada contra la política, pero
+  elegida por un tercero).
+- **Corrección:** el formulario ya no pide ninguna contraseña. `POST /api/usuarios` ya no acepta ese
+  campo (se rechaza con 400 si llega); el servidor genera una contraseña aleatoria que nadie ve ni
+  necesita conocer, y entrega de inmediato un enlace de primer acceso — el mismo mecanismo que ya
+  existía para restablecer una contraseña (Funcionalidad 4): un token de un solo uso, con
+  vencimiento, que lleva a "Crear una contraseña nueva" sin sesión. La pantalla de "Usuarios"
+  muestra ese enlace en un diálogo con "Copiar enlace", igual que el botón "Generar enlace" que ya
+  existía para cuentas existentes (ambos casos ahora comparten el mismo diálogo).
+- **De paso, URL base configurable:** el enlace completo ahora lo arma el SERVIDOR con su propia
+  URL base (`SST_URL_BASE`, nueva variable de entorno; por defecto `http://localhost:<puerto>`), no
+  el navegador de Administración con `location.origin` — así el enlace sirve de verdad para quien
+  lo recibe aunque Administración esté mirando la pantalla desde una URL distinta a la pública
+  (por ejemplo, localhost en desarrollo). Ver `.env.example`.
+- **Compatibilidad interna:** `usuarios.crear()` sigue aceptando una contraseña conocida como
+  parámetro interno opcional, solo para `scripts/sembrar-demo.js` y la suite de pruebas
+  (`tests/contexto.js`), que necesitan contraseñas deterministas para iniciar sesión sin pasar por
+  un enlace; la ruta HTTP real que usa Administración nunca envía ese campo, así que en los hechos
+  nunca se ejerce desde la aplicación.
+- **Nueva ejecución:** CP-73 (reescrita) y CP-90 (`tests/integracion/usuariosListado.test.js`):
+  la ruta rechaza un cuerpo con "contrasena", crear una cuenta entrega un enlace de primer acceso
+  que de verdad sirve para crear la contraseña y luego ingresar, y el enlace usa la URL base
+  configurada, no un valor fijo. Verificado de punta a punta con un navegador real contra el
+  entorno aislado (`scripts/entorno-efimero.js`, al que también se le agregó pasar su propio
+  `urlBase` para que sus enlaces apunten al puerto 3100 en el que de verdad corre, no al 3000 por
+  defecto).
+- **Estado:** Corregido.
