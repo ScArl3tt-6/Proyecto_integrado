@@ -16,6 +16,7 @@ import { renderAprobaciones, renderDecidirDiseno } from './pantallas/produccion.
 import { renderMisActividades } from './pantallas/operario.js';
 import { renderPanel } from './pantallas/panel.js';
 import { renderUsuarios, renderBitacora } from './pantallas/admin.js';
+import { renderNovedades } from './pantallas/novedades.js';
 
 const main = document.getElementById('app');
 const cabecera = document.getElementById('cabecera');
@@ -40,6 +41,7 @@ const RUTAS = [
   { patron: '#/panel', permiso: ['PANEL_VER'], render: (m, s) => renderPanel(m, s, irA) },
   { patron: '#/usuarios', permiso: ['USUARIO_GESTIONAR'], render: (m, s) => renderUsuarios(m, s, irA) },
   { patron: '#/bitacora', permiso: ['AUDITORIA_VER'], render: (m, s) => renderBitacora(m, s, irA) },
+  { patron: '#/novedades', permiso: ['NOVEDADES_VER'], render: (m) => renderNovedades(m) },
   { patron: '#/mi-cuenta', permiso: null, render: (m, s) => renderCuenta(m, s) },
 ];
 
@@ -93,7 +95,16 @@ function pintarMenu(sesion) {
   for (const item of MENU_POR_ROL[sesion.rol] || []) {
     const enlace = el('a', { href: item.ruta, class: 'nav-item', 'aria-current': hashActual === item.ruta ? 'page' : undefined }, item.texto);
     navPrincipal.appendChild(enlace);
+    if (item.ruta === '#/novedades') actualizarBadgeNovedades(enlace);
   }
+}
+
+// Contador de "Novedades" en el menú: pintarMenu ya se repinta en cada navegación (enrutar), así
+// que visitar la pantalla y volver ya alcanza para que el número baje, sin ningún mecanismo aparte.
+function actualizarBadgeNovedades(enlace) {
+  api.get('/auditoria/novedades').then(({ noVistas }) => {
+    if (noVistas > 0) enlace.appendChild(el('span', { class: 'chip chip-aviso nav-badge' }, String(noVistas)));
+  }).catch(() => { /* el contador es una ayuda visual; si falla, el enlace sigue funcionando igual */ });
 }
 
 async function enrutar() {

@@ -32,7 +32,10 @@ CREATE TABLE usuario (
   mfa_ultimo_paso   BIGINT,
   intentos_fallidos SMALLINT NOT NULL DEFAULT 0 CHECK (intentos_fallidos >= 0),
   bloqueado_hasta   TIMESTAMPTZ,
-  creado_en         TIMESTAMPTZ NOT NULL DEFAULT now()
+  creado_en         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Última vez que la persona abrió "Novedades" (Vendedor/Diseño): cuenta qué eventos de la
+  -- bitácora son nuevos desde entonces, sin tocar la bitácora (solo inserción, nunca edición).
+  novedades_vistas_en TIMESTAMPTZ NOT NULL DEFAULT '-infinity'
 );
 
 CREATE TABLE sesion (

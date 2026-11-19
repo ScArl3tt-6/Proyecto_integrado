@@ -65,7 +65,7 @@ function crearApp({ entorno, pg, mongoDb, registro = console }) {
   app.use('/api/auth', rutasAutenticacion({ autenticacion, entorno, autenticar: sesion, verificarCsrf, usuarios: servicios.usuarios }));
   app.use('/api/trabajos', sesion, verificarCsrf, rutasTrabajos(servicios));
   app.use('/api/usuarios', sesion, verificarCsrf, rutasUsuarios(servicios));
-  app.use('/api/auditoria', sesion, rutasAuditoria(servicios));
+  app.use('/api/auditoria', sesion, verificarCsrf, rutasAuditoria(servicios));
   app.use('/api/catalogos', sesion, rutasCatalogos(servicios));
   app.get('/api/panel', sesion, autorizar('PANEL_VER'), async (req, res) => res.json(await servicios.panel.resumen()));
 

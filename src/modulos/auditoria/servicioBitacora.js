@@ -65,7 +65,45 @@ function crearServicioBitacora(mongoDb, pg) {
     return Object.fromEntries(eventos.map((e) => [e._id, e.ultima]));
   }
 
-  return { registrar, consultarPorTrabajo, consultarRecientes, ultimosAccesos };
+  // Punto 5 de la revisión del equipo (19-11-2026): novedades para Vendedor y Diseño, a partir de
+  // eventos que YA existen (sin servicios nuevos ni correo): cuando una solicitud propia se
+  // rechaza, se aprueba, cambia de etapa o termina. Diseño, en particular, pierde acceso al detalle
+  // del trabajo apenas envía la propuesta (ver DEF-29): esta es, en la práctica, la única forma que
+  // le queda de enterarse de si fue aprobada o rechazada.
+  async function consultarNovedades(usuario) {
+    let condicion;
+    if (usuario.rol === 'VENDEDOR') {
+      const { rows } = await pg.query('SELECT codigo FROM trabajo WHERE id_vendedor = $1', [usuario.id]);
+      const codigos = rows.map((r) => r.codigo);
+      condicion = { 'entidad.tipo': 'trabajo', 'entidad.codigo': { $in: codigos }, tipo: { $in: ['DISENO_APROBADO', 'DISENO_RECHAZADO', 'ETAPA_COMPLETADA'] } };
+    } else if (usuario.rol === 'DISENO') {
+      const { rows } = await pg.query(
+        `SELECT d.id_diseno, t.codigo FROM diseno d JOIN trabajo t ON t.id_trabajo = d.id_trabajo WHERE d.id_disenador = $1`,
+        [usuario.id],
+      );
+      const idsDiseno = rows.map((r) => r.id_diseno);
+      const codigos = [...new Set(rows.map((r) => r.codigo))];
+      condicion = {
+        $or: [
+          { tipo: { $in: ['DISENO_APROBADO', 'DISENO_RECHAZADO'] }, 'detalle.idDiseno': { $in: idsDiseno } },
+          { tipo: 'ETAPA_COMPLETADA', 'detalle.trabajoTerminado': true, 'entidad.codigo': { $in: codigos } },
+        ],
+      };
+    } else {
+      return { noVistas: 0, eventos: [] };
+    }
+
+    const { rows: [{ novedades_vistas_en: vistasEn }] } = await pg.query('SELECT novedades_vistas_en FROM usuario WHERE id_usuario = $1', [usuario.id]);
+    const eventos = await coleccion.find(condicion, { projection: { _id: 0, ip: 0 } }).sort({ fecha: -1 }).limit(30).toArray();
+    const noVistas = eventos.filter((e) => e.fecha > vistasEn).length;
+    return { noVistas, eventos: await enriquecer(eventos) };
+  }
+
+  async function marcarNovedadesVistas(usuario) {
+    await pg.query('UPDATE usuario SET novedades_vistas_en = now() WHERE id_usuario = $1', [usuario.id]);
+  }
+
+  return { registrar, consultarPorTrabajo, consultarRecientes, ultimosAccesos, consultarNovedades, marcarNovedadesVistas };
 }
 
 module.exports = { crearServicioBitacora };

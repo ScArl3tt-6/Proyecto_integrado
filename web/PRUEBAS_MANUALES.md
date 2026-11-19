@@ -27,6 +27,7 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-19 | Saludo personalizado ("Hola, &lt;nombre&gt;") en el encabezado y en "Mi cuenta" (con rol, área y correo), sin desbordes en celular | |
 | PM-20 | Historial humano dentro del detalle de un trabajo, visible según el rol (Vendedor, Diseño, Producción, Operario); etapa actual/siguiente en lenguaje claro; falta de materiales destacada | |
 | PM-21 | Aprobar/rechazar una propuesta: la pantalla dice a quién corresponde, el diálogo dice la consecuencia (etapa que sigue, o a qué estado vuelve y quién lo retoma), y tras confirmar se ve el resultado en el detalle del trabajo | |
+| PM-22 | Novedades (Vendedor y Diseño): contador en el menú y lista cuando una solicitud propia se aprueba, se rechaza o termina; baja a 0 al visitarla; Diseño se entera incluso de propuestas que ya no puede ver en detalle | |
 
 ## Pasos detallados
 
@@ -201,3 +202,13 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 5. Confirma el rechazo. **Esperado:** la pantalla va al detalle del trabajo; el Historial muestra «Diseño rechazado» con «Motivo: …» completo.
 
 **Confirmado, 19-11-2026:** verificado con navegador real (aprobación y rechazo completos, revisando el texto exacto de ambos diálogos) y con prueba automática (CP-85).
+
+### PM-22 — Novedades para Vendedor y Diseño
+1. Como `marcela` (Producción), aprueba o rechaza una propuesta pendiente.
+2. Como `jorge` (Vendedor, quien registró esa solicitud), ingresa o navega a cualquier pantalla. **Esperado:** en el menú, junto a "Novedades", aparece un número (el contador de novedades sin ver).
+3. Entra a «Novedades». **Esperado:** aparece un resumen ("N novedades nuevas…") y, en la lista, el evento humano correspondiente ("Diseño aprobado" o "Diseño rechazado", con fecha y detalle), igual de legible que la Bitácora de Administración.
+4. Navega a cualquier otra pantalla y vuelve a mirar el menú. **Esperado:** el número ya no aparece (se marcó como vista al abrir "Novedades").
+5. Como `valentina` (Diseño, quien envió esa propuesta), entra a «Novedades». **Esperado:** ve el mismo aviso de aprobación o rechazo de SU propuesta (y de ninguna otra que no haya enviado ella).
+6. Avanza un trabajo hasta que termine todas sus etapas de producción. **Esperado:** tanto Vendedor como Diseño ven en Novedades que ese trabajo terminó (Diseño, en particular, ya no puede ver el detalle de un trabajo terminado, así que esta es su única forma de saberlo).
+
+**Confirmado, 19-11-2026:** verificado con 4 pruebas automáticas (CP-86 a CP-89: sin permiso para otros roles, contador correcto, aislamiento entre personas, aviso de término) y con navegador real (contador en el menú, lista, y que baja a 0 tras visitarla).

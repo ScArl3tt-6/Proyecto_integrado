@@ -966,3 +966,27 @@ completa para el informe (sección de validación de resultados).
   navegador real: aprobar y rechazar una propuesta real, revisando el texto exacto de ambos
   diálogos y el detalle del trabajo después de cada una.
 - **Estado:** Corregido.
+
+## DEF-31 — Vendedor y Diseño no tenían ninguna forma de enterarse de qué pasó con sus solicitudes, salvo entrar a revisarlas una por una
+
+- **Encontrado en:** punto 5 de la revisión del equipo (19-11-2026).
+- **Severidad:** Media (ningún dato se perdía; pero Diseño, en particular, no tenía NINGUNA forma de
+  saber si su propuesta fue aprobada o rechazada, porque pierde acceso al detalle del trabajo apenas
+  la envía — ver DEF-29 — y "Bandeja de diseño" tampoco muestra un trabajo ya aprobado).
+- **Corrección:** pantalla nueva "Novedades" (`#/novedades`, permiso `NOVEDADES_VER`, solo Vendedor y
+  Diseño), con un enlace en el menú que muestra un contador cuando hay novedades sin ver. Reutiliza
+  eventos que ya existía en la bitácora (nada de correo ni servicios nuevos): para Vendedor, cuando
+  una de sus solicitudes se aprueba, se rechaza, completa una etapa o termina; para Diseño, cuando
+  una propuesta QUE ÉL envió se aprueba o se rechaza, y cuando el trabajo que diseñó termina. Se
+  agregó `usuario.novedades_vistas_en` (migración `scripts/db/agregar-novedades-vistas.js`,
+  idempotente, igual que las anteriores) para saber qué es nuevo desde la última visita sin tocar la
+  bitácora (que sigue siendo solo de inserción). De paso, `ETAPA_COMPLETADA` ahora guarda
+  `trabajoTerminado` en su detalle, para poder avisar "el trabajo terminó" sin inventar un tipo de
+  evento nuevo.
+- **Nueva ejecución:** CP-86 a CP-89 (`tests/integracion/novedades.test.js`): sin permiso para
+  Producción/Operario; Vendedor y Diseño ven la aprobación como novedad con contador correcto;
+  marcar como vistas no afecta a otra persona; se avisa cuando el trabajo termina (incluso a Diseño,
+  que ya no puede ver el detalle); Diseño no ve novedades de propuestas ajenas. Verificado con
+  navegador real: el contador aparece en el menú, la lista muestra la novedad, y al visitar la
+  pantalla el contador baja a 0 en la siguiente navegación.
+- **Estado:** Corregido.

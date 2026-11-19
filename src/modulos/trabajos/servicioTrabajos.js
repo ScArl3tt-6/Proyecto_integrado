@@ -121,7 +121,12 @@ function crearServicioTrabajos({ pg, bitacora }) {
       await tx.query('UPDATE trabajo SET estado = $1, actualizado_en = now() WHERE id_trabajo = $2', [estadoTrabajo, etapa.id_trabajo]);
       return { codigo, etapaCompletada: orden, siguienteOrden: siguiente.rows.length ? orden + 1 : null, estadoTrabajo };
     });
-    await bitacora.registrar({ tipo: 'ETAPA_COMPLETADA', usuario, entidad: { tipo: 'trabajo', codigo }, detalle: { orden } });
+    // "trabajoTerminado": para que Novedades (punto 5) pueda avisar "este trabajo terminó" sin
+    // inventar un tipo de evento nuevo ni adivinarlo después a partir de otros datos.
+    await bitacora.registrar({
+      tipo: 'ETAPA_COMPLETADA', usuario, entidad: { tipo: 'trabajo', codigo },
+      detalle: { orden, trabajoTerminado: resultado.estadoTrabajo === 'TERMINADO' },
+    });
     return resultado;
   }
 

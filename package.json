@@ -21,6 +21,7 @@
     "db:agregar-ultima-actividad": "node scripts/db/agregar-ultima-actividad.js",
     "db:agregar-restablecimiento": "node scripts/db/agregar-restablecimiento-contrasena.js",
     "db:agregar-mfa": "node scripts/db/agregar-mfa.js",
+    "db:agregar-novedades-vistas": "node scripts/db/agregar-novedades-vistas.js",
     "verificar": "node scripts/verificar-entorno.js",
     "docs:guia-bases": "node scripts/generar-guia-bases.js",
     "entorno:verificacion": "node scripts/entorno-efimero.js"

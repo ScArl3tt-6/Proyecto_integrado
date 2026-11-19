@@ -62,6 +62,13 @@ function rutasAuditoria({ bitacora }) {
   r.get('/trabajos/:codigo', autorizar('AUDITORIA_VER'),
     validar(z.strictObject({ codigo: z.string().regex(/^KT-\d{4}-\d{4}$/) }), 'params'),
     async (req, res) => res.json(await bitacora.consultarPorTrabajo(req.datos.params.codigo)));
+
+  // Punto 5 de la revisión del equipo (19-11-2026): novedades para Vendedor y Diseño.
+  r.get('/novedades', autorizar('NOVEDADES_VER'), async (req, res) => res.json(await bitacora.consultarNovedades(req.usuario)));
+  r.post('/novedades/vistas', autorizar('NOVEDADES_VER'), async (req, res) => {
+    await bitacora.marcarNovedadesVistas(req.usuario);
+    return res.status(204).end();
+  });
   return r;
 }
 

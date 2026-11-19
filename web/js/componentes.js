@@ -48,8 +48,11 @@ export function detalleEvento(evento, { nombreEtapa } = {}) {
     case 'DISENO_APROBADO': return null;
     case 'DISENO_RECHAZADO': return d.motivo ? `Motivo: ${d.motivo}` : null;
     case 'ETAPA_INICIADA':
-    case 'ETAPA_COMPLETADA':
     case 'ETAPA_LIBERADA': return nombreEtapa ? `Etapa: ${nombreEtapa}` : (d.orden ? `Etapa n.º ${d.orden}` : null);
+    case 'ETAPA_COMPLETADA': {
+      const etapa = nombreEtapa ? `Etapa: ${nombreEtapa}.` : (d.orden ? `Etapa n.º ${d.orden}.` : '');
+      return d.trabajoTerminado ? `${etapa} Era la última etapa: el trabajo quedó terminado.`.trim() : (etapa || null);
+    }
     case 'TRABAJO_DETENIDO': return d.motivo ? `Motivo: ${d.motivo}` : null;
     case 'MATERIAL_REGISTRADO': return d.material ? `${d.material.nombre}: ${d.cantidad} ${d.material.unidad}${d.medida ? ` (${d.medida})` : ''}` : null;
     default: return null;
