@@ -31,6 +31,7 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-23 | Vista previa de un PDF o imagen de una propuesta, dentro de la misma pantalla de "Decidir propuesta" (sin el ícono de contenido bloqueado) | |
 | PM-24 | La URL base de los enlaces de primer acceso/restablecimiento es configurable (`SST_URL_BASE`), no queda fija en "localhost" | |
 | PM-25 | "Mis solicitudes" (Vendedor): línea de tiempo de etapas, motivo del atraso, y etapa actual/siguiente en lenguaje claro, en cada tarjeta | |
+| PM-26 | Tabla de Usuarios: una acción principal visible y el resto en un menú "⋯", alineados; en celular, tarjetas con etiqueta antes de cada dato | |
 
 ## Pasos detallados
 
@@ -243,3 +244,13 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 6. Confirma que "Novedades" sigue siendo accesible desde el menú (con su contador) sin que "Mis solicitudes" repita la misma lista.
 
 **Confirmado, 19-11-2026:** verificado con prueba automática (CP-91: por defecto el listado no trae la línea de tiempo; con `conEtapas=true` la trae completa, con el mismo contenido que el detalle) y con navegador real a 1280 y 390px.
+
+### PM-26 — Tabla de Usuarios ordenada (punto 10)
+1. Como `koto` (Administrador), ve a «Usuarios». **Esperado:** cada fila tiene exactamente un botón visible ("Cambiar rol o área") y un botón "⋯" junto a él, alineados; ninguna fila se ve más alta que otra por tener más botones.
+2. Presiona "⋯" en cualquier fila. **Esperado:** se abre un menú con "Generar enlace" (si la cuenta está activa), "Desactivar 2FA" (si tiene activada la verificación en dos pasos) y "Desactivar/Activar cuenta" (salvo en tu propia fila).
+3. Sin cerrar el menú, haz clic en cualquier otra parte de la pantalla. **Esperado:** el menú se cierra solo.
+4. Navega el menú con el teclado (Tab hasta el botón "⋯", Enter para abrir, flechas o Tab para moverte entre las opciones, Escape para cerrar). **Esperado:** funciona sin usar el mouse.
+5. Elige cualquier acción del menú. **Esperado:** se cierra el menú y se abre el diálogo correspondiente (o se ejecuta la acción), igual que antes.
+6. A 390px de ancho, revisa la lista de cuentas. **Esperado:** cada cuenta es una tarjeta con el nombre de cada dato (NOMBRE, CORREO, ROL, ÁREA, ESTADO, ÚLTIMO ACCESO) antes de su valor, no solo el valor suelto; los dos botones de acción siguen alineados igual que en escritorio.
+
+**Confirmado, 19-11-2026:** verificado con navegador real: 2 botones alineados por fila (antes hasta 4), el menú abre con las acciones correctas y se cierra al hacer clic afuera, y las tarjetas de celular muestran la etiqueta de cada dato, sin scroll horizontal.

@@ -191,6 +191,49 @@ dialog.dialogo::backdrop { background: rgba(62, 44, 34, .45); }
 .sugerencias-motivo { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .boton-chip { padding: 6px 12px; min-height: auto; font-size: var(--texto-14); }
 
+/* Menú de acciones secundarias: <details>/<summary> nativo (punto 10, "una acción principal
+   visible, el resto en un menú"; punto 11, "controles nativos"). */
+.menu-acciones { position: relative; display: inline-block; }
+.menu-acciones > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--texto-20);
+  line-height: 1;
+  padding: 10px 16px;
+}
+.menu-acciones > summary::-webkit-details-marker { display: none; }
+.menu-acciones > summary::marker { content: ''; }
+.menu-acciones[open] > summary { background: var(--color-superficie-destacada); }
+.menu-acciones-lista {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 190px;
+  padding: 6px;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-tarjeta);
+  box-shadow: 0 8px 24px rgba(62, 44, 34, .2);
+}
+.menu-acciones-item {
+  text-align: left;
+  background: none;
+  border: none;
+  font: inherit;
+  padding: 10px 12px;
+  border-radius: var(--radio-boton);
+  color: var(--color-texto);
+  cursor: pointer;
+}
+.menu-acciones-item:hover { background: var(--color-superficie-destacada); }
+.menu-acciones-item-peligro { color: var(--error-tx); }
+
 /* Encabezado de pantalla con acción a la derecha */
 .encabezado-pantalla {
   display: flex;
@@ -307,4 +350,16 @@ dialog.dialogo::backdrop { background: rgba(62, 44, 34, .45); }
   .tabla-simple, .tabla-simple tbody, .tabla-simple tr, .tabla-simple td { display: block; width: 100%; }
   .tabla-simple tr { margin-bottom: var(--espacio-2); border: 1px solid var(--color-borde); border-radius: var(--radio-tarjeta); padding: var(--espacio-1); }
   .tabla-simple td { border-bottom: none; padding: 6px 8px; }
+  /* Punto 10: al ocultar el encabezado, cada tarjeta necesita decir qué es cada dato (no solo el
+     valor suelto); "data-label" lo trae de vuelta como una etiqueta chica, solo en celular. */
+  .tabla-simple td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: var(--texto-12);
+    color: var(--color-texto-secundario);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+  }
+  .tabla-simple .celda-acciones { justify-content: flex-start; }
 }

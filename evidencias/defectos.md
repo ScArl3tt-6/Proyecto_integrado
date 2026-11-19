@@ -1081,3 +1081,28 @@ completa para el informe (sección de validación de resultados).
   que el detalle. Verificado con navegador real a 1280 y 390px: línea de tiempo, motivo de atraso y
   etapa actual/siguiente visibles en cada tarjeta, sin scroll horizontal en celular.
 - **Estado:** Corregido.
+
+## DEF-35 — La tabla de Usuarios tenía hasta 4 botones del mismo peso por fila (uno destructivo), y las tarjetas de celular no decían qué era cada dato
+
+- **Encontrado en:** punto 10 de la revisión del equipo (19-11-2026).
+- **Severidad:** Baja (nada fallaba; la fila se veía desordenada y el botón "Desactivar" tenía la
+  misma prominencia que acciones rutinarias, con el riesgo de un clic equivocado).
+- **Causa confirmada:** la celda de acciones apilaba "Cambiar rol o área", "Generar enlace",
+  "Desactivar 2FA" y "Desactivar/Activar" (hasta 4 botones) uno tras otro, todos con el mismo
+  estilo; en celular, al ocultar el encabezado de la tabla, cada tarjeta mostraba los valores en
+  crudo, sin decir a qué columna correspondía cada uno.
+- **Corrección:** una sola acción principal visible ("Cambiar rol o área", la más habitual) más un
+  botón "⋯" que abre un menú con el resto (`menuAcciones()`, nuevo en `ui.js`); construido sobre
+  `<details>/<summary>` nativo (adelanta el punto 11, "controles nativos"): abrir con clic, Enter o
+  Espacio ya lo trae nativo, pero Escape para cerrar y las flechas para moverse entre las opciones
+  SÍ hubo que agregarlos a mano (a diferencia de `<dialog>`, `<details>` no los trae) — se
+  verificó primero sin ese agregado y, en efecto, no funcionaban, así que quedaron documentados
+  recién después de confirmarlos de verdad, no por supuesto. En celular, cada celda de la tabla
+  (`.tabla-simple`, compartida con el Panel general) ahora trae un atributo `data-label` que una
+  regla CSS muestra como etiqueta chica antes del valor, solo en ese ancho.
+- **Nueva ejecución:** verificado con navegador real: cada fila queda con exactamente 2 botones
+  alineados (antes, hasta 4, con alturas de fila desparejas); el menú abre con clic o con teclado
+  (Enter/Espacio), Tab y las flechas mueven el foco entre las opciones, Escape cierra y devuelve el
+  foco al botón "⋯", y un clic afuera también cierra; en celular (390px) cada tarjeta muestra la
+  etiqueta de cada dato, sin scroll horizontal.
+- **Estado:** Corregido.

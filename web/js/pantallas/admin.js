@@ -1,5 +1,5 @@
 import { api, ApiError } from '../api.js';
-import { el, vaciar, aviso, abrirDialogoConfirmacion, etiquetaCampo, describirErrorApi, conEspera } from '../ui.js';
+import { el, vaciar, aviso, abrirDialogoConfirmacion, etiquetaCampo, describirErrorApi, conEspera, menuAcciones } from '../ui.js';
 import { estadoVacio, estadoCarga, estadoError, formatoFechaHora, filaEvento } from '../componentes.js';
 import { ROL_TEXTO, AREAS_POR_ROL } from '../permisos.js';
 
@@ -132,69 +132,76 @@ export function renderUsuarios(main, sesion, irA) {
     }
   }
 
+  // Punto 10 de la revisión del equipo (19-11-2026): una acción principal visible ("Cambiar rol o
+  // área", la más habitual), el resto en un menú (menuAcciones, nativo con <details>/<summary>),
+  // en vez de 2 a 4 botones del mismo peso visual, uno de ellos destructivo.
   function fila(usuario) {
     const esUnoMismo = usuario.id_usuario === sesion.id;
     const botonPerfil = el('button', { type: 'button', class: 'boton boton-secundario' }, 'Cambiar rol o área');
     botonPerfil.addEventListener('click', () => abrirDialogoPerfil(usuario, cargar));
 
-    const celdaEstado = el('td', {},
+    const celdaEstado = el('td', { 'data-label': 'Estado' },
       el('span', { class: `chip ${usuario.activo ? 'chip-ok' : 'chip-error'}` }, usuario.activo ? 'Activa' : 'Inactiva'),
       usuario.bloqueado ? el('span', { class: 'chip chip-error' }, 'Bloqueada') : null,
       usuario.mfa_habilitado ? el('span', { class: 'chip chip-ok' }, '2FA') : null,
     );
 
-    const acciones = el('td', { class: 'celda-acciones' }, botonPerfil);
+    const accionesMenu = [];
     if (usuario.activo) {
-      const botonRestablecer = el('button', { type: 'button', class: 'boton boton-secundario' }, 'Generar enlace');
-      botonRestablecer.addEventListener('click', () => abrirDialogoRestablecimiento(usuario));
-      acciones.appendChild(botonRestablecer);
+      accionesMenu.push({ texto: 'Generar enlace', onClick: () => abrirDialogoRestablecimiento(usuario) });
     }
     if (usuario.mfa_habilitado) {
-      const botonMfa = el('button', { type: 'button', class: 'boton boton-secundario' }, 'Desactivar 2FA');
-      botonMfa.addEventListener('click', async () => {
-        const confirmado = await abrirDialogoConfirmacion({
-          titulo: 'Desactivar verificación en dos pasos',
-          mensaje: `¿Desactivar la verificación en dos pasos de ${usuario.nombre}? Útil si perdió el acceso a su aplicación de autenticación.`,
-          textoConfirmar: 'Desactivar',
-          peligro: true,
-        });
-        if (!confirmado) return;
-        try {
-          await api.post(`/usuarios/${usuario.id_usuario}/mfa/desactivar`, {});
-          cargar();
-        } catch {
-          listaNodo.prepend(aviso('error', 'No pudimos desactivar la verificación en dos pasos.'));
-        }
+      accionesMenu.push({
+        texto: 'Desactivar 2FA',
+        onClick: async () => {
+          const confirmado = await abrirDialogoConfirmacion({
+            titulo: 'Desactivar verificación en dos pasos',
+            mensaje: `¿Desactivar la verificación en dos pasos de ${usuario.nombre}? Útil si perdió el acceso a su aplicación de autenticación.`,
+            textoConfirmar: 'Desactivar',
+            peligro: true,
+          });
+          if (!confirmado) return;
+          try {
+            await api.post(`/usuarios/${usuario.id_usuario}/mfa/desactivar`, {});
+            cargar();
+          } catch {
+            listaNodo.prepend(aviso('error', 'No pudimos desactivar la verificación en dos pasos.'));
+          }
+        },
       });
-      acciones.appendChild(botonMfa);
     }
     if (!esUnoMismo) {
-      const botonEstado = el('button', { type: 'button', class: usuario.activo ? 'boton boton-peligro' : 'boton boton-secundario' }, usuario.activo ? 'Desactivar' : 'Activar');
-      botonEstado.addEventListener('click', async () => {
-        const confirmado = await abrirDialogoConfirmacion({
-          titulo: usuario.activo ? 'Desactivar cuenta' : 'Activar cuenta',
-          mensaje: `¿${usuario.activo ? 'Desactivar' : 'Activar'} la cuenta de ${usuario.nombre}?`,
-          textoConfirmar: usuario.activo ? 'Desactivar' : 'Activar',
-          peligro: usuario.activo,
-        });
-        if (!confirmado) return;
-        try {
-          await api.patch(`/usuarios/${usuario.id_usuario}/estado`, { activo: !usuario.activo });
-          cargar();
-        } catch {
-          listaNodo.prepend(aviso('error', 'No pudimos actualizar el estado de la cuenta.'));
-        }
+      accionesMenu.push({
+        texto: usuario.activo ? 'Desactivar cuenta' : 'Activar cuenta',
+        peligro: usuario.activo,
+        onClick: async () => {
+          const confirmado = await abrirDialogoConfirmacion({
+            titulo: usuario.activo ? 'Desactivar cuenta' : 'Activar cuenta',
+            mensaje: `¿${usuario.activo ? 'Desactivar' : 'Activar'} la cuenta de ${usuario.nombre}?`,
+            textoConfirmar: usuario.activo ? 'Desactivar' : 'Activar',
+            peligro: usuario.activo,
+          });
+          if (!confirmado) return;
+          try {
+            await api.patch(`/usuarios/${usuario.id_usuario}/estado`, { activo: !usuario.activo });
+            cargar();
+          } catch {
+            listaNodo.prepend(aviso('error', 'No pudimos actualizar el estado de la cuenta.'));
+          }
+        },
       });
-      acciones.appendChild(botonEstado);
     }
 
+    const acciones = el('td', { class: 'celda-acciones' }, botonPerfil);
+    if (accionesMenu.length) acciones.appendChild(menuAcciones(`Más acciones para ${usuario.nombre}`, accionesMenu));
+
     return el('tr', {},
-      el('td', {}, usuario.nombre),
-      el('td', {}, usuario.correo),
-      el('td', {}, ROL_TEXTO[usuario.rol] || usuario.rol),
-      el('td', {}, usuario.area || '—'),
+      el('td', { 'data-label': 'Nombre' }, usuario.nombre),
+      el('td', { 'data-label': 'Correo' }, usuario.correo),
+      el('td', { 'data-label': 'Rol' }, ROL_TEXTO[usuario.rol] || usuario.rol),
+      el('td', { 'data-label': 'Área' }, usuario.area || '—'),
       celdaEstado,
-      el('td', {}, formatoFechaHora(usuario.ultimoAcceso, 'Nunca')),
+      el('td', { 'data-label': 'Último acceso' }, formatoFechaHora(usuario.ultimoAcceso, 'Nunca')),
       acciones,
     );
   }

@@ -3,7 +3,7 @@ const ATRIBUTOS_PERMITIDOS = new Set([
   'id', 'class', 'type', 'name', 'value', 'placeholder', 'for', 'href', 'src', 'alt', 'title', 'target', 'rel', 'role', 'tabindex',
   'aria-invalid', 'aria-describedby', 'aria-live', 'aria-label', 'aria-hidden', 'aria-current', 'aria-expanded', 'aria-controls',
   'autocomplete', 'disabled', 'required', 'minlength', 'maxlength', 'min', 'max', 'step', 'checked', 'open',
-  'novalidate', 'method', 'accept', 'multiple', 'selected', 'readonly', 'inputmode', 'list',
+  'novalidate', 'method', 'accept', 'multiple', 'selected', 'readonly', 'inputmode', 'list', 'data-label',
 ]);
 
 export function el(etiqueta, atributos = {}, ...hijos) {
@@ -89,6 +89,47 @@ export function iniciarCuentaRegresiva(contenedor, segundos, alTerminar) {
     pintar();
   }, 1000);
   return id;
+}
+
+// Menú de acciones secundarias (punto 10 de la revisión del equipo, 19-11-2026: "una acción
+// principal visible, el resto en un menú"). Base nativa <details>/<summary> (abrir con clic, Enter
+// o Espacio sobre "⋯", sin JavaScript para eso — ver también el punto 11, "controles nativos");
+// Escape para cerrar y las flechas para moverse entre las opciones sí hace falta agregarlos a
+// mano, porque <details> no los trae (a diferencia de <dialog>, que si cierra solo con Escape).
+// "acciones" es una lista de { texto, onClick, peligro }.
+export function menuAcciones(etiqueta, acciones) {
+  const lista = el('div', { class: 'menu-acciones-lista', role: 'menu' });
+  const resumen = el('summary', { class: 'boton boton-secundario', 'aria-label': etiqueta }, '⋯');
+  const detalle = el('details', { class: 'menu-acciones' }, resumen, lista);
+  const botones = acciones.map(({ texto, onClick, peligro }) => {
+    const boton = el('button', { type: 'button', role: 'menuitem', class: `menu-acciones-item${peligro ? ' menu-acciones-item-peligro' : ''}` }, texto);
+    boton.addEventListener('click', () => { detalle.open = false; onClick(); });
+    lista.appendChild(boton);
+    return boton;
+  });
+
+  detalle.addEventListener('keydown', (evento) => {
+    if (evento.key === 'Escape') {
+      detalle.open = false;
+      resumen.focus();
+    } else if ((evento.key === 'ArrowDown' || evento.key === 'ArrowUp') && botones.includes(document.activeElement)) {
+      evento.preventDefault();
+      const posicion = botones.indexOf(document.activeElement);
+      const siguiente = evento.key === 'ArrowDown' ? (posicion + 1) % botones.length : (posicion - 1 + botones.length) % botones.length;
+      botones[siguiente].focus();
+    }
+  });
+  detalle.addEventListener('toggle', () => { if (detalle.open) botones[0]?.focus(); });
+
+  // Cierra al hacer clic afuera. Esta fila se reemplaza entera (no solo se oculta) cada vez que la
+  // lista se vuelve a cargar, así que el listener se quita solo apenas deja de estar en el
+  // documento (si no, cada recarga de la lista dejaría uno más acumulado para siempre).
+  function alHacerClicAfuera(evento) {
+    if (!detalle.isConnected) { document.removeEventListener('click', alHacerClicAfuera); return; }
+    if (detalle.open && !detalle.contains(evento.target)) detalle.open = false;
+  }
+  document.addEventListener('click', alHacerClicAfuera);
+  return detalle;
 }
 
 // Diálogo de confirmación para acciones irreversibles. <dialog>.showModal() ya atrapa el foco
