@@ -943,3 +943,26 @@ completa para el informe (sección de validación de resultados).
   rol se respeta, y a Operario le llega acotado a su área y sin eventos de diseño. Verificado con
   navegador real en los 4 roles con acceso (Vendedor, Diseño, Producción, Operario).
 - **Estado:** Corregido (con la limitación anotada arriba, pendiente de confirmación).
+
+## DEF-30 — Aprobar o rechazar una propuesta no decía a quién, con qué consecuencia, ni dejaba ninguna confirmación visible
+
+- **Encontrado en:** punto 4 de la revisión del equipo (19-11-2026).
+- **Severidad:** Media (la decisión se guardaba bien; lo que faltaba era que la pantalla explicara
+  sus consecuencias antes de confirmar, y qué pasó después de confirmar).
+- **Causa confirmada:** "Decidir propuesta" no mostraba quién creó la solicitud ni quién envió esa
+  versión; el diálogo de "Aprobar" no decía qué etapa seguía ni en qué área; "Rechazar" pedía el
+  motivo pero no decía a quién se rechazaba ni a qué estado volvía el trabajo; y tras confirmar
+  cualquiera de las dos, la pantalla volvía en silencio a la lista de aprobaciones, sin ningún
+  resumen de lo que acababa de pasar.
+- **Corrección:** la pantalla ahora muestra "Solicitó: &lt;vendedor&gt; (Vendedor) · Propuesta
+  enviada por: &lt;diseñador&gt; (Diseño)"; el diálogo de aprobar dice la etapa y el área que
+  siguen; el de rechazar (tras el motivo) dice a quién se rechaza, a qué estado vuelve el trabajo y
+  quién puede retomarlo. `GET /disenos/:idDiseno` ahora incluye `vendedor`, `disenador`,
+  `primera_etapa` y `primera_etapa_area`. Al confirmar cualquiera de las dos decisiones, la pantalla
+  ya no vuelve a la lista: va al detalle del trabajo, que (gracias al historial del punto 2) muestra
+  de inmediato la decisión registrada y la etapa actual en lenguaje claro — la confirmación visible
+  que faltaba, reutilizando lo que ya existía en vez de agregar un mensaje de éxito aparte.
+- **Nueva ejecución:** CP-85 (`tests/integracion/disenosPendientes.test.js`). Verificado con
+  navegador real: aprobar y rechazar una propuesta real, revisando el texto exacto de ambos
+  diálogos y el detalle del trabajo después de cada una.
+- **Estado:** Corregido.

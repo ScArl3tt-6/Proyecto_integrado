@@ -26,6 +26,7 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-18 | "Liberar etapa": quien la tomó puede soltarla; Producción y Administración también pueden soltar la de otra persona; un operario ajeno no puede | |
 | PM-19 | Saludo personalizado ("Hola, &lt;nombre&gt;") en el encabezado y en "Mi cuenta" (con rol, área y correo), sin desbordes en celular | |
 | PM-20 | Historial humano dentro del detalle de un trabajo, visible según el rol (Vendedor, Diseño, Producción, Operario); etapa actual/siguiente en lenguaje claro; falta de materiales destacada | |
+| PM-21 | Aprobar/rechazar una propuesta: la pantalla dice a quién corresponde, el diálogo dice la consecuencia (etapa que sigue, o a qué estado vuelve y quién lo retoma), y tras confirmar se ve el resultado en el detalle del trabajo | |
 
 ## Pasos detallados
 
@@ -191,3 +192,12 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 6. En un trabajo ya en producción que todavía no tiene materiales registrados, la sección "Materiales" debe destacar esa falta con un aviso visible, no solo una línea de texto más.
 
 **Confirmado, 19-11-2026:** verificado con navegador real en los cuatro roles con acceso (Vendedor, Diseño, Producción, Operario) contra el entorno aislado, y con 1 prueba automática (CP-84) que cubre los límites de alcance por rol.
+
+### PM-21 — Aprobar/rechazar con trazabilidad completa
+1. Como `marcela` (Producción), entra a «Aprobaciones» → «Ver y decidir» sobre cualquier propuesta pendiente. **Esperado:** bajo el título aparece «Solicitó: &lt;nombre&gt; (Vendedor) · Propuesta enviada por: &lt;nombre&gt; (Diseño)».
+2. Presiona «Aprobar». **Esperado:** el diálogo dice la etapa que sigue y el área (por ejemplo: «Pasa a producción: empieza la etapa "Impresión en papel transfer" (área Sublimación), visible para esa área en "Mis actividades".»). Confírmalo.
+3. **Esperado tras confirmar:** la pantalla va directo al detalle del trabajo (no a la lista de aprobaciones); ahí se ve de inmediato «Diseño aprobado» en el Historial y la nueva etapa actual en lenguaje claro.
+4. Con otra propuesta pendiente, presiona «Rechazar», escribe (o elige) un motivo, y confirma ese primer paso. **Esperado:** aparece un segundo diálogo de confirmación que dice a quién se rechaza (quien envió la versión), que el trabajo de quien lo solicitó vuelve a "En diseño", quién puede retomarlo, y repite el motivo escrito.
+5. Confirma el rechazo. **Esperado:** la pantalla va al detalle del trabajo; el Historial muestra «Diseño rechazado» con «Motivo: …» completo.
+
+**Confirmado, 19-11-2026:** verificado con navegador real (aprobación y rechazo completos, revisando el texto exacto de ambos diálogos) y con prueba automática (CP-85).

@@ -27,6 +27,18 @@ describe('Propuestas de diseño pendientes de decisión', () => {
     expect(sinPermiso.status).toBe(403);
   });
 
+  // Punto 4 de la revisión del equipo (19-11-2026): la pantalla de decisión debe poder decir a
+  // quién se rechaza (quién la envió y quién creó el trabajo) y qué etapa sigue si se aprueba,
+  // ANTES de decidir, no solo después.
+  test('CP-85 el detalle de una propuesta trae quién la envió, quién creó el trabajo, y la primera etapa si se aprueba', async () => {
+    const detalle = await marcela.get(`/api/disenos/${idDiseno}`);
+    expect(detalle.status).toBe(200);
+    expect(detalle.body).toMatchObject({
+      codigo, vendedor: 'Jorge Saavedra', disenador: 'Valentina Rojas',
+      primera_etapa: 'Impresión de gráfica', primera_etapa_area: 'Impresión gran formato',
+    });
+  });
+
   test('CP-57 (DEF-12) ninguna propuesta aparece más de una vez en la bandeja de pendientes', async () => {
     for (let i = 0; i < 3; i += 1) {
       const otro = await jorge.post('/api/trabajos', {

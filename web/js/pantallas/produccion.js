@@ -120,6 +120,10 @@ export function renderDecidirDiseno(main, sesion, idDiseno, irA) {
   function pintar(diseno) {
     const propuesta = diseno.propuesta || {};
     contenedor.appendChild(el('h1', {}, `${diseno.codigo} — versión ${diseno.version}`));
+    // Punto 4 de la revisión del equipo (19-11-2026): trazabilidad completa antes de decidir, no
+    // solo después — a quién corresponde esta propuesta y quién la envió.
+    contenedor.appendChild(el('p', { class: 'campo-ayuda' },
+      `Solicitó: ${diseno.vendedor} (Vendedor) · Propuesta enviada por: ${diseno.disenador} (Diseño)`));
 
     if (propuesta.archivos?.length) {
       contenedor.appendChild(el('h2', {}, 'Archivos'));
@@ -142,15 +146,30 @@ export function renderDecidirDiseno(main, sesion, idDiseno, irA) {
 
     const botonAprobar = el('button', { type: 'button', class: 'boton boton-primario' }, 'Aprobar');
     botonAprobar.addEventListener('click', async () => {
-      const confirmado = await abrirDialogoConfirmacion({ titulo: 'Aprobar propuesta', mensaje: `¿Aprobar la versión ${diseno.version} de ${diseno.codigo}?`, textoConfirmar: 'Aprobar' });
+      const mensaje = diseno.primera_etapa
+        ? `¿Aprobar la versión ${diseno.version} de ${diseno.codigo}? Pasa a producción: empieza la etapa "${diseno.primera_etapa}" (área ${diseno.primera_etapa_area}), visible para esa área en "Mis actividades".`
+        : `¿Aprobar la versión ${diseno.version} de ${diseno.codigo}? Pasa a producción.`;
+      const confirmado = await abrirDialogoConfirmacion({ titulo: 'Aprobar propuesta', mensaje, textoConfirmar: 'Aprobar' });
       if (!confirmado) return;
       await decidir('APROBADO');
     });
 
     const botonRechazar = el('button', { type: 'button', class: 'boton boton-peligro' }, 'Rechazar');
     botonRechazar.addEventListener('click', async () => {
-      const motivo = await abrirDialogoMotivo({ titulo: 'Rechazar propuesta', etiqueta: 'Motivo del rechazo', sugerencias: MOTIVOS_RECHAZO, textoConfirmar: 'Rechazar' });
+      const motivo = await abrirDialogoMotivo({
+        titulo: 'Rechazar propuesta',
+        etiqueta: 'Motivo del rechazo',
+        sugerencias: MOTIVOS_RECHAZO,
+        textoConfirmar: 'Rechazar',
+      });
       if (!motivo) return;
+      const confirmado = await abrirDialogoConfirmacion({
+        titulo: 'Confirmar rechazo',
+        mensaje: `Se rechazará a ${diseno.disenador} (quien envió esta versión); el trabajo de ${diseno.vendedor} vuelve a "En diseño" para que ${diseno.disenador} pueda retomarlo con una nueva versión. Motivo: "${motivo}".`,
+        textoConfirmar: 'Rechazar',
+        peligro: true,
+      });
+      if (!confirmado) return;
       await decidir('RECHAZADO', motivo);
     });
 
@@ -159,7 +178,9 @@ export function renderDecidirDiseno(main, sesion, idDiseno, irA) {
     async function decidir(decision, motivo) {
       try {
         await api.post(`/disenos/${idDiseno}/decision`, { decision, motivo });
-        irA('#/aprobaciones');
+        // Al detalle del trabajo (no de vuelta a la lista): ahí se ve de inmediato la etapa actual
+        // en lenguaje claro y el historial con la decisión recién tomada (punto 2 + punto 4).
+        irA(`#/trabajos/${diseno.codigo}`);
       } catch (err) {
         const mensaje = err instanceof ApiError && err.status === 409 ? 'Esta versión ya tiene una decisión registrada.' : 'No pudimos registrar la decisión. Inténtalo otra vez.';
         contenedor.prepend(aviso('error', mensaje));

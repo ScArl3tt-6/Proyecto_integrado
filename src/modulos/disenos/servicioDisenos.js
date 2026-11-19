@@ -176,11 +176,22 @@ function crearServicioDisenos({ pg, mongoDb, bitacora }) {
     return { total: totalRows[0].n, items: rows };
   }
 
-  // Consulta integrada: estado relacional + documento de la propuesta
+  // Consulta integrada: estado relacional + documento de la propuesta. Incluye quién creó la
+  // solicitud y quién envió esta versión, y cuál sería la primera etapa de producción si se
+  // aprueba (punto 4 de la revisión del equipo, 19-11-2026: trazabilidad completa ANTES de decidir,
+  // no solo después).
   async function detalle(idDiseno) {
     const { rows } = await pg.query(
-      `SELECT d.id_diseno AS "idDiseno", d.version, d.estado, d.ref_documento, t.codigo
-         FROM diseno d JOIN trabajo t ON t.id_trabajo = d.id_trabajo WHERE d.id_diseno = $1`,
+      `SELECT d.id_diseno AS "idDiseno", d.version, d.estado, d.ref_documento, t.codigo, t.estado AS estado_trabajo,
+              uv.nombre AS vendedor, ud.nombre AS disenador,
+              ep.nombre AS primera_etapa, a.nombre AS primera_etapa_area
+         FROM diseno d
+         JOIN trabajo t ON t.id_trabajo = d.id_trabajo
+         JOIN usuario uv ON uv.id_usuario = t.id_vendedor
+         JOIN usuario ud ON ud.id_usuario = d.id_disenador
+         LEFT JOIN etapa_plantilla ep ON ep.id_tipo = t.id_tipo AND ep.orden = 1
+         LEFT JOIN area a ON a.id_area = ep.id_area
+        WHERE d.id_diseno = $1`,
       [idDiseno],
     );
     if (!rows[0]) throw new ErrorNegocio('Diseño no encontrado', 404);
