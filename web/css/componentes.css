@@ -63,7 +63,7 @@
 
 .campo select {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%236F4E3C'%3E%3Cpath d='M5.5 7.5l4.5 4.5 4.5-4.5' stroke='%236F4E3C' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%232C4B73'%3E%3Cpath d='M5.5 7.5l4.5 4.5 4.5-4.5' stroke='%232C4B73' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 36px;
@@ -190,14 +190,14 @@ dialog.dialogo {
   width: calc(100% - 32px);
   background: var(--color-superficie);
   color: var(--color-texto);
-  box-shadow: 0 8px 24px rgba(62, 44, 34, .25);
+  box-shadow: 0 8px 24px rgba(9, 19, 43, .25);
 }
 /* Punto 11 de la revisión del equipo (19-11-2026): a .45 de opacidad, este mismo café oscuro
    sobre el fondo rosa claro de la app no se veía como un fondo oscurecido a propósito, sino como
    un lavado grisáceo parejo sobre toda la pantalla (confirmado con captura real). Más opaco (.7)
    sí oscurece de verdad, sin salirse de la paleta del proyecto (sigue siendo --cafe-900, no un
    gris fuera de la paleta). */
-dialog.dialogo::backdrop { background: rgba(62, 44, 34, .7); }
+dialog.dialogo::backdrop { background: rgba(9, 19, 43, .7); }
 .dialogo-acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: var(--espacio-3); }
 .sugerencias-motivo { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .boton-chip { padding: 6px 12px; min-height: auto; font-size: var(--texto-14); }
@@ -230,7 +230,7 @@ dialog.dialogo::backdrop { background: rgba(62, 44, 34, .7); }
   background: var(--color-superficie);
   border: 1px solid var(--color-borde);
   border-radius: var(--radio-tarjeta);
-  box-shadow: 0 8px 24px rgba(62, 44, 34, .2);
+  box-shadow: 0 8px 24px rgba(9, 19, 43, .2);
 }
 .menu-acciones-item {
   text-align: left;

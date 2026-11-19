@@ -1152,3 +1152,40 @@ completa para el informe (sección de validación de resultados).
   campo oculto.
 - **Estado:** Corregido (fondo del modal y selector de archivos); el calendario nativo queda
   documentado como decisión deliberada, no como algo pendiente.
+
+## DEF-37 — La paleta de colores (rosa/café) no correspondía a la marca Kotoduo
+
+- **Encontrado en:** brecha ya anotada en `CLAUDE.md` §3 ("Paleta rosada que no corresponde a la
+  marca") y retomada como punto 12 de la revisión del equipo (19-11-2026): paleta de tonos azules
+  pastel derivada del logo, coherente en toda la aplicación, con el contraste medido con
+  herramienta (no a ojo) y el recorrido repetido en celular — exactamente lo que la memoria del
+  proyecto ("Requisitos de la Fase 2") pedía no dar por heredado de la paleta anterior.
+- **Severidad:** Baja (no es un error funcional; la app funcionaba bien con la paleta anterior,
+  pero no correspondía a la identidad visual de Kotoduo).
+- **Causa confirmada:** `web/css/tokens.css` definía la paleta completa en tonos rosa/café
+  (`--rosa-*`, `--cafe-*`), sin relación con los colores reales del logo de Kotoduo
+  (`web/img/logo-kotoduo-original.png`), que es azul.
+- **Corrección:** paleta nueva en tonos azules (`--azul-50` a `--azul-950`). Tres de los nueve
+  tonos (`azul-400`, `azul-600`, `azul-950`) se tomaron muestreando los píxeles reales del logo
+  con un script (`pngjs`, no a ojo): `azul-600` (#3C6496) y `azul-400` (#6EAAD2) son el azul medio
+  y el azul claro del degradado del emblema "K"; `azul-950` (#09132B) es el tono más oscuro
+  presente de verdad en el logo. El resto de la rampa se diseñó a partir de esos tres para
+  completar los pasos intermedios. La cabecera pasa a fondo oscuro (`--color-cabecera-fondo`,
+  `azul-950`), tal como ya describía `CLAUDE.md` §6.5 ("cabecera azul-950") pensando en el día que
+  se use el logo real ahí — por ahora sigue con el texto "SST Kotoduo", en un tono claro legible
+  sobre ese fondo oscuro, sin insertar la imagen (decisión explícita de la usuaria). Los colores de
+  estado (éxito/aviso/error) NO se tocaron: son una convención aparte de la marca.
+- **De paso, dos mejoras de contraste que la paleta anterior no cumplía (no heredadas, vueltas a
+  medir con esta paleta):** el foco de teclado (`--color-foco`) pasa de dar 2.04:1 contra blanco
+  (bajo el 3:1 que exige WCAG AA para indicadores de interfaz) a 6.08:1 con el azul nuevo. El borde
+  general (`--color-borde`) sigue sin llegar a 3:1 (igual que en la paleta anterior, 1.65:1 antes
+  vs. 1.75:1 ahora): es una limitación conocida que ya existía, no algo que este punto haya
+  empeorado, y se deja anotada en vez de forzar un azul más saturado que dejaría de verse "pastel".
+- **Nueva ejecución:** auditoría con `@axe-core/playwright` (la misma herramienta que ya se usó en
+  la Parte C de la revisión anterior) contra 8 pantallas reales (Panel general, Usuarios, Bitácora,
+  Mi cuenta, Aprobaciones, Mis solicitudes, Nueva solicitud, Ingreso), en 1280 y 390 px: **0
+  violaciones de `color-contrast` y 0 violaciones totales de WCAG 2 A/AA** en las 16 combinaciones
+  (8 pantallas × 2 anchos). Verificado también visualmente con capturas reales: cabecera oscura
+  legible, fondo de modal correctamente oscurecido (ver DEF-36), formularios y tablas coherentes en
+  todas las pantallas revisadas.
+- **Estado:** Corregido.

@@ -58,9 +58,12 @@ code, .codigo-trabajo { font-family: var(--fuente-codigo); letter-spacing: .02em
   white-space: nowrap;
 }
 
+/* Cabecera oscura (punto 12 de la revisión del equipo, 19-11-2026; CLAUDE.md §6.5: "cabecera
+   azul-950"): mismo lugar reservado para el logo completo de Kotoduo el día que se use la imagen
+   real; por ahora sigue con el texto "SST Kotoduo", en sus propios tonos claros (no los de
+   color-texto, pensados para fondo claro). */
 .cabecera {
-  background: var(--color-superficie);
-  border-bottom: 1px solid var(--color-borde);
+  background: var(--color-cabecera-fondo);
 }
 .cabecera-contenido {
   max-width: 1080px;
@@ -72,15 +75,17 @@ code, .codigo-trabajo { font-family: var(--fuente-codigo); letter-spacing: .02em
   gap: var(--espacio-2);
   flex-wrap: wrap;
 }
-.cabecera-marca { font-weight: 600; color: var(--color-acento-texto-legible); }
+.cabecera-marca { font-weight: 600; color: var(--color-cabecera-texto); }
 .cabecera-usuario {
   display: flex;
   align-items: center;
   gap: var(--espacio-2);
   font-size: var(--texto-14);
-  color: var(--color-texto-secundario);
+  color: var(--color-cabecera-texto-secundario);
   max-width: 100%;
 }
+.cabecera-usuario a, .cabecera-usuario .boton-enlace { color: var(--color-cabecera-texto); }
+.cabecera-usuario a:hover, .cabecera-usuario .boton-enlace:hover { color: var(--color-cabecera-texto-secundario); }
 #texto-usuario {
   overflow: hidden;
   text-overflow: ellipsis;

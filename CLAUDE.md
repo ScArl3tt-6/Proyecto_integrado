@@ -43,7 +43,8 @@ La guía del docente advierte: una captura aislada no demuestra nada; una interf
   3. MFA, recuperación de contraseña y cierre por inactividad están planificados pero no implementados (la pantalla de ingreso dice «Próximamente»).
   4. PostgreSQL embebido no se puede inspeccionar con pgAdmin.
   5. Las pruebas manuales PM-01…PM-08 nunca se ejecutaron.
-  6. Paleta rosada que no corresponde a la marca.
+  6. ~~Paleta rosada que no corresponde a la marca.~~ Resuelto el 19-11-2026: paleta azul derivada
+     del logo real, contraste re-medido con axe-core (ver DEF-37 en `evidencias/defectos.md`).
   7. El repositorio de GitHub tiene un solo commit de una sola autora.
 - Documentos de referencia ya entregados (no los modifiques): Informe 1 (diagnóstico) e Informe 2 (diseño). El Informe 2 es el «diseño aprobado»: cualquier desvío se registra en `docs/CAMBIOS_RESPECTO_AL_DISENO.md`.
 

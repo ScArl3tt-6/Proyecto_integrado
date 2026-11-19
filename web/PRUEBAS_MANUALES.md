@@ -33,6 +33,7 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-25 | "Mis solicitudes" (Vendedor): línea de tiempo de etapas, motivo del atraso, y etapa actual/siguiente en lenguaje claro, en cada tarjeta | |
 | PM-26 | Tabla de Usuarios: una acción principal visible y el resto en un menú "⋯", alineados; en celular, tarjetas con etiqueta antes de cada dato | |
 | PM-27 | Fondo oscuro de los modales (no un lavado gris) y selector de archivos con el estilo y el idioma de la app (el calendario de fecha se deja nativo, justificado) | |
+| PM-28 | Paleta azul pastel derivada del logo de Kotoduo, coherente en toda la app; contraste medido con herramienta (axe-core) en 1280 y 390px, no heredado de la paleta anterior | |
 
 ## Pasos detallados
 
@@ -265,4 +266,14 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 6. Abre el calendario del campo "Fecha comprometida" (Nueva solicitud). **Esperado (documentado, no es un defecto):** el calendario se ve con el estilo del sistema operativo, no con el de la app — es una decisión deliberada (ver DEF-36): no existe forma de repintarlo con CSS en ningún navegador, y el texto en español depende del idioma del navegador de quien lo use, no de la página.
 7. A 390px de ancho, repite los pasos 2 a 4. **Esperado:** mismo comportamiento, sin scroll horizontal.
 
-**Confirmado, 19-11-2026:** verificado con navegador real: el fondo del modal computa `rgba(62, 44, 34, 0.7)`; el selector de archivos funciona con mouse y teclado, en español, con el estilo de la app; se intentó (y no se pudo) traducir o repintar el calendario nativo, confirmando que la decisión de dejarlo nativo es necesaria, no solo preferida.
+**Confirmado, 19-11-2026:** verificado con navegador real: el fondo del modal computa `rgba(9, 19, 43, 0.7)` (actualizado al tono azul-950 de la paleta nueva, ver PM-28); el selector de archivos funciona con mouse y teclado, en español, con el estilo de la app; se intentó (y no se pudo) traducir o repintar el calendario nativo, confirmando que la decisión de dejarlo nativo es necesaria, no solo preferida.
+
+### PM-28 — Paleta azul pastel derivada del logo (punto 12)
+1. Revisa cualquier pantalla (Panel general, Usuarios, Bitácora, Mis solicitudes, Nueva solicitud, Ingreso). **Esperado:** tonos azules pastel en todas, coherentes entre sí; la cabecera (franja superior con "SST Kotoduo") se ve en azul oscuro, con el texto en blanco/claro, legible.
+2. Abre cualquier diálogo (confirmación, "Cambiar rol o área", etc.). **Esperado:** el fondo detrás se ve oscurecido de verdad (azul oscuro), no un velo gris.
+3. Navega con el teclado (Tab) por cualquier formulario. **Esperado:** el foco es un anillo azul bien visible, tanto sobre fondo blanco como sobre el fondo celeste de la página.
+4. Revisa que los colores de estado (verde = éxito, ámbar = aviso, rojo = error: chips, avisos, botón "Desactivar") sigan siendo los mismos de siempre, sin mezclarse con el azul nuevo.
+5. Repite los pasos 1 a 3 a 390px de ancho.
+6. Con una herramienta de auditoría de accesibilidad (axe-core u otra), corre un análisis de contraste sobre varias pantallas reales, en 1280 y 390px. **Esperado:** 0 violaciones de `color-contrast`.
+
+**Confirmado, 19-11-2026:** paleta nueva (`--azul-50` a `--azul-950`) con 3 tonos tomados muestreando los píxeles reales de `web/img/logo-kotoduo-original.png` (no a ojo). Auditoría con `@axe-core/playwright` contra 8 pantallas reales (Panel general, Usuarios, Bitácora, Mi cuenta, Aprobaciones, Mis solicitudes, Nueva solicitud, Ingreso) en 1280 y 390px: **0 violaciones de `color-contrast` y 0 violaciones totales de WCAG 2 A/AA** en las 16 combinaciones. El foco de teclado mejoró de 2.04:1 a 6.08:1 contra blanco (no heredado de la paleta anterior, que fallaba el 3:1 exigido). Verificado visualmente con capturas reales a ambos anchos.
