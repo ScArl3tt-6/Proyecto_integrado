@@ -133,4 +133,22 @@ describe('Listado y detalle de trabajos con alcance por rol', () => {
     // Operario de OTRA área (codigoPaula es idTipo 2, Sublimación; luis es de Bordado): sin acceso
     expect((await luis.get(`/api/trabajos/${codigoPaula}/historial`)).status).toBe(403);
   });
+
+  // Punto 9 de la revisión del equipo (19-11-2026): "Mis solicitudes" pide la línea de tiempo de
+  // etapas junto con el listado (conEtapas=true); por defecto no viene, para no cargar de más al
+  // resto de las pantallas que usan el mismo listado.
+  test('CP-91 "conEtapas" agrega la línea de tiempo de etapas al listado, con el mismo formato que el detalle', async () => {
+    const sinEtapas = await jorge.get(`/api/trabajos?busqueda=${codigoJorge}`);
+    expect(sinEtapas.body[0].etapas).toBeFalsy(); // por defecto, no viene
+
+    const conEtapas = await jorge.get(`/api/trabajos?busqueda=${codigoJorge}&conEtapas=true`);
+    const fila = conEtapas.body[0];
+    expect(fila.etapas.length).toBeGreaterThan(0);
+    expect(fila.etapas[0]).toMatchObject({ orden: 1, nombre: 'Preparación de matriz de bordado', area: 'Bordado', estado: 'EN_CURSO' });
+
+    // Mismas etapas y mismos campos que usa listaEtapas() (orden, nombre, area, estado, responsable),
+    // aunque detalle() además incluya "inicio"/"termino", que esa vista no necesita
+    const detalle = await jorge.get(`/api/trabajos/${codigoJorge}`);
+    expect(fila.etapas).toEqual(detalle.body.etapas.map((e) => ({ orden: e.orden, nombre: e.nombre, area: e.area, estado: e.estado, responsable: e.responsable })));
+  });
 });

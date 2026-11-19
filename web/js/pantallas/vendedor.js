@@ -33,7 +33,9 @@ export function renderMisSolicitudes(main, sesion, irA) {
     listaNodo.appendChild(estadoCarga());
     try {
       const filtro = filtroEstado.value ? `&estado=${filtroEstado.value}` : '';
-      const trabajos = await api.get(`/trabajos?pagina=${pagina}&limite=20${filtro}`);
+      // Punto 9 de la revisión del equipo (19-11-2026): "Mis solicitudes" ya no se ve plana, pide
+      // la línea de tiempo de etapas junto con el resto del listado.
+      const trabajos = await api.get(`/trabajos?pagina=${pagina}&limite=20&conEtapas=true${filtro}`);
       vaciar(listaNodo);
       if (!trabajos.length) {
         listaNodo.appendChild(estadoVacio(pagina === 1 ? 'Todavía no registras solicitudes.' : 'No hay más solicitudes.'));

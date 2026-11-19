@@ -168,7 +168,7 @@ function crearServicioTrabajos({ pg, bitacora }) {
   // RF-06 / sección 4.2: listado paginado con alcance según el rol (el permiso ya filtró el acceso a la ruta)
   // "busqueda" (por código o descripción) sirve, entre otras cosas, para elegir un trabajo de una
   // lista en vez de escribir el código a mano (punto 1 de la revisión del equipo, 18-11-2026).
-  async function listar(usuario, { estado, area, busqueda, pagina = 1, limite = 20 } = {}) {
+  async function listar(usuario, { estado, area, busqueda, pagina = 1, limite = 20, conEtapas = false } = {}) {
     const valores = [estado || null, area || null];
     let alcance = '';
     if (usuario.rol === 'VENDEDOR') {
@@ -185,12 +185,28 @@ function crearServicioTrabajos({ pg, bitacora }) {
     const idxLimite = valores.length - 1;
     const idxOffset = valores.length;
 
+    // Línea de tiempo de etapas (punto 9 de la revisión del equipo, 19-11-2026), opcional: mismo
+    // formato que ya devuelve detalle(), para reutilizar listaEtapas() tal cual. Solo "Mis
+    // solicitudes" la pide (conEtapas=true); para el resto sería peso de más en la respuesta.
+    const selectEtapas = conEtapas
+      ? `(SELECT COALESCE(json_agg(json_build_object(
+                  'orden', ep2.orden, 'nombre', ep2.nombre, 'area', a2.nombre,
+                  'estado', et2.estado, 'responsable', ur2.nombre
+                ) ORDER BY ep2.orden), '[]'::json)
+            FROM etapa_trabajo et2
+            JOIN etapa_plantilla ep2 ON ep2.id_etapa_plantilla = et2.id_etapa_plantilla
+            JOIN area a2 ON a2.id_area = ep2.id_area
+            LEFT JOIN usuario ur2 ON ur2.id_usuario = et2.id_responsable
+           WHERE et2.id_trabajo = t.id_trabajo)`
+      : 'NULL::json';
+
     const { rows } = await pg.query(
       `SELECT * FROM (
           SELECT t.codigo, tt.nombre AS tipo, t.descripcion, t.cantidad, t.fecha_compromiso, t.estado,
                  COALESCE(a.nombre, CASE WHEN t.estado IN ('SOLICITADO','EN_DISENO') THEN 'Diseño'
                                          WHEN t.estado = 'PENDIENTE_APROBACION' THEN 'Producción (aprobación)' END) AS area_responsable,
-                 ep.nombre AS etapa_actual
+                 ep.nombre AS etapa_actual,
+                 ${selectEtapas} AS etapas
             FROM trabajo t
             JOIN tipo_trabajo tt ON tt.id_tipo = t.id_tipo
             LEFT JOIN etapa_trabajo et ON et.id_trabajo = t.id_trabajo AND et.estado = 'EN_CURSO'

@@ -24,6 +24,9 @@ const esquemaListado = z.strictObject({
   busqueda: z.string().trim().min(1).max(60).optional(),
   pagina: z.coerce.number().int().min(1).max(500).default(1),
   limite: z.coerce.number().int().min(1).max(50).default(20),
+  // Línea de tiempo de etapas por trabajo (punto 9 de la revisión del equipo, 19-11-2026): opcional
+  // porque solo "Mis solicitudes" la necesita; para el resto es peso de más en la respuesta.
+  conEtapas: z.coerce.boolean().optional(),
 });
 const esquemaMotivo = z.strictObject({ motivo: z.string().trim().min(5).max(300) });
 const esquemaMaterial = z.strictObject({

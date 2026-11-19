@@ -2,7 +2,7 @@
 // administración), con el alcance que ya decide el servidor (403 si el trabajo no corresponde).
 import { api, ApiError } from '../api.js';
 import { el, vaciar, aviso, abrirDialogoConfirmacion, abrirDialogoMotivo, enlaceVolver, etiquetaCampo, describirErrorApi } from '../ui.js';
-import { chipEstado, chipAtrasado, listaEtapas, estadoCarga, estadoError, formatoFechaHora, filaEvento } from '../componentes.js';
+import { chipEstado, chipAtrasado, listaEtapas, estadoCarga, estadoError, formatoFechaHora, filaEvento, textoEtapaActualSiguiente } from '../componentes.js';
 import { tienePermiso, INICIO_POR_ROL } from '../permisos.js';
 
 const MOTIVOS_DETENER = [
@@ -64,7 +64,7 @@ export function renderDetalleTrabajo(main, sesion, codigo) {
 
     // Punto 2 de la revisión del equipo (19-11-2026): en lenguaje claro, no solo en la lista de
     // chips de abajo, qué etapa va ahora y cuál sigue (o que el trabajo ya terminó / aún no empieza).
-    contenedor.appendChild(el('p', { class: 'campo-ayuda' }, etapaActualSiguienteTexto(trabajo)));
+    contenedor.appendChild(el('p', { class: 'campo-ayuda' }, textoEtapaActualSiguiente(trabajo)));
 
     contenedor.appendChild(el('h2', {}, 'Etapas'));
     contenedor.appendChild(listaEtapas(trabajo.etapas));
@@ -141,18 +141,6 @@ export function renderDetalleTrabajo(main, sesion, codigo) {
       vaciar(listaHistorial);
       listaHistorial.appendChild(estadoError('No pudimos cargar el historial. Revisa tu conexión e inténtalo otra vez.', () => cargarHistorial(listaHistorial, trabajo)));
     }
-  }
-
-  function etapaActualSiguienteTexto(trabajo) {
-    if (trabajo.estado === 'TERMINADO') return 'Este trabajo ya terminó todas sus etapas de producción.';
-    if (!['EN_PRODUCCION', 'DETENIDO'].includes(trabajo.estado)) return 'Todavía no entra a producción (está en diseño o esperando aprobación).';
-    const actual = trabajo.etapas.find((e) => e.estado === 'EN_CURSO');
-    if (!actual) return 'Sin una etapa de producción vigente en este momento.';
-    const siguiente = trabajo.etapas.find((e) => e.orden === actual.orden + 1);
-    const detalleResponsable = actual.responsable ? `, la tiene ${actual.responsable}` : ', nadie la ha tomado todavía';
-    return siguiente
-      ? `Etapa actual: "${actual.nombre}"${detalleResponsable}. Sigue: "${siguiente.nombre}".`
-      : `Etapa actual: "${actual.nombre}"${detalleResponsable}. Es la última etapa de este trabajo.`;
   }
 
   function formularioMaterial(trabajo, listaMateriales) {

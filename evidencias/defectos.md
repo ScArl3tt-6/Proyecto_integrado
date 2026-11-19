@@ -1059,3 +1059,25 @@ completa para el informe (sección de validación de resultados).
   `urlBase` para que sus enlaces apunten al puerto 3100 en el que de verdad corre, no al 3000 por
   defecto).
 - **Estado:** Corregido.
+
+## DEF-34 — "Mis solicitudes" (Vendedor) era una lista plana: sin línea de tiempo, sin motivo de atraso, sin etapa actual/siguiente
+
+- **Encontrado en:** punto 9 de la revisión del equipo (19-11-2026).
+- **Severidad:** Baja (la información existía en el detalle de cada trabajo, punto 2; faltaba en el
+  listado mismo, que es lo primero que ve el Vendedor).
+- **Causa confirmada:** `GET /trabajos` (usado por "Mis solicitudes") solo traía el nombre de la
+  etapa vigente como texto plano (`etapa_actual`), sin la etapa siguiente, sin el resto de la línea
+  de tiempo, y el chip "Atrasado" no decía desde cuándo.
+- **Corrección:** `GET /trabajos?conEtapas=true` (nuevo parámetro opcional, solo lo usa "Mis
+  solicitudes") agrega la línea de tiempo completa de cada trabajo, con el mismo formato que ya
+  devuelve el detalle (reutiliza `listaEtapas()` tal cual, sin pantalla nueva ni componente nuevo).
+  La tarjeta de cada solicitud ahora muestra, en lenguaje claro, la etapa actual y la siguiente (o
+  que el trabajo terminó, o que aún no entra a producción — reutiliza `textoEtapaActualSiguiente()`
+  del punto 2) y, si está atrasada, "Debía estar listo el &lt;fecha&gt; y todavía no termina.".
+  "Novedades" (punto 5) ya cubre el aviso de cambios; no se duplicó esa lista dentro de "Mis
+  solicitudes" para no repetir la misma información dos veces.
+- **Nueva ejecución:** CP-91 (`tests/integracion/trabajosListadoDetalle.test.js`): por defecto
+  "etapas" no viene; con `conEtapas=true` trae la línea de tiempo completa, con el mismo contenido
+  que el detalle. Verificado con navegador real a 1280 y 390px: línea de tiempo, motivo de atraso y
+  etapa actual/siguiente visibles en cada tarjeta, sin scroll horizontal en celular.
+- **Estado:** Corregido.

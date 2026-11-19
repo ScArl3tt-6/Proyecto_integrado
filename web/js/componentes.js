@@ -112,6 +112,21 @@ function formatoFecha(fecha) {
   return `${dia}-${mes}-${anio}`;
 }
 
+// En lenguaje claro: qué etapa va ahora y cuál sigue (o que el trabajo ya terminó / aún no
+// entra a producción). Compartido entre el detalle de un trabajo y "Mis solicitudes" (puntos 2 y
+// 9 de la revisión del equipo, 19-11-2026).
+export function textoEtapaActualSiguiente(trabajo) {
+  if (trabajo.estado === 'TERMINADO') return 'Este trabajo ya terminó todas sus etapas de producción.';
+  if (!['EN_PRODUCCION', 'DETENIDO'].includes(trabajo.estado)) return 'Todavía no entra a producción (está en diseño o esperando aprobación).';
+  const actual = (trabajo.etapas || []).find((e) => e.estado === 'EN_CURSO');
+  if (!actual) return 'Sin una etapa de producción vigente en este momento.';
+  const siguiente = trabajo.etapas.find((e) => e.orden === actual.orden + 1);
+  const detalleResponsable = actual.responsable ? `, la tiene ${actual.responsable}` : ', nadie la ha tomado todavía';
+  return siguiente
+    ? `Etapa actual: "${actual.nombre}"${detalleResponsable}. Sigue: "${siguiente.nombre}".`
+    : `Etapa actual: "${actual.nombre}"${detalleResponsable}. Es la última etapa de este trabajo.`;
+}
+
 // Un solo formato de fecha y hora para toda la aplicación (punto 13 de la revisión del equipo,
 // 19-11-2026): antes cada pantalla tenía su propia copia de esta misma línea.
 export function formatoFechaHora(fecha, vacio = '—') {
@@ -119,18 +134,24 @@ export function formatoFechaHora(fecha, vacio = '—') {
   return new Date(fecha).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
 }
 
-// Tarjeta única de trabajo, reutilizada por las cinco pantallas de perfil
+// Tarjeta única de trabajo, reutilizada por las cinco pantallas de perfil. Si "trabajo.etapas"
+// viene incluido (punto 9 de la revisión del equipo, 19-11-2026: "Mis solicitudes" lo pide con
+// "conEtapas=true"), se ve la línea de tiempo completa y el texto de etapa actual/siguiente, no
+// solo el nombre plano de la etapa.
 export function tarjetaTrabajo(trabajo, { accion, detalleExtra } = {}) {
   const encabezado = el('div', { class: 'tarjeta-trabajo-encabezado' },
     el('span', { class: 'codigo-trabajo' }, trabajo.codigo),
     chipEstado(trabajo.estado),
     trabajo.atrasado ? chipAtrasado() : null,
   );
+  const tieneEtapas = Array.isArray(trabajo.etapas);
   const cuerpo = el('div', { class: 'tarjeta-trabajo-cuerpo' },
     el('p', { class: 'tarjeta-trabajo-descripcion' }, trabajo.descripcion),
     el('p', { class: 'tarjeta-trabajo-meta' }, `${trabajo.tipo} · ${trabajo.cantidad} unidades`),
     el('p', { class: 'tarjeta-trabajo-meta' }, `Compromiso: ${formatoFecha(trabajo.fecha_compromiso)}`),
-    trabajo.etapa_actual ? el('p', { class: 'tarjeta-trabajo-meta' }, `Etapa actual: ${trabajo.etapa_actual}`) : null,
+    trabajo.atrasado ? el('p', { class: 'tarjeta-trabajo-meta' }, `Debía estar listo el ${formatoFecha(trabajo.fecha_compromiso)} y todavía no termina.`) : null,
+    tieneEtapas ? el('p', { class: 'tarjeta-trabajo-meta' }, textoEtapaActualSiguiente(trabajo)) : (trabajo.etapa_actual ? el('p', { class: 'tarjeta-trabajo-meta' }, `Etapa actual: ${trabajo.etapa_actual}`) : null),
+    tieneEtapas && trabajo.etapas.length ? listaEtapas(trabajo.etapas) : null,
     detalleExtra || null,
   );
   return el('article', { class: 'tarjeta tarjeta-trabajo' }, encabezado, cuerpo, accion ? el('div', { class: 'tarjeta-trabajo-accion' }, accion) : null);

@@ -30,6 +30,7 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-22 | Novedades (Vendedor y Diseño): contador en el menú y lista cuando una solicitud propia se aprueba, se rechaza o termina; baja a 0 al visitarla; Diseño se entera incluso de propuestas que ya no puede ver en detalle | |
 | PM-23 | Vista previa de un PDF o imagen de una propuesta, dentro de la misma pantalla de "Decidir propuesta" (sin el ícono de contenido bloqueado) | |
 | PM-24 | La URL base de los enlaces de primer acceso/restablecimiento es configurable (`SST_URL_BASE`), no queda fija en "localhost" | |
+| PM-25 | "Mis solicitudes" (Vendedor): línea de tiempo de etapas, motivo del atraso, y etapa actual/siguiente en lenguaje claro, en cada tarjeta | |
 
 ## Pasos detallados
 
@@ -232,3 +233,13 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 3. Sin definir `SST_URL_BASE` (quitarla de `.env` y reiniciar), genera otro enlace. **Esperado:** usa el valor por defecto `http://localhost:<SST_PUERTO>`.
 
 **Confirmado, 19-11-2026:** verificado con prueba automática (CP-90, con una URL base distinta configurada en el entorno de prueba) y con navegador real contra el entorno aislado (que fija `SST_URL_BASE` a su propio puerto 3100): el enlace generado usó ese puerto, no el 3000 por defecto.
+
+### PM-25 — "Mis solicitudes" con línea de tiempo (punto 9)
+1. Como `jorge` (Vendedor), ve a «Mis solicitudes». **Esperado:** ya no es una lista plana: cada tarjeta con etapas de producción (trabajos en producción, detenidos o terminados) muestra la línea de tiempo completa (una fila por etapa, con su estado y quién la tiene, igual que en el detalle del trabajo).
+2. En un trabajo "Atrasado", revisa la tarjeta. **Esperado:** aparece «Debía estar listo el &lt;fecha de compromiso&gt; y todavía no termina.», no solo el chip "Atrasado" sin contexto.
+3. En un trabajo en producción, revisa la línea antes de la línea de tiempo. **Esperado:** dice en lenguaje claro la etapa actual (y quién la tiene, o que nadie la ha tomado) y cuál sigue, o que es la última etapa.
+4. En un trabajo que aún no entra a producción (en diseño o esperando aprobación), confirma que dice "Todavía no entra a producción…", sin mostrar una línea de tiempo vacía.
+5. A 390px de ancho, confirma que las tarjetas con línea de tiempo no producen scroll horizontal.
+6. Confirma que "Novedades" sigue siendo accesible desde el menú (con su contador) sin que "Mis solicitudes" repita la misma lista.
+
+**Confirmado, 19-11-2026:** verificado con prueba automática (CP-91: por defecto el listado no trae la línea de tiempo; con `conEtapas=true` la trae completa, con el mismo contenido que el detalle) y con navegador real a 1280 y 390px.
