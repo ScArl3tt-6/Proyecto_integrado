@@ -349,3 +349,22 @@ en `coverage/coverage-final.json`):**
 - **Verificación:** CP-73 (reescrita) y CP-90 (`tests/integracion/usuariosListado.test.js`), y de
   punta a punta con un navegador real contra el entorno aislado. Detalle en
   `evidencias/defectos.md`, DEF-33.
+
+### 5. Cobertura de pruebas al cerrar los puntos 1 a 9 (19-11-2026)
+
+Corrida completa (`npm run pruebas`, Istanbul/Jest) tras terminar toda la Prioridad 1 de la
+revisión del equipo: **90/90 pruebas, 17 suites**, 94,82 % statements, 80,72 % branches, 95,54 %
+functions, 98,17 % lines.
+
+Dos archivos quedan con huecos genuinos, documentados aquí en vez de forzar una prueba artificial
+solo para subir el número (mismo criterio que la sección 7 de la Fase 0):
+
+- **`src/config/entorno.js` (0 %, función `cargarEntorno()` completa):** hueco **anterior** a esta
+  sesión, ya explicado en la Fase 0 — cada prueba arma su propio objeto `entorno` a mano en vez de
+  llamar a `cargarEntorno()`. La línea nueva de este punto (`urlBase`) queda dentro de ese mismo
+  hueco ya aceptado, no agrega uno nuevo.
+- **`src/version.js` línea 13 (83,33 %), el `catch` de `calcularVersion()`:** la rama que se usa
+  cuando `git` no está disponible (`arranque-${Date.now()}`) nunca se activa en este entorno,
+  porque aquí `git` sí está disponible. Forzarla exigiría simular que `execSync` falla, lo que
+  terminaría probando el simulador en vez del código real (mismo motivo por el que la Fase 0 dejó
+  sin forzar el `catch` del `ROLLBACK` fallido en `postgres.js`). Queda como limitación conocida.
