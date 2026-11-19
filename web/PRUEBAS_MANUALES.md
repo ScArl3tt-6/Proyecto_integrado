@@ -28,6 +28,7 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-20 | Historial humano dentro del detalle de un trabajo, visible según el rol (Vendedor, Diseño, Producción, Operario); etapa actual/siguiente en lenguaje claro; falta de materiales destacada | |
 | PM-21 | Aprobar/rechazar una propuesta: la pantalla dice a quién corresponde, el diálogo dice la consecuencia (etapa que sigue, o a qué estado vuelve y quién lo retoma), y tras confirmar se ve el resultado en el detalle del trabajo | |
 | PM-22 | Novedades (Vendedor y Diseño): contador en el menú y lista cuando una solicitud propia se aprueba, se rechaza o termina; baja a 0 al visitarla; Diseño se entera incluso de propuestas que ya no puede ver en detalle | |
+| PM-23 | Vista previa de un PDF o imagen de una propuesta, dentro de la misma pantalla de "Decidir propuesta" (sin el ícono de contenido bloqueado) | |
 
 ## Pasos detallados
 
@@ -212,3 +213,11 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 6. Avanza un trabajo hasta que termine todas sus etapas de producción. **Esperado:** tanto Vendedor como Diseño ven en Novedades que ese trabajo terminó (Diseño, en particular, ya no puede ver el detalle de un trabajo terminado, así que esta es su única forma de saberlo).
 
 **Confirmado, 19-11-2026:** verificado con 4 pruebas automáticas (CP-86 a CP-89: sin permiso para otros roles, contador correcto, aislamiento entre personas, aviso de término) y con navegador real (contador en el menú, lista, y que baja a 0 tras visitarla).
+
+### PM-23 — Vista previa de PDF/imagen sin bloqueo (punto 6)
+1. Como `valentina` (Diseño), envía una propuesta real con un archivo PDF (uno de verdad, no solo texto con la extensión .pdf).
+2. Como `marcela` (Producción), entra a «Aprobaciones» → «Ver y decidir» sobre esa propuesta. **Esperado:** bajo "Ver archivo completo" aparece el PDF renderizado dentro de la misma pantalla, SIN el ícono de "contenido bloqueado" del navegador.
+3. Repite con una propuesta que adjunte una imagen (PNG o JPG): también debe verse la vista previa, sin bloqueo.
+4. Con las herramientas de desarrollador del navegador (pestaña Red), confirma que la respuesta de `/api/disenos/.../archivos/...` trae `Content-Security-Policy: frame-ancestors 'self'` (no `'none'`) y `X-Frame-Options: SAMEORIGIN` (no `DENY`).
+
+**Confirmado, 19-11-2026 (parcial):** verificado con certeza a nivel de protocolo HTTP (prueba automática CP-52 extendida, y una llamada directa desde el navegador contra el servidor real: el encabezado cambió de `'none'` a `'self'`, que es la regla exacta que controla si el navegador bloquea el `<iframe>`). **No pude confirmar el paso 2 con una captura de pantalla** porque el navegador sin interfaz (headless) que uso para verificar no renderiza el PDF dentro del `<iframe>` de ninguna manera en esta automatización (se ve igual de vacío con el encabezado roto o corregido): es una limitación de automatizar este caso puntual, no de la corrección en sí. Pido que alguien del equipo haga el paso 2 y 3 a mano, con un navegador normal, para la confirmación visual final.

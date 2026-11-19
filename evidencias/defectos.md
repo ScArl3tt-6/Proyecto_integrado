@@ -990,3 +990,37 @@ completa para el informe (sección de validación de resultados).
   navegador real: el contador aparece en el menú, la lista muestra la novedad, y al visitar la
   pantalla el contador baja a 0 en la siguiente navegación.
 - **Estado:** Corregido.
+
+## DEF-32 — La vista previa de un PDF/imagen de una propuesta quedaba bloqueada (ícono de contenido bloqueado)
+
+- **Encontrado en:** punto 6 de la revisión del equipo (19-11-2026), captura 5 del documento.
+- **Severidad:** Media (el archivo seguía pudiéndose abrir completo con "Ver archivo completo"; lo
+  que fallaba era solo la vista previa incrustada en la misma pantalla de decidir).
+- **Causa confirmada:** `src/app.js` aplica `helmet()` a TODA la aplicación con
+  `frameAncestors: ["'none'"]` en la CSP, pensado para las páginas HTML (que nunca deben
+  enmarcarse en ningún sitio, ni siquiera el propio, para evitar "clickjacking"). Ese mismo
+  encabezado se aplicaba también a `GET /disenos/:idDiseno/archivos/:idArchivo`, que es exactamente
+  el archivo que `produccion.js` muestra dentro de un `<iframe>` en la misma pantalla: el propio
+  navegador bloqueaba la vista previa por la misma regla que protege el resto del sitio.
+- **Corrección:** esa única ruta ahora sobrescribe el encabezado con `Content-Security-Policy:
+  frame-ancestors 'self'` y `X-Frame-Options: SAMEORIGIN` (en vez de heredar `'none'`/`DENY`):
+  permite enmarcarlo desde el propio sitio únicamente, nunca desde cualquier otro. Un PDF o una
+  imagen no son navegables ni ejecutan código: no hay riesgo real de "clickjacking" al enmarcarlos
+  desde la propia aplicación.
+- **Nueva ejecución:** se extendió CP-52 (`tests/integracion/archivosDiseno.test.js`) para
+  comprobar los dos encabezados en la respuesta real. Verificado además contra el servidor real
+  (una llamada HTTP directa desde el propio navegador a la URL que carga el `<iframe>`): antes de
+  la corrección la respuesta traía `frame-ancestors 'none'`; después, `frame-ancestors 'self'` y
+  `X-Frame-Options: SAMEORIGIN`.
+- **Limitación de esta verificación, dicho con honestidad:** no logré capturar una comparación
+  visual "antes bloqueado / después se ve" con una captura de pantalla: el Chromium sin interfaz
+  (headless) que usa Playwright no renderiza el PDF dentro del `<iframe>` de ninguna de las dos
+  formas en esta automatización (la pantalla se ve igual de vacía con el encabezado roto que con el
+  corregido, y los eventos de red también son idénticos en ambos casos — es una limitación conocida
+  de automatizar Chromium sin interfaz para este caso puntual, no algo que dependa de la corrección).
+  La evidencia que sí es concluyente es el encabezado HTTP en sí: es la regla exacta, documentada en
+  el estándar CSP, que hace que un navegador de verdad (con interfaz) muestre el ícono de "contenido
+  bloqueado" cuando dice `'none'`, y lo deje de mostrar cuando dice `'self'` con el mismo origen.
+  Queda pendiente que alguien del equipo confirme visualmente con un navegador normal (no headless),
+  aunque la causa y la corrección están verificadas con certeza a nivel de protocolo.
+- **Estado:** Corregido (verificado a nivel de protocolo HTTP; confirmación visual humana pendiente).

@@ -62,6 +62,14 @@ function rutasDisenos({ disenos }) {
       const { nombre, tipoMime, flujo } = await disenos.obtenerArchivo(req.datos.params.idDiseno, req.datos.params.idArchivo);
       res.set('Content-Type', tipoMime);
       res.set('Content-Disposition', `inline; filename="${encodeURIComponent(nombre)}"`);
+      // Punto 6 de la revisión del equipo (19-11-2026): la vista previa (produccion.js la muestra
+      // dentro de un <iframe> en la misma pantalla de decidir) quedaba bloqueada porque el helmet()
+      // general de la aplicación (pensado para las páginas HTML, que nunca deben enmarcarse en
+      // ningún sitio) también le aplicaba "frame-ancestors 'none'" a este archivo. Un PDF o una
+      // imagen no son navegables ni ejecutan nada: no hay riesgo de "clickjacking" al enmarcarlos
+      // desde el propio sitio, así que aquí se relaja solo a mismo origen, no a cualquiera.
+      res.set('Content-Security-Policy', "frame-ancestors 'self'");
+      res.set('X-Frame-Options', 'SAMEORIGIN');
       flujo.on('error', (err) => { if (!res.headersSent) next(err); else res.destroy(err); });
       flujo.pipe(res);
     });

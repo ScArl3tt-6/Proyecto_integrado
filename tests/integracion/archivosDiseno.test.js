@@ -35,6 +35,11 @@ describe('Pruebas de integración - archivo real de una propuesta de diseño en 
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toBe('application/pdf');
     expect(Buffer.compare(res.body, contenidoReal)).toBe(0);
+    // Punto 6 de la revisión del equipo (19-11-2026): la vista previa va en un <iframe> de la misma
+    // pantalla; el CSP general de la aplicación ("frame-ancestors 'none'") no debe bloquearla, pero
+    // tampoco debe abrirse a cualquier sitio, solo al propio origen.
+    expect(res.headers['content-security-policy']).toBe("frame-ancestors 'self'");
+    expect(res.headers['x-frame-options']).toBe('SAMEORIGIN');
   });
 
   test('CP-53 rechaza descargar sin el permiso, un archivo de otro diseño, un diseño inexistente y un id con formato inválido', async () => {
