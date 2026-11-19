@@ -101,7 +101,22 @@ function archivoValido(archivo) {
 
 export function renderEnviarPropuesta(main, sesion, codigo, irA) {
   const contenedorAviso = el('div');
-  const campoArchivos = el('input', { id: 'archivos', type: 'file', accept: '.pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg', multiple: true, required: true, 'aria-describedby': 'archivos-error' });
+  // El botón nativo del selector de archivos no se puede traducir ni pintar con el estilo de la
+  // app (su texto, "Choose Files" en este navegador, lo pone el propio sistema operativo, igual
+  // que el diálogo que abre, que sigue siendo nativo). Punto 11 de la revisión del equipo
+  // (19-11-2026): se oculta visualmente el campo real (mismo ".visualmente-oculto" que ya existía
+  // para el enlace "Saltar al contenido") y se dispara con un botón normal de la app.
+  const campoArchivos = el('input', {
+    id: 'archivos', type: 'file', class: 'visualmente-oculto', tabindex: '-1',
+    accept: '.pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg', multiple: true, required: true,
+  });
+  const botonElegirArchivos = el('button', { type: 'button', class: 'boton boton-secundario', 'aria-describedby': 'archivos-error' }, 'Elegir archivos');
+  const nombreArchivos = el('span', { class: 'campo-ayuda' }, 'Ningún archivo elegido');
+  botonElegirArchivos.addEventListener('click', () => campoArchivos.click());
+  campoArchivos.addEventListener('change', () => {
+    const n = campoArchivos.files.length;
+    nombreArchivos.textContent = n === 0 ? 'Ningún archivo elegido' : n === 1 ? campoArchivos.files[0].name : `${n} archivos elegidos`;
+  });
   const errorArchivos = el('p', { class: 'campo-error', id: 'archivos-error', role: 'alert' });
   errorArchivos.hidden = true;
   const campoTecnica = el('input', { id: 'tecnica', type: 'text', maxlength: 60, placeholder: 'Ej.: bordado' });
@@ -113,7 +128,12 @@ export function renderEnviarPropuesta(main, sesion, codigo, irA) {
 
   const form = el('form', { novalidate: true },
     contenedorAviso,
-    el('div', { class: 'campo' }, etiquetaCampo('Archivos (PDF, PNG o JPG, hasta 15 MB)', { for: 'archivos' }), campoArchivos, errorArchivos),
+    el('div', { class: 'campo' },
+      etiquetaCampo('Archivos (PDF, PNG o JPG, hasta 15 MB)', { for: 'archivos' }),
+      el('div', { class: 'campo-archivo' }, botonElegirArchivos, nombreArchivos),
+      campoArchivos,
+      errorArchivos,
+    ),
     el('div', { class: 'campo' }, etiquetaCampo('Técnica', { for: 'tecnica', opcional: true }), campoTecnica),
     el('div', { class: 'campo' }, etiquetaCampo('Ubicación', { for: 'ubicacion', opcional: true }), campoUbicacion),
     el('div', { class: 'campo' }, etiquetaCampo('Medidas', { for: 'medidas', opcional: true }), campoMedidas),
@@ -134,10 +154,10 @@ export function renderEnviarPropuesta(main, sesion, codigo, irA) {
     evento.preventDefault();
     vaciar(contenedorAviso);
     errorArchivos.hidden = true;
-    campoArchivos.removeAttribute('aria-invalid');
+    botonElegirArchivos.removeAttribute('aria-invalid');
     const archivos = [...campoArchivos.files];
     if (!archivos.length) {
-      campoArchivos.setAttribute('aria-invalid', 'true');
+      botonElegirArchivos.setAttribute('aria-invalid', 'true');
       errorArchivos.textContent = 'Adjunta al menos un archivo.';
       errorArchivos.hidden = false;
       return;

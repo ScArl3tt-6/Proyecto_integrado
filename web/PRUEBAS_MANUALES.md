@@ -32,6 +32,7 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-24 | La URL base de los enlaces de primer acceso/restablecimiento es configurable (`SST_URL_BASE`), no queda fija en "localhost" | |
 | PM-25 | "Mis solicitudes" (Vendedor): línea de tiempo de etapas, motivo del atraso, y etapa actual/siguiente en lenguaje claro, en cada tarjeta | |
 | PM-26 | Tabla de Usuarios: una acción principal visible y el resto en un menú "⋯", alineados; en celular, tarjetas con etiqueta antes de cada dato | |
+| PM-27 | Fondo oscuro de los modales (no un lavado gris) y selector de archivos con el estilo y el idioma de la app (el calendario de fecha se deja nativo, justificado) | |
 
 ## Pasos detallados
 
@@ -254,3 +255,14 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 6. A 390px de ancho, revisa la lista de cuentas. **Esperado:** cada cuenta es una tarjeta con el nombre de cada dato (NOMBRE, CORREO, ROL, ÁREA, ESTADO, ÚLTIMO ACCESO) antes de su valor, no solo el valor suelto; los dos botones de acción siguen alineados igual que en escritorio.
 
 **Confirmado, 19-11-2026:** verificado con navegador real: 2 botones alineados por fila (antes hasta 4), el menú abre con las acciones correctas y se cierra al hacer clic afuera, y las tarjetas de celular muestran la etiqueta de cada dato, sin scroll horizontal.
+
+### PM-27 — Controles nativos con el estilo de la app (punto 11)
+1. Abre cualquier diálogo de confirmación (por ejemplo, "Cambiar rol o área" en Usuarios). **Esperado:** el fondo detrás del diálogo se ve claramente oscurecido, no como un velo gris parejo sobre toda la pantalla.
+2. Como `valentina` (Diseño), ve a enviar una propuesta. **Esperado:** el campo de archivos muestra un botón "Elegir archivos" con el mismo estilo que el resto de los botones de la app (no el botón gris del sistema operativo en inglés), y junto a él dice "Ningún archivo elegido".
+3. Elige un archivo real. **Esperado:** el texto cambia al nombre del archivo (o "N archivos elegidos" si eliges varios).
+4. Navega el formulario solo con el teclado (Tab). **Esperado:** el foco llega al botón "Elegir archivos" (no a un campo invisible); Enter o Espacio sobre él abre el selector de archivos del sistema con normalidad.
+5. Intenta enviar sin elegir ningún archivo. **Esperado:** el error aparece junto al botón, igual que en el resto de los campos.
+6. Abre el calendario del campo "Fecha comprometida" (Nueva solicitud). **Esperado (documentado, no es un defecto):** el calendario se ve con el estilo del sistema operativo, no con el de la app — es una decisión deliberada (ver DEF-36): no existe forma de repintarlo con CSS en ningún navegador, y el texto en español depende del idioma del navegador de quien lo use, no de la página.
+7. A 390px de ancho, repite los pasos 2 a 4. **Esperado:** mismo comportamiento, sin scroll horizontal.
+
+**Confirmado, 19-11-2026:** verificado con navegador real: el fondo del modal computa `rgba(62, 44, 34, 0.7)`; el selector de archivos funciona con mouse y teclado, en español, con el estilo de la app; se intentó (y no se pudo) traducir o repintar el calendario nativo, confirmando que la decisión de dejarlo nativo es necesaria, no solo preferida.

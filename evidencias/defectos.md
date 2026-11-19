@@ -1106,3 +1106,49 @@ completa para el informe (sección de validación de resultados).
   foco al botón "⋯", y un clic afuera también cierra; en celular (390px) cada tarjeta muestra la
   etiqueta de cada dato, sin scroll horizontal.
 - **Estado:** Corregido.
+
+## DEF-36 — El fondo oscuro de los modales se veía como un lavado gris parejo, y el selector de archivos se veía con el estilo del sistema operativo, en inglés
+
+- **Encontrado en:** punto 11 de la revisión del equipo (19-11-2026).
+- **Severidad:** Baja (nada fallaba; el modal y el selector de archivos seguían funcionando, pero
+  rompían la coherencia visual del resto de la aplicación).
+- **Causa confirmada (fondo del modal):** `dialog.dialogo::backdrop` usaba el café más oscuro de
+  la paleta (`--cafe-900`) a solo 45 % de opacidad; sobre el fondo rosa claro de la app, ese
+  porcentaje no alcanza a leerse como "oscurecido a propósito": se ve como un lavado parejo sobre
+  toda la pantalla (confirmado con una captura real, antes y después).
+- **Causa confirmada (selector de archivos):** `<input type="file">` no tenía ningún estilo propio;
+  el botón "Choose Files"/"No file chosen" que muestra es dibujado por el sistema operativo, en SU
+  idioma (el de la instalación del navegador, no el de la página: se comprobó que ni `lang="es-CL"`
+  en el documento ni fijar el idioma del navegador cambian ese texto), y no se puede pintar con el
+  estilo de la app.
+- **Corrección:**
+  - El fondo del modal sube a 70 % de opacidad, sin salirse de la paleta (sigue siendo
+    `--cafe-900`, no un gris fuera de ella).
+  - El selector de archivos: el campo real queda oculto visualmente (`.visualmente-oculto`, la
+    misma clase que ya existía para el enlace "Saltar al contenido", no una nueva) y se activa con
+    un botón normal de la app ("Elegir archivos"), que además muestra el nombre del archivo elegido
+    (o "Ningún archivo elegido") en el mismo idioma y estilo que el resto de la pantalla.
+- **Decisión documentada — el calendario del campo "Fecha comprometida" se deja nativo:** se abrió
+  el selector de fecha de verdad (`<input type="date">`, en "Nueva solicitud") y resultó estar
+  completamente sin traducir ("November 2026", "Su Mo Tu We Th Fr Sa", "Clear"/"Today") y sin
+  ningún estilo de la app (fondo blanco, acento azul del sistema). Se intentó corregirlo con
+  `lang="es-CL"` (ya heredado del documento) y fijando el idioma del navegador: ninguno de los dos
+  cambió el idioma del calendario, porque ese texto lo pone el propio navegador instalado, no la
+  página — alguien con Chrome en español vería ese mismo calendario ya en español, sin que la app
+  tenga que hacer nada. No existe ninguna propiedad CSS, en ningún navegador actual, para repintar
+  ese calendario emergente por dentro (a diferencia del selector de archivos, aquí no hay ningún
+  botón disponible para reemplazar: todo el calendario es una sola pieza nativa). Construir uno
+  propio significaría rehacer, con código nuevo a mantener, la navegación por teclado, el formato
+  de fecha según el idioma de cada persona y el manejo de huso horario (un área donde este
+  proyecto ya tuvo que corregir bugs reales, ver `estaAtrasado()`), a cambio de solo un beneficio
+  cosmético. Se deja nativo a propósito, en escritorio y en celular por igual (en celular el
+  calendario del sistema operativo, además, es más cómodo de usar con el dedo que cualquier
+  cuadrícula armada a mano). Lo que sí se pudo confirmar ya correcto sin cambios: el campo cerrado
+  (el recuadro de texto antes de abrir el calendario) ya comparte el mismo borde, relleno y foco
+  visible que el resto de los campos de la aplicación.
+- **Nueva ejecución:** verificado con navegador real: el fondo del modal computa
+  `rgba(62, 44, 34, 0.7)`; el botón "Elegir archivos" aparece en español, muestra el nombre del
+  archivo elegido tras seleccionarlo, y el foco con teclado (Shift+Tab) llega a ese botón, no al
+  campo oculto.
+- **Estado:** Corregido (fondo del modal y selector de archivos); el calendario nativo queda
+  documentado como decisión deliberada, no como algo pendiente.

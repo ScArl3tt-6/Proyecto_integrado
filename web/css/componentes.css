@@ -51,6 +51,12 @@
 }
 .campo input:focus-visible, .campo select:focus-visible { outline-offset: 0; }
 .campo input[aria-invalid="true"] { border-color: var(--error-tx); }
+
+/* Selector de archivos: el botón nativo ("Choose Files") no se puede traducir ni pintar con el
+   estilo de la app (punto 11 de la revisión del equipo, 19-11-2026); se reemplaza por un botón
+   normal que dispara el campo real, oculto con ".visualmente-oculto". */
+.campo-archivo { display: flex; align-items: center; gap: var(--espacio-2); flex-wrap: wrap; }
+.campo-archivo .boton[aria-invalid="true"] { border-color: var(--error-tx); color: var(--error-tx); }
 .campo-error { color: var(--error-tx); font-size: var(--texto-14); margin: 0; }
 .campo-ayuda { color: var(--color-texto-secundario); font-size: var(--texto-14); margin: 0; }
 .campo-opcional { color: var(--color-texto-secundario); font-weight: 400; }
@@ -186,7 +192,12 @@ dialog.dialogo {
   color: var(--color-texto);
   box-shadow: 0 8px 24px rgba(62, 44, 34, .25);
 }
-dialog.dialogo::backdrop { background: rgba(62, 44, 34, .45); }
+/* Punto 11 de la revisión del equipo (19-11-2026): a .45 de opacidad, este mismo café oscuro
+   sobre el fondo rosa claro de la app no se veía como un fondo oscurecido a propósito, sino como
+   un lavado grisáceo parejo sobre toda la pantalla (confirmado con captura real). Más opaco (.7)
+   sí oscurece de verdad, sin salirse de la paleta del proyecto (sigue siendo --cafe-900, no un
+   gris fuera de la paleta). */
+dialog.dialogo::backdrop { background: rgba(62, 44, 34, .7); }
 .dialogo-acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: var(--espacio-3); }
 .sugerencias-motivo { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .boton-chip { padding: 6px 12px; min-height: auto; font-size: var(--texto-14); }
