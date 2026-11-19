@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { el, vaciar, aviso, abrirDialogoConfirmacion } from '../ui.js';
-import { estadoVacio, estadoCarga, estadoError, chipAtrasado, chipResponsable, paginador } from '../componentes.js';
+import { estadoVacio, estadoCarga, estadoError, chipAtrasado, chipResponsable, paginador, filaEvento } from '../componentes.js';
 
 export function renderMisActividades(main, sesion, irA) {
   const contenedor = el('section', { class: 'contenedor' }, el('h1', {}, 'Mis actividades'));
@@ -58,6 +58,37 @@ export function renderMisActividades(main, sesion, irA) {
           vaciar(materialesContenedor);
           materialesContenedor.appendChild(el('p', { class: 'campo-error' }, 'No pudimos cargar los materiales.'));
           cargados = false;
+        }
+      }
+    });
+
+    // Punto 2 de la revisión del equipo (19-11-2026): historial humano, acotado a lo que
+    // corresponde al área (sin los eventos de diseño, que no son de su incumbencia).
+    const historialContenedor = el('div', { class: 'materiales-contenedor' });
+    historialContenedor.hidden = true;
+    const botonHistorial = el('button', {
+      type: 'button', class: 'boton boton-secundario', 'aria-expanded': 'false', 'aria-controls': `historial-${actividad.codigo}`,
+    }, 'Ver historial');
+    historialContenedor.id = `historial-${actividad.codigo}`;
+    let historialCargado = false;
+    botonHistorial.addEventListener('click', async () => {
+      const abrir = historialContenedor.hidden;
+      historialContenedor.hidden = !abrir;
+      botonHistorial.setAttribute('aria-expanded', String(abrir));
+      botonHistorial.textContent = abrir ? 'Ocultar historial' : 'Ver historial';
+      if (abrir && !historialCargado) {
+        historialCargado = true;
+        vaciar(historialContenedor);
+        historialContenedor.appendChild(el('p', { class: 'campo-ayuda' }, 'Cargando…'));
+        try {
+          const eventos = await api.get(`/trabajos/${actividad.codigo}/historial`);
+          vaciar(historialContenedor);
+          if (!eventos.length) historialContenedor.appendChild(el('p', { class: 'campo-ayuda' }, 'Todavía no hay eventos registrados.'));
+          else historialContenedor.appendChild(el('ol', { class: 'lista-bitacora' }, ...eventos.map((e) => filaEvento(e, {}))));
+        } catch {
+          vaciar(historialContenedor);
+          historialContenedor.appendChild(el('p', { class: 'campo-error' }, 'No pudimos cargar el historial.'));
+          historialCargado = false;
         }
       }
     });
@@ -132,6 +163,8 @@ export function renderMisActividades(main, sesion, irA) {
       el('p', { class: 'tarjeta-trabajo-meta' }, actividad.siguiente_actividad ? `Sigue: ${actividad.siguiente_actividad}` : 'Es la última etapa de este trabajo.'),
       botonMateriales,
       materialesContenedor,
+      botonHistorial,
+      historialContenedor,
       accion,
     );
   }

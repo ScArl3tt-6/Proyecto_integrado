@@ -38,7 +38,8 @@ export function renderBandejaDiseno(main, sesion, irA) {
         const motivo = motivos[trabajo.codigo];
         const extra = motivo ? aviso('info', `Motivo del rechazo: ${motivo}`) : null;
         const enviar = el('a', { class: 'boton boton-primario', href: `#/disenos/${trabajo.codigo}/enviar` }, 'Enviar propuesta');
-        listaNodo.appendChild(tarjetaTrabajo(trabajo, { accion: enviar, detalleExtra: extra }));
+        const verDetalle = el('a', { class: 'boton boton-secundario', href: `#/trabajos/${trabajo.codigo}` }, 'Ver detalle e historial');
+        listaNodo.appendChild(tarjetaTrabajo(trabajo, { accion: el('div', { class: 'acciones-decision' }, verDetalle, enviar), detalleExtra: extra }));
       }
     } catch {
       vaciar(listaNodo);

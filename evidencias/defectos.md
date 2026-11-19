@@ -915,3 +915,31 @@ completa para el informe (sección de validación de resultados).
   Producción en el detalle de un trabajo con una etapa tomada, y liberarla la deja disponible de
   nuevo para cualquiera.
 - **Estado:** Corregido.
+
+## DEF-29 — El detalle de un trabajo no tenía un historial humano de lo que pasó, cuándo y quién lo hizo
+
+- **Encontrado en:** punto 2 de la revisión del equipo (19-11-2026).
+- **Severidad:** Media (la bitácora completa ya existía, pero solo Administración podía verla; para
+  el resto de los roles, el detalle de un trabajo no contaba su propia historia).
+- **Causa confirmada:** `GET /trabajos/:codigo` nunca incluyó eventos de bitácora, y
+  `GET /auditoria/trabajos/:codigo` (el que sí los trae) exige el permiso `AUDITORIA_VER`, que solo
+  tiene Administración.
+- **Corrección:** nuevo endpoint `GET /trabajos/:codigo/historial`, con el mismo alcance que ya
+  decide quién puede ver el detalle de ese trabajo (`verificarAlcance`: Vendedor el propio, Diseño
+  mientras le corresponde, Producción/Administración todos); a Operario (que no tiene ruta al
+  detalle general, ver CP-37) se le permite esta ruta en particular, acotada a trabajos de su área y
+  sin los eventos de diseño, que no son de su incumbencia. El detalle ahora muestra, en lenguaje
+  claro, la etapa actual y la siguiente (o que el trabajo terminó, o que aún no entra a producción).
+  De paso, un trabajo ya en producción sin materiales registrados ahora se destaca con un aviso, no
+  un texto plano más entre la lista.
+- **Límite existente, no modificado (a confirmar si se quiere cambiar):** Diseño pierde acceso al
+  detalle (y por lo tanto a este historial) apenas envía su propuesta, porque el trabajo pasa a
+  `PENDIENTE_APROBACION` y `verificarAlcance` solo permite `SOLICITADO`/`EN_DISENO` para ese rol; es
+  el comportamiento que ya tenía la pantalla (la "Bandeja de diseño" tampoco mostraba nunca trabajos
+  en ese estado) y no es algo que este punto haya pedido cambiar, pero significa que Diseño no puede
+  ver si su propuesta fue aprobada o rechazada después de enviarla, salvo que vuelva a aparecer en su
+  bandeja por un rechazo. Se deja anotado para decidir si vale la pena ampliarlo.
+- **Nueva ejecución:** CP-84 (`tests/integracion/trabajosListadoDetalle.test.js`): el alcance por
+  rol se respeta, y a Operario le llega acotado a su área y sin eventos de diseño. Verificado con
+  navegador real en los 4 roles con acceso (Vendedor, Diseño, Producción, Operario).
+- **Estado:** Corregido (con la limitación anotada arriba, pendiente de confirmación).

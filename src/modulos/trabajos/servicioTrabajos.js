@@ -316,9 +316,29 @@ function crearServicioTrabajos({ pg, bitacora }) {
     return rows[0];
   }
 
+  // Punto 2 de la revisión del equipo (19-11-2026): historial humano dentro del detalle de un
+  // trabajo, con el mismo alcance que ya decide quién puede ver ese trabajo (Vendedor el propio,
+  // Diseño mientras le corresponde). Un operario no tiene ruta al detalle general (ve "Mis
+  // actividades", acotado a su área): aquí se le permite igual, pero solo si el trabajo pasa (o
+  // pasó) por su área, y sin los eventos de diseño, que no son de su incumbencia.
+  async function historialDeTrabajo(usuario, codigo) {
+    const trabajo = await obtenerPorCodigo(codigo);
+    if (usuario.rol === 'OPERARIO') {
+      const { rows } = await pg.query(
+        'SELECT 1 FROM etapa_plantilla WHERE id_tipo = $1 AND id_area = $2 LIMIT 1',
+        [trabajo.id_tipo, usuario.idArea],
+      );
+      if (!rows[0]) throw new ErrorNegocio('No tiene permisos para esta acción', 403);
+      const eventos = await bitacora.consultarPorTrabajo(codigo);
+      return eventos.filter((e) => !e.tipo.startsWith('DISENO_'));
+    }
+    verificarAlcance(usuario, trabajo);
+    return bitacora.consultarPorTrabajo(codigo);
+  }
+
   return {
     registrarSolicitud, tomarParaDiseno, actividadesDeMiArea, comenzarEtapa, completarEtapa, liberarEtapa, materiales, registrarMaterial,
-    obtenerPorCodigo, listar, detalle, detener, reanudar,
+    obtenerPorCodigo, listar, detalle, detener, reanudar, historialDeTrabajo,
   };
 }
 

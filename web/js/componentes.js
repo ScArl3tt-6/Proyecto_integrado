@@ -1,6 +1,7 @@
 // Piezas compartidas por todas las pantallas de trabajos: un solo diseño de tarjeta, un solo
 // vocabulario de estados y los mismos estados de carga/vacío/error en toda la aplicación.
 import { el, aviso } from './ui.js';
+import { ROL_TEXTO } from './permisos.js';
 
 export const TEXTO_ESTADO = {
   SOLICITADO: 'Solicitado',
@@ -55,6 +56,29 @@ export function detalleEvento(evento, { nombreEtapa } = {}) {
   }
 }
 
+// Una fila de la bitácora (texto humano, no el código interno), compartida por la Bitácora de
+// Administración y el historial dentro del detalle de un trabajo (punto 2 de la revisión del
+// equipo, 19-11-2026). "mostrarCodigo" solo tiene sentido en la vista general (no filtrada a un
+// único trabajo, donde repetirlo en cada fila sería ruido).
+export function filaEvento(evento, { etapasPorOrden = {}, mostrarCodigo = false } = {}) {
+  return el('li', { class: 'tarjeta' },
+    el('p', {},
+      el('strong', {}, TEXTO_EVENTO[evento.tipo] || evento.tipo),
+      ' · ', formatoFechaHora(evento.fecha),
+      mostrarCodigo && evento.entidad?.tipo === 'trabajo' ? ` · ${evento.entidad.codigo}` : null,
+    ),
+    evento.usuario
+      // Si no se puede resolver el nombre (por ejemplo, datos de demostración antiguos cuyo
+      // usuario.id ya no existe tras reiniciar la base), un texto honesto: nunca "Alguien".
+      ? el('p', { class: 'campo-ayuda' }, `${evento.usuario.nombre || 'Datos de demostración'} · ${ROL_TEXTO[evento.usuario.rol] || evento.usuario.rol}`)
+      : el('p', { class: 'campo-ayuda' }, 'Sistema'),
+    (() => {
+      const detalle = detalleEvento(evento, { nombreEtapa: etapasPorOrden[evento.detalle?.orden] });
+      return detalle ? el('p', { class: 'campo-ayuda' }, detalle) : null;
+    })(),
+  );
+}
+
 const CLASE_ESTADO = {
   SOLICITADO: 'chip-neutro',
   EN_DISENO: 'chip-neutro',
@@ -83,6 +107,13 @@ function formatoFecha(fecha) {
   const texto = String(fecha).slice(0, 10);
   const [anio, mes, dia] = texto.split('-');
   return `${dia}-${mes}-${anio}`;
+}
+
+// Un solo formato de fecha y hora para toda la aplicación (punto 13 de la revisión del equipo,
+// 19-11-2026): antes cada pantalla tenía su propia copia de esta misma línea.
+export function formatoFechaHora(fecha, vacio = '—') {
+  if (!fecha) return vacio;
+  return new Date(fecha).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
 }
 
 // Tarjeta única de trabajo, reutilizada por las cinco pantallas de perfil

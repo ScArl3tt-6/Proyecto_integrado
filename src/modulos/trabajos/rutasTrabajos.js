@@ -54,6 +54,13 @@ function rutasTrabajos({ trabajos }) {
     res.json(await trabajos.detalle(req.usuario, req.datos.params.codigo));
   });
 
+  // Punto 2 de la revisión del equipo (19-11-2026): historial humano dentro del detalle de un
+  // trabajo; también accesible a Operario (acotado a su área, ver historialDeTrabajo), que no tiene
+  // ruta al detalle general.
+  r.get('/:codigo/historial', autorizarAlguno(...PERMISOS_VER_TRABAJOS, 'TRABAJO_VER_AREA'), validar(esquemaParamsTrabajo, 'params'), async (req, res) => {
+    res.json(await trabajos.historialDeTrabajo(req.usuario, req.datos.params.codigo));
+  });
+
   r.post('/:codigo/detener', autorizar('TRABAJO_DETENER'), validar(esquemaParamsTrabajo, 'params'), validar(esquemaMotivo), async (req, res) => {
     res.json(await trabajos.detener(req.usuario, req.datos.params.codigo, req.datos.body.motivo));
   });

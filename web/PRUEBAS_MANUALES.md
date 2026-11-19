@@ -25,6 +25,7 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-17 | Si el servidor queda desactualizado respecto a la pantalla, aparece un aviso amable para recargar, sin interrumpir lo que se estaba haciendo | |
 | PM-18 | "Liberar etapa": quien la tomó puede soltarla; Producción y Administración también pueden soltar la de otra persona; un operario ajeno no puede | |
 | PM-19 | Saludo personalizado ("Hola, &lt;nombre&gt;") en el encabezado y en "Mi cuenta" (con rol, área y correo), sin desbordes en celular | |
+| PM-20 | Historial humano dentro del detalle de un trabajo, visible según el rol (Vendedor, Diseño, Producción, Operario); etapa actual/siguiente en lenguaje claro; falta de materiales destacada | |
 
 ## Pasos detallados
 
@@ -180,3 +181,13 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 4. A 390 px de ancho, confirma que ni el encabezado ni "Mi cuenta" producen scroll horizontal, incluso con un nombre o correo largos.
 
 **Confirmado, 19-11-2026:** verificado con un navegador real a 1280 y 390 px.
+
+### PM-20 — Historial humano en el detalle de un trabajo
+1. Como `jorge` (Vendedor), entra al detalle de una de tus solicitudes. **Esperado:** bajo la descripción aparece una línea en lenguaje claro con la etapa actual y la siguiente (o "ya terminó", o "todavía no entra a producción"); más abajo, una sección "Historial" con eventos en texto humano (no códigos), con fecha, quién lo hizo y detalle útil — igual que la Bitácora de Administración, pero acotado a este trabajo.
+2. Como `valentina` (Diseño), en «Bandeja de diseño» → "En diseño", debe aparecer un botón "Ver detalle e historial" junto a "Enviar propuesta". Úsalo: debe mostrar el mismo historial mientras el trabajo sigue en diseño.
+3. Como `marcela` (Producción) o `koto` (Administración), en el detalle de cualquier trabajo el historial debe incluir también los eventos de diseño (propuesta enviada, aprobada o rechazada), que Operario no ve.
+4. Como un operario (por ejemplo `luis`), en «Mis actividades» debe aparecer, junto a "Ver materiales y medidas", un botón "Ver historial". Úsalo: debe mostrar el historial de ESE trabajo, acotado (sin eventos de diseño), sin salir de "Mis actividades".
+5. Intenta ver el historial de un trabajo de OTRA área o de otra persona vendedora (si puedes forzar la URL o la llamada): debe rechazarse igual que el resto del detalle.
+6. En un trabajo ya en producción que todavía no tiene materiales registrados, la sección "Materiales" debe destacar esa falta con un aviso visible, no solo una línea de texto más.
+
+**Confirmado, 19-11-2026:** verificado con navegador real en los cuatro roles con acceso (Vendedor, Diseño, Producción, Operario) contra el entorno aislado, y con 1 prueba automática (CP-84) que cubre los límites de alcance por rol.

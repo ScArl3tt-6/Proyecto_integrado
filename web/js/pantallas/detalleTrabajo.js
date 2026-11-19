@@ -2,7 +2,7 @@
 // administración), con el alcance que ya decide el servidor (403 si el trabajo no corresponde).
 import { api, ApiError } from '../api.js';
 import { el, vaciar, aviso, abrirDialogoConfirmacion, abrirDialogoMotivo, enlaceVolver, etiquetaCampo, describirErrorApi } from '../ui.js';
-import { chipEstado, chipAtrasado, listaEtapas, estadoCarga, estadoError } from '../componentes.js';
+import { chipEstado, chipAtrasado, listaEtapas, estadoCarga, estadoError, formatoFechaHora, filaEvento } from '../componentes.js';
 import { tienePermiso, INICIO_POR_ROL } from '../permisos.js';
 
 const MOTIVOS_DETENER = [
@@ -11,11 +11,6 @@ const MOTIVOS_DETENER = [
   'Ausencia de personal del área',
   'A la espera de una instrucción del cliente interno',
 ];
-
-function formatoFechaHora(fecha) {
-  if (!fecha) return '—';
-  return new Date(fecha).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
-}
 
 export function renderDetalleTrabajo(main, sesion, codigo) {
   const contenedor = el('section', { class: 'contenedor' });
@@ -67,6 +62,10 @@ export function renderDetalleTrabajo(main, sesion, codigo) {
       contenedor.appendChild(botonDetenerReanudar(trabajo));
     }
 
+    // Punto 2 de la revisión del equipo (19-11-2026): en lenguaje claro, no solo en la lista de
+    // chips de abajo, qué etapa va ahora y cuál sigue (o que el trabajo ya terminó / aún no empieza).
+    contenedor.appendChild(el('p', { class: 'campo-ayuda' }, etapaActualSiguienteTexto(trabajo)));
+
     contenedor.appendChild(el('h2', {}, 'Etapas'));
     contenedor.appendChild(listaEtapas(trabajo.etapas));
     const vigente = trabajo.estado === 'EN_PRODUCCION' ? trabajo.etapas.find((e) => e.estado === 'EN_CURSO') : null;
@@ -96,25 +95,64 @@ export function renderDetalleTrabajo(main, sesion, codigo) {
       contenedor.appendChild(el('h2', {}, 'Materiales'));
       const listaMateriales = el('ul', { class: 'lista-reglas' });
       contenedor.appendChild(listaMateriales);
-      cargarMateriales(listaMateriales);
+      cargarMateriales(listaMateriales, trabajo.estado);
       if (tienePermiso(sesion.rol, 'MATERIAL_REGISTRAR')) {
         contenedor.appendChild(formularioMaterial(trabajo, listaMateriales));
       }
     }
+
+    contenedor.appendChild(el('h2', {}, 'Historial'));
+    const listaHistorial = el('div');
+    contenedor.appendChild(listaHistorial);
+    cargarHistorial(listaHistorial, trabajo);
   }
 
-  async function cargarMateriales(listaMateriales) {
+  // Punto 2: faltan materiales registrados en un trabajo que ya está en producción (o más
+  // adelante) es información que conviene destacar, no solo un texto plano entre los demás.
+  async function cargarMateriales(listaMateriales, estadoTrabajo) {
     vaciar(listaMateriales);
     try {
       const materiales = await api.get(`/trabajos/${codigo}/materiales`);
       if (!materiales.length) {
-        listaMateriales.appendChild(el('li', { class: 'campo-ayuda' }, 'Este trabajo no tiene materiales registrados.'));
+        const avanzado = !['SOLICITADO', 'EN_DISENO', 'PENDIENTE_APROBACION'].includes(estadoTrabajo);
+        listaMateriales.appendChild(avanzado
+          ? el('li', {}, aviso('info', 'Todavía no hay materiales registrados para este trabajo.'))
+          : el('li', { class: 'campo-ayuda' }, 'Este trabajo no tiene materiales registrados.'));
       } else {
         for (const m of materiales) listaMateriales.appendChild(el('li', {}, `${m.nombre}: ${m.cantidad} ${m.unidad}${m.medida ? ` (${m.medida})` : ''}`));
       }
     } catch {
       listaMateriales.appendChild(el('li', { class: 'campo-error' }, 'No pudimos cargar los materiales.'));
     }
+  }
+
+  // Punto 2: historial humano del trabajo, con el mismo alcance que ya decide el servidor para
+  // verlo (Vendedor el propio, Diseño mientras le corresponde, Producción/Administración todos).
+  async function cargarHistorial(listaHistorial, trabajo) {
+    vaciar(listaHistorial);
+    listaHistorial.appendChild(estadoCarga());
+    try {
+      const eventos = await api.get(`/trabajos/${codigo}/historial`);
+      vaciar(listaHistorial);
+      if (!eventos.length) { listaHistorial.appendChild(el('p', { class: 'campo-ayuda' }, 'Todavía no hay eventos registrados.')); return; }
+      const etapasPorOrden = Object.fromEntries((trabajo.etapas || []).map((e) => [e.orden, e.nombre]));
+      listaHistorial.appendChild(el('ol', { class: 'lista-bitacora' }, ...eventos.map((e) => filaEvento(e, { etapasPorOrden }))));
+    } catch {
+      vaciar(listaHistorial);
+      listaHistorial.appendChild(estadoError('No pudimos cargar el historial. Revisa tu conexión e inténtalo otra vez.', () => cargarHistorial(listaHistorial, trabajo)));
+    }
+  }
+
+  function etapaActualSiguienteTexto(trabajo) {
+    if (trabajo.estado === 'TERMINADO') return 'Este trabajo ya terminó todas sus etapas de producción.';
+    if (!['EN_PRODUCCION', 'DETENIDO'].includes(trabajo.estado)) return 'Todavía no entra a producción (está en diseño o esperando aprobación).';
+    const actual = trabajo.etapas.find((e) => e.estado === 'EN_CURSO');
+    if (!actual) return 'Sin una etapa de producción vigente en este momento.';
+    const siguiente = trabajo.etapas.find((e) => e.orden === actual.orden + 1);
+    const detalleResponsable = actual.responsable ? `, la tiene ${actual.responsable}` : ', nadie la ha tomado todavía';
+    return siguiente
+      ? `Etapa actual: "${actual.nombre}"${detalleResponsable}. Sigue: "${siguiente.nombre}".`
+      : `Etapa actual: "${actual.nombre}"${detalleResponsable}. Es la última etapa de este trabajo.`;
   }
 
   function formularioMaterial(trabajo, listaMateriales) {

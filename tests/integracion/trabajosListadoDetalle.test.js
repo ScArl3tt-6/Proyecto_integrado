@@ -97,4 +97,40 @@ describe('Listado y detalle de trabajos con alcance por rol', () => {
     const sinCoincidencias = await koto.get('/api/trabajos?busqueda=esto-no-deberia-existir-en-ningun-trabajo');
     expect(sinCoincidencias.body).toEqual([]);
   });
+
+  // Punto 2 de la revisión del equipo (19-11-2026): historial humano dentro del detalle, con el
+  // mismo alcance por rol que ya decide el detalle, y acotado para Operario (su área, sin eventos
+  // de diseño), que no tiene ruta al detalle general (CP-37).
+  test('CP-84 el historial respeta el alcance por rol, y a Operario le llega acotado a su área sin eventos de diseño', async () => {
+    expect((await jorge.get(`/api/trabajos/${codigoJorge}/historial`)).status).toBe(200);
+    expect((await koto.get(`/api/trabajos/${codigoPaula}/historial`)).status).toBe(200); // Administración ve cualquiera
+
+    const ajeno = await jorge.get(`/api/trabajos/${codigoPaula}/historial`);
+    expect(ajeno.status).toBe(403); // otra persona vendedora, no es su propia solicitud
+
+    // Mientras está en SOLICITADO/EN_DISENO, Diseño sí puede verlo
+    await valentina.post(`/api/trabajos/${codigoJorge}/tomar-diseno`);
+    const historialDiseno = await valentina.get(`/api/trabajos/${codigoJorge}/historial`);
+    expect(historialDiseno.status).toBe(200);
+    expect(historialDiseno.body.map((e) => e.tipo)).toEqual(expect.arrayContaining(['TRABAJO_CREADO', 'DISENO_INICIADO']));
+
+    const { body: diseno } = await valentina.post(`/api/disenos/trabajos/${codigoJorge}`, {
+      archivos: [{ nombre: 'cp84.pdf', tipoMime: 'application/pdf', contenidoBase64: Buffer.from('%PDF-1.7').toString('base64') }],
+    });
+    await marcela.post(`/api/disenos/${diseno.idDiseno}/decision`, { decision: 'APROBADO' }); // pasa a EN_PRODUCCION
+
+    // Producción/Administración ven todo, incluidos los eventos de diseño
+    const historialProduccion = await marcela.get(`/api/trabajos/${codigoJorge}/historial`);
+    expect(historialProduccion.status).toBe(200);
+    expect(historialProduccion.body.map((e) => e.tipo)).toEqual(expect.arrayContaining(['DISENO_ENVIADO', 'DISENO_APROBADO']));
+
+    // Operario de la MISMA área (Bordado, idTipo 1): ve el historial, pero sin eventos de diseño
+    const historialOperario = await luis.get(`/api/trabajos/${codigoJorge}/historial`);
+    expect(historialOperario.status).toBe(200);
+    expect(historialOperario.body.some((e) => e.tipo.startsWith('DISENO_'))).toBe(false);
+    expect(historialOperario.body.map((e) => e.tipo)).toContain('TRABAJO_CREADO');
+
+    // Operario de OTRA área (codigoPaula es idTipo 2, Sublimación; luis es de Bordado): sin acceso
+    expect((await luis.get(`/api/trabajos/${codigoPaula}/historial`)).status).toBe(403);
+  });
 });

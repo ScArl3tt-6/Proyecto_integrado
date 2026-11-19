@@ -1,6 +1,6 @@
 import { api, ApiError } from '../api.js';
 import { el, vaciar, aviso, abrirDialogoConfirmacion, etiquetaCampo, describirErrorApi, conEspera } from '../ui.js';
-import { estadoVacio, estadoCarga, estadoError, TEXTO_EVENTO, detalleEvento } from '../componentes.js';
+import { estadoVacio, estadoCarga, estadoError, formatoFechaHora, filaEvento } from '../componentes.js';
 import { ROL_TEXTO, AREAS_POR_ROL } from '../permisos.js';
 
 const CAMPOS_CREAR_CUENTA = { nombre: 'Nombre', correo: 'Correo', rol: 'Rol', area: 'Área', contrasena: 'Contraseña inicial' };
@@ -25,11 +25,6 @@ function pintarOpcionesArea(campo, rol, valorActual) {
   campo.appendChild(el('option', { value: '' }, 'Sin área'));
   for (const area of areasValidas) campo.appendChild(el('option', { value: area, selected: area === valorActual || undefined }, area));
   campo.disabled = areasValidas.length === 0;
-}
-
-function formatoFechaHora(fecha) {
-  if (!fecha) return 'Nunca';
-  return new Date(fecha).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
 }
 
 export function renderUsuarios(main, sesion, irA) {
@@ -201,7 +196,7 @@ export function renderUsuarios(main, sesion, irA) {
       el('td', {}, ROL_TEXTO[usuario.rol] || usuario.rol),
       el('td', {}, usuario.area || '—'),
       celdaEstado,
-      el('td', {}, formatoFechaHora(usuario.ultimoAcceso)),
+      el('td', {}, formatoFechaHora(usuario.ultimoAcceso, 'Nunca')),
       acciones,
     );
   }
@@ -280,29 +275,6 @@ export function renderUsuarios(main, sesion, irA) {
   }
 }
 
-function formatoFechaHoraBitacora(fecha) {
-  return new Date(fecha).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
-}
-
-function filaEvento(evento, etapasPorOrden) {
-  return el('li', { class: 'tarjeta' },
-    el('p', {},
-      el('strong', {}, TEXTO_EVENTO[evento.tipo] || evento.tipo),
-      ' · ', formatoFechaHoraBitacora(evento.fecha),
-      evento.entidad?.tipo === 'trabajo' ? ` · ${evento.entidad.codigo}` : null,
-    ),
-    evento.usuario
-      // Si no se puede resolver el nombre (por ejemplo, datos de demostración antiguos cuyo
-      // usuario.id ya no existe tras reiniciar la base), un texto honesto: nunca "Alguien".
-      ? el('p', { class: 'campo-ayuda' }, `${evento.usuario.nombre || 'Datos de demostración'} · ${ROL_TEXTO[evento.usuario.rol] || evento.usuario.rol}`)
-      : el('p', { class: 'campo-ayuda' }, 'Sistema'),
-    (() => {
-      const detalle = detalleEvento(evento, { nombreEtapa: etapasPorOrden[evento.detalle?.orden] });
-      return detalle ? el('p', { class: 'campo-ayuda' }, detalle) : null;
-    })(),
-  );
-}
-
 // Punto 1 de la revisión del equipo (18-11-2026): códigos internos traducidos, quién lo hizo (con
 // nombre, no solo rol), detalle útil, elegir el trabajo de una lista con búsqueda (en vez de
 // escribir el código), y los últimos eventos visibles por defecto sin tener que buscar primero.
@@ -358,7 +330,7 @@ export function renderBitacora(main, sesion, irA) {
       vaciar(resultado);
       if (!eventos.length) { resultado.appendChild(estadoVacio('Todavía no hay eventos registrados.')); return; }
       resultado.appendChild(el('p', { class: 'campo-ayuda' }, 'Últimos eventos de todos los trabajos. Escribe arriba para filtrar por uno en particular.'));
-      resultado.appendChild(el('ol', { class: 'lista-bitacora' }, ...eventos.map((e) => filaEvento(e, {}))));
+      resultado.appendChild(el('ol', { class: 'lista-bitacora' }, ...eventos.map((e) => filaEvento(e, { mostrarCodigo: true }))));
     } catch {
       vaciar(resultado);
       resultado.appendChild(estadoError('No pudimos cargar la bitácora. Revisa tu conexión e inténtalo otra vez.', cargarRecientes));
@@ -379,7 +351,7 @@ export function renderBitacora(main, sesion, irA) {
       vaciar(resultado);
       if (!eventos.length) { resultado.appendChild(estadoVacio('No hay eventos para ese trabajo.')); return; }
       resultado.appendChild(el('p', { class: 'campo-ayuda' }, `Mostrando ${codigo}.`));
-      resultado.appendChild(el('ol', { class: 'lista-bitacora' }, ...eventos.map((e) => filaEvento(e, etapasPorOrden))));
+      resultado.appendChild(el('ol', { class: 'lista-bitacora' }, ...eventos.map((e) => filaEvento(e, { etapasPorOrden }))));
     } catch (err) {
       vaciar(resultado);
       const mensaje = err instanceof ApiError && err.status === 404 ? 'No encontramos ese código de trabajo.' : 'No pudimos cargar la bitácora. Revisa tu conexión e inténtalo otra vez.';
