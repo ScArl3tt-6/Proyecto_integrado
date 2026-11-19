@@ -69,11 +69,18 @@ export function renderDetalleTrabajo(main, sesion, codigo) {
 
     contenedor.appendChild(el('h2', {}, 'Etapas'));
     contenedor.appendChild(listaEtapas(trabajo.etapas));
-    // Producción supervisa todas las áreas: puede completar la etapa vigente aunque nadie la haya
-    // tomado (o la haya tomado un operario), a diferencia del operario, que solo completa la suya.
-    if (sesion.rol === 'PRODUCCION' && trabajo.estado === 'EN_PRODUCCION') {
-      const vigente = trabajo.etapas.find((e) => e.estado === 'EN_CURSO');
-      if (vigente) contenedor.appendChild(botonCompletarComoProduccion(vigente));
+    const vigente = trabajo.estado === 'EN_PRODUCCION' ? trabajo.etapas.find((e) => e.estado === 'EN_CURSO') : null;
+    if (vigente) {
+      const accionesEtapa = el('div', { class: 'acciones-decision' });
+      // Producción supervisa todas las áreas: puede completar la etapa vigente aunque nadie la haya
+      // tomado (o la haya tomado un operario), a diferencia del operario, que solo completa la suya.
+      if (sesion.rol === 'PRODUCCION') accionesEtapa.appendChild(botonCompletarComoProduccion(vigente));
+      // Punto B1: quien la tomó, Producción o Administración pueden liberar una etapa abandonada.
+      // Un operario no llega a esta pantalla (ve y libera la suya desde "Mis actividades").
+      if (vigente.responsable && tienePermiso(sesion.rol, 'ETAPA_LIBERAR')) {
+        accionesEtapa.appendChild(botonLiberarEtapa(vigente));
+      }
+      if (accionesEtapa.childElementCount) contenedor.appendChild(accionesEtapa);
     }
 
     if (trabajo.disenos.length) {
@@ -212,6 +219,25 @@ export function renderDetalleTrabajo(main, sesion, codigo) {
         cargar();
       } catch {
         contenedor.prepend(aviso('error', 'No pudimos reanudar el trabajo. Inténtalo otra vez.'));
+      }
+    });
+    return boton;
+  }
+
+  function botonLiberarEtapa(etapa) {
+    const boton = el('button', { type: 'button', class: 'boton boton-secundario' }, `Liberar "${etapa.nombre}"`);
+    boton.addEventListener('click', async () => {
+      const confirmado = await abrirDialogoConfirmacion({
+        titulo: 'Liberar etapa',
+        mensaje: `¿Dejar "${etapa.nombre}" disponible de nuevo? La estaba trabajando ${etapa.responsable}; cualquier persona del área podrá tomarla desde cero.`,
+        textoConfirmar: 'Liberar',
+      });
+      if (!confirmado) return;
+      try {
+        await api.post(`/trabajos/${codigo}/etapas/${etapa.orden}/liberar`, {});
+        cargar();
+      } catch {
+        contenedor.prepend(aviso('error', 'No pudimos liberar la etapa. Inténtalo otra vez.'));
       }
     });
     return boton;

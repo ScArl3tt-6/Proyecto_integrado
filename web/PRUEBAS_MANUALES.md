@@ -22,6 +22,9 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-14 | Administración crea una cuenta nueva desde "Usuarios": aparece en el listado, puede ingresar con lo que se le entregó, y un correo repetido se rechaza con un aviso claro | |
 | PM-15 | "Comenzar etapa": dos operarios del área ven la misma actividad; solo uno puede tomarla, el otro la ve "En curso por &lt;nombre&gt;"; solo quien la tomó puede completarla | |
 | PM-16 | Bitácora: texto humano (no códigos), nombre y rol de quién hizo cada cosa, detalle útil, últimos eventos visibles sin buscar, y elegir un trabajo de una lista con búsqueda | |
+| PM-17 | Si el servidor queda desactualizado respecto a la pantalla, aparece un aviso amable para recargar, sin interrumpir lo que se estaba haciendo | |
+| PM-18 | "Liberar etapa": quien la tomó puede soltarla; Producción y Administración también pueden soltar la de otra persona; un operario ajeno no puede | |
+| PM-19 | Saludo personalizado ("Hola, &lt;nombre&gt;") en el encabezado y en "Mi cuenta" (con rol, área y correo), sin desbordes en celular | |
 
 ## Pasos detallados
 
@@ -138,6 +141,8 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 
 **Confirmado, 19-11-2026:** verificado también a nivel de API con dos solicitudes HTTP disparadas en paralelo (`Promise.all`) contra el mismo endpoint, repetido 3 veces sin fallas: siempre gana exactamente una.
 
+**Confirmado por el equipo, 19-11-2026:** probado a mano con dos cuentas reales tras reiniciar el servidor (el intento anterior había corrido contra un servidor viejo, levantado antes de este cambio, de ahí la discrepancia). Con el servidor actualizado, el segundo operario ve "En curso por Luis Cárdenas" y las etapas completadas se reflejan en ambas cuentas. Ver punto A más abajo: a partir de ahora el propio sistema avisa cuando el servidor quedó desactualizado respecto a la pantalla, para que este tipo de confusión no se repita.
+
 ### PM-16 — Bitácora con texto humano y búsqueda de trabajo
 1. Ingresa como `koto` (Administrador) y ve a «Bitácora». **Esperado:** sin escribir nada, ya se ven los últimos eventos de todos los trabajos (no una pantalla vacía pidiendo buscar primero).
 2. Revisa esos eventos: no debe aparecer ningún código interno (`DISENO_APROBADO`, `TRABAJO_CREADO`, etc.); en su lugar, frases en español («Diseño aprobado», «Solicitud creada»...), la fecha en formato legible, y quién lo hizo (nombre y rol), no un identificador numérico.
@@ -148,3 +153,30 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 7. Revisa un evento de un rechazo: el detalle debe mostrar «Motivo: …» con el texto completo, no solo "Diseño rechazado".
 
 **Confirmado, 19-11-2026:** verificado en el entorno aislado con navegador real (Playwright): búsqueda progresiva, pegado del código completo, botón para quitar el filtro, ausencia de códigos internos, formato «Nombre · Rol», y el detalle de etapa y de motivo de rechazo, todos correctos.
+
+### PM-17 — Aviso de versión nueva del servidor
+1. Con la aplicación abierta y con sesión iniciada, en otra terminal detén el servidor y vuelve a levantarlo (por ejemplo, tras aplicar una corrección).
+2. Sigue navegando con normalidad (sin recargar la página a mano). **Esperado:** en la primera acción que llame a la API después de que el servidor nuevo esté arriba, aparece un aviso fijo y discreto: «Hay una versión nueva. Recarga la página para ver los últimos cambios.» con un botón «Recargar».
+3. Verifica que el aviso NO interrumpe nada: la pantalla donde estabas sigue funcionando con normalidad (se puede seguir escribiendo, navegando, etc.) mientras el aviso está visible.
+4. Presiona «Recargar». **Esperado:** la página se recarga y, si la sesión sigue vigente, vuelve a la misma pantalla con normalidad.
+5. Si el servidor NO cambió de versión durante toda la sesión, el aviso nunca debe aparecer (no es un aviso que salga "por las dudas" cada cierto tiempo).
+
+**Confirmado, 19-11-2026:** verificado con un navegador real contra el entorno aislado, interceptando una respuesta para simular el cambio de versión (`X-SST-Version` distinta): el aviso aparece una sola vez, la pantalla sigue funcionando, y "Recargar" funciona. Esta corrección nace de una confusión real del equipo al probar PM-15 contra un servidor que no se había reiniciado (ver nota en PM-15).
+
+### PM-18 — "Liberar etapa"
+1. Como un operario que ya tomó una etapa (ver PM-15), en "Mis actividades" debe aparecer, junto a "Completar etapa", un botón "Liberar etapa".
+2. Presiónalo y confirma en el diálogo. **Esperado:** la etapa queda disponible de nuevo: "Mis actividades" ahora muestra "Comenzar etapa" otra vez (para ti y para cualquier otro operario del área).
+3. Intenta liberar una etapa que nadie ha tomado (por ejemplo, llamando a la acción cuando ya está libre): debe avisar con claridad que no hay nada que liberar, no un error confuso.
+4. Con dos cuentas Operario del área: que una tome la etapa y la otra intente liberarla. **Esperado:** no puede (solo quien la tomó, o Producción, puede liberarla).
+5. Como `marcela` (Producción), en el detalle de un trabajo con una etapa tomada por un operario, debe aparecer un botón "Liberar [nombre de la etapa]". Úsalo. **Esperado:** la etapa queda disponible de nuevo para cualquiera del área.
+6. Revisa la Bitácora de ese trabajo: debe aparecer un evento "Etapa liberada (queda disponible para tomar de nuevo)".
+
+**Confirmado, 19-11-2026:** verificado a nivel de API con tres escenarios (CP-81, CP-82, CP-83): nadie puede liberar una etapa sin tomar, un operario ajeno no puede liberar la de otro, y quien la tomó (o Producción) sí puede, quedando realmente disponible después. Verificado también con navegador real (pasos 1 a 6 de arriba): en esa verificación se encontró y corrigió DEF-28 (el botón no aparecía para Producción por un permiso que faltaba sincronizar en el cliente).
+
+### PM-19 — Saludo personalizado
+1. Ingresa con cualquier cuenta. **Esperado:** el encabezado, donde antes solo decía el rol (por ejemplo "Operario"), ahora dice «Hola, &lt;primer nombre&gt;» (por ejemplo «Hola, Luis»).
+2. Ve a «Mi cuenta». **Esperado:** el título dice «Hola, &lt;nombre completo&gt;», y debajo se ve el Rol, el Área (si corresponde) y el Correo con claridad.
+3. Con una cuenta sin área asignada (por ejemplo Producción), confirma que "Mi cuenta" simplemente no muestra la fila de Área, sin espacios en blanco raros ni errores.
+4. A 390 px de ancho, confirma que ni el encabezado ni "Mi cuenta" producen scroll horizontal, incluso con un nombre o correo largos.
+
+**Confirmado, 19-11-2026:** verificado con un navegador real a 1280 y 390 px.

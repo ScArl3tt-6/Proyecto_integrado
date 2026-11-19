@@ -19,6 +19,20 @@
 .lista-reglas { margin: 0 0 var(--espacio-2); padding-left: var(--espacio-3); color: var(--color-texto-secundario); font-size: var(--texto-14); }
 .lista-reglas li { margin-bottom: 4px; }
 
+.lista-datos-cuenta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px var(--espacio-2);
+  margin: 0 0 var(--espacio-3);
+  font-size: var(--texto-14);
+}
+.lista-datos-cuenta dt { color: var(--color-texto-secundario); }
+.lista-datos-cuenta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
 @media (max-width: 759px) {
   .pantalla-ingreso { padding: var(--espacio-2); align-items: flex-start; padding-top: var(--espacio-5); }
 }

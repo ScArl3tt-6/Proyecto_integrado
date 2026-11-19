@@ -76,6 +76,11 @@ function rutasTrabajos({ trabajos }) {
     res.json(await trabajos.completarEtapa(req.usuario, codigo, orden));
   });
 
+  r.post('/:codigo/etapas/:orden/liberar', autorizar('ETAPA_LIBERAR'), validar(esquemaParamsEtapa, 'params'), async (req, res) => {
+    const { codigo, orden } = req.datos.params;
+    res.json(await trabajos.liberarEtapa(req.usuario, codigo, orden));
+  });
+
   r.get('/:codigo/materiales', autorizar('MATERIAL_VER'), validar(esquemaParamsTrabajo, 'params'), async (req, res) => {
     res.json(await trabajos.materiales(req.usuario, req.datos.params.codigo));
   });

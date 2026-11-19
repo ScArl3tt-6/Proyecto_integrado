@@ -813,3 +813,105 @@ completa para el informe (sección de validación de resultados).
   con los cuatro campos desde el formulario, Producción la revisa): "Técnica: Bordado",
   "Ubicación: Pecho izquierdo", "Medidas: 8 x 8 cm", "Colores: morado, azul".
 - **Estado:** Corregido.
+
+## DEF-24 — Un servidor desactualizado podía responder sin que la pantalla lo notara
+
+- **Encontrado en:** confirmación del equipo (19-11-2026) sobre PM-15: "Comenzar etapa" parecía no
+  funcionar entre dos cuentas reales; la causa real era un servidor viejo, levantado antes de la
+  corrección de DEF-22, que seguía respondiendo mientras se probaba.
+- **Severidad:** Media (no es un error de lógica de negocio, pero genera diagnósticos equivocados:
+  se puede creer que una corrección no funciona cuando en realidad no se aplicó porque el proceso
+  no se reinició).
+- **Causa confirmada:** ninguna respuesta de la API llevaba ninguna marca de versión; no había
+  forma de que el navegador supiera que el código del servidor había cambiado (o no) desde que
+  cargó la página.
+- **Corrección:** `src/version.js` calcula una vez, al arrancar, un identificador de versión (el
+  commit corto de git; si no hay git disponible, al menos cambia en cada arranque del proceso).
+  Toda respuesta de `/api` lleva la cabecera `X-SST-Version` (`src/app.js`). El cliente
+  (`web/js/api.js`) recuerda la primera versión que ve y, si una respuesta posterior trae una
+  distinta, avisa una sola vez con un evento (`sst:version-nueva`); `web/js/router.js` muestra un
+  aviso persistente y amable ("Hay una versión nueva. Recarga la página.") con un botón "Recargar",
+  sin interrumpir lo que la persona esté haciendo.
+- **Nueva ejecución:** CP-79 (`tests/integracion/sitioEstatico.test.js`) confirma que toda respuesta
+  lleva la cabecera con el mismo valor mientras el proceso no se reinicia. Verificado además con un
+  navegador real contra el entorno aislado: el aviso aparece cuando una respuesta trae una versión
+  distinta (simulado interceptando una respuesta con Playwright), la pantalla sigue funcionando con
+  normalidad mientras tanto, y "Recargar" refresca la página.
+- **Estado:** Corregido.
+
+## DEF-25 — Una etapa tomada y abandonada quedaba trabada para siempre (no se podía liberar)
+
+- **Encontrado en:** punto B1 de la revisión del equipo (19-11-2026).
+- **Severidad:** Media (no corrompe datos, pero bloquea el trabajo real hasta una intervención
+  manual en la base).
+- **Causa confirmada:** "Comenzar etapa" (DEF-22) no tenía contraparte: una vez tomada, solo esa
+  persona (o Producción) podía completarla; si la abandonaba, nadie podía liberarla desde la
+  pantalla.
+- **Corrección:** nuevo endpoint `POST /trabajos/:codigo/etapas/:orden/liberar` y permiso
+  `ETAPA_LIBERAR` (quien la tomó, Producción o Administración); deja `id_responsable` en `NULL` de
+  nuevo y registra `ETAPA_LIBERADA` en la bitácora con el id de quien la tenía antes. Ver
+  `docs/CAMBIOS_RESPECTO_AL_DISENO.md` (incluye la limitación deliberada de un solo responsable por
+  etapa y por qué no se implementó la asignación explícita por Producción).
+- **Nueva ejecución:** CP-81, CP-82, CP-83 (`tests/integracion/comenzarEtapa.test.js`): no se puede
+  liberar una etapa sin tomar, un operario ajeno no puede liberar la de otro (403), quien la tomó
+  (o Producción) sí puede (200), y queda disponible de nuevo para cualquiera.
+- **Estado:** Corregido.
+
+## DEF-26 — Quién tiene tomada una etapa aparecía como texto chico bajo el botón, no como algo destacado
+
+- **Encontrado en:** punto B3 de la revisión del equipo (19-11-2026).
+- **Severidad:** Baja (información presente, pero fácil de pasar por alto).
+- **Causa confirmada:** tanto en "Mis actividades" como en el detalle de un trabajo, el nombre de
+  quien tenía la etapa se mostraba con la misma clase `campo-ayuda` que cualquier texto secundario
+  (tamaño de letra chico, sin color de énfasis), separado del título de la etapa.
+- **Corrección:** `chipResponsable()` (nuevo, en `web/js/componentes.js`): una etiqueta con ícono,
+  del mismo tamaño que el chip de estado, ubicada junto al título de la etapa (no debajo, aparte).
+  Se usa en `listaEtapas()` (detalle de un trabajo) y en "Mis actividades" (operario).
+- **Nueva ejecución:** verificado visualmente con el entorno aislado y un navegador real, a 1280 y
+  390px.
+- **Estado:** Corregido.
+
+## DEF-27 — La bitácora podía mostrar "Alguien" en vez de un texto honesto, y no había saludo personalizado
+
+- **Encontrado en:** punto C de la revisión del equipo (19-11-2026): la demostración real mostraba
+  "Alguien · Vendedor" en vez de un nombre.
+- **Severidad:** Baja (no es un error de datos: el nombre de verdad no se puede recuperar si la
+  cuenta original ya no existe; el problema era el texto que se mostraba en ese caso).
+- **Causa confirmada:** eventos de la bitácora sembrados antes de un reseed de PostgreSQL apuntan a
+  un `usuario.id` que ya no existe en la base actual (la tabla se recreó con ids nuevos); el
+  servidor ya resolvía esto devolviendo `nombre: null` (comportamiento correcto), pero la pantalla
+  (`web/js/pantallas/admin.js`) mostraba el texto genérico "Alguien" en ese caso.
+- **Corrección:** la pantalla ahora muestra "Datos de demostración" cuando hay un rol pero no se
+  pudo resolver el nombre, y "Sistema" cuando el evento no tiene ningún usuario asociado; nunca
+  "Alguien". De paso, se agregó un saludo personalizado ("Hola, &lt;nombre&gt;") en el encabezado y
+  en "Mi cuenta" (con rol, área y correo): `/auth/sesion` ahora entrega `nombre`, `correo` y `area`
+  (antes solo entregaba el rol y el id de área).
+- **Nueva ejecución:** CP-78 (`/auth/sesion` entrega nombre/correo/área) y CP-80 (un evento con
+  `usuario.id` inexistente llega con `nombre: null`, no con un nombre inventado), ambos en
+  `tests/integracion/flujoTrabajo.test.js`. Verificado además con un navegador real: el encabezado
+  y "Mi cuenta" muestran el saludo, el rol, el área y el correo, sin desborde a 390px.
+- **Estado:** Corregido.
+
+## DEF-28 — El botón "Liberar etapa" no aparecía para Producción en el detalle de un trabajo
+
+- **Encontrado en:** verificación propia (no reportado por el equipo) del punto B1, con navegador
+  real contra el entorno aislado, al revisar el detalle de un trabajo como `marcela` (Producción).
+- **Severidad:** Alta (la corrección de DEF-25 quedaba invisible para Producción y Administración
+  en esa pantalla, aunque el endpoint funcionaba bien al llamarlo directo).
+- **Causa confirmada:** `web/js/permisos.js` es un espejo, en el cliente, de la matriz de permisos
+  del servidor (`src/dominio/permisos.js`) — existe solo para decidir qué mostrar, el servidor
+  sigue siendo quien autoriza de verdad. Al agregar el permiso `ETAPA_LIBERAR` en el servidor (y en
+  `ETAPA_AVANZAR` ya existente para Producción) no se actualizó también este espejo, así que
+  `tienePermiso('PRODUCCION', 'ETAPA_LIBERAR')` devolvía `false` en el navegador y el botón nunca
+  se agregaba al DOM, aunque la llamada a la API sí habría funcionado.
+- **Riesgo de fondo:** esta duplicación (dos listas de permisos que deben mantenerse manualmente
+  sincronizadas, una en el servidor y otra en el cliente) es frágil por diseño: cualquier permiso
+  nuevo puede repetir este mismo error. Se deja como limitación conocida, no se rediseña ahora (sacar
+  el espejo del cliente y consultar siempre al servidor cambiaría cómo se arma el menú y las rutas
+  internas en toda la aplicación, más allá de lo que pidió este punto).
+- **Corrección:** se sincronizó `web/js/permisos.js` con `src/dominio/permisos.js` (agregado
+  `ETAPA_LIBERAR` a Administración, Producción y Operario; `ETAPA_AVANZAR` a Producción).
+- **Nueva ejecución:** verificado con un navegador real: el botón "Liberar [etapa]" aparece para
+  Producción en el detalle de un trabajo con una etapa tomada, y liberarla la deja disponible de
+  nuevo para cualquiera.
+- **Estado:** Corregido.

@@ -31,6 +31,7 @@ export const TEXTO_EVENTO = {
   DISENO_RECHAZADO: 'Diseño rechazado',
   ETAPA_INICIADA: 'Etapa de producción tomada',
   ETAPA_COMPLETADA: 'Etapa de producción completada',
+  ETAPA_LIBERADA: 'Etapa liberada (queda disponible para tomar de nuevo)',
   TRABAJO_DETENIDO: 'Trabajo detenido',
   TRABAJO_REANUDADO: 'Trabajo reanudado',
   MATERIAL_REGISTRADO: 'Material registrado',
@@ -46,7 +47,8 @@ export function detalleEvento(evento, { nombreEtapa } = {}) {
     case 'DISENO_APROBADO': return null;
     case 'DISENO_RECHAZADO': return d.motivo ? `Motivo: ${d.motivo}` : null;
     case 'ETAPA_INICIADA':
-    case 'ETAPA_COMPLETADA': return nombreEtapa ? `Etapa: ${nombreEtapa}` : (d.orden ? `Etapa n.º ${d.orden}` : null);
+    case 'ETAPA_COMPLETADA':
+    case 'ETAPA_LIBERADA': return nombreEtapa ? `Etapa: ${nombreEtapa}` : (d.orden ? `Etapa n.º ${d.orden}` : null);
     case 'TRABAJO_DETENIDO': return d.motivo ? `Motivo: ${d.motivo}` : null;
     case 'MATERIAL_REGISTRADO': return d.material ? `${d.material.nombre}: ${d.cantidad} ${d.material.unidad}${d.medida ? ` (${d.medida})` : ''}` : null;
     default: return null;
@@ -68,6 +70,13 @@ export function chipEstado(estado) {
 
 export function chipAtrasado() {
   return el('span', { class: 'chip chip-error' }, 'Atrasado');
+}
+
+// Quién tiene tomada una etapa de producción ahora mismo: antes era texto chico bajo el botón
+// (punto B3 de la revisión del equipo, 19-11-2026); ahora es una etiqueta con ícono, junto al
+// título de la etapa, igual de visible que el estado.
+export function chipResponsable(nombre) {
+  return el('span', { class: 'chip chip-responsable' }, el('span', { class: 'icono-responsable', 'aria-hidden': 'true' }), nombre);
 }
 
 function formatoFecha(fecha) {
@@ -97,10 +106,12 @@ export function tarjetaTrabajo(trabajo, { accion, detalleExtra } = {}) {
 export function listaEtapas(etapas) {
   if (!etapas.length) return el('p', { class: 'campo-ayuda' }, 'Aún no hay etapas de producción para este trabajo.');
   return el('ol', { class: 'lista-etapas' }, ...etapas.map((etapa) => el('li', { class: `etapa-item etapa-${etapa.estado.toLowerCase()}` },
-    el('span', { class: 'etapa-nombre' }, `${etapa.orden}. ${etapa.nombre}`),
+    el('div', { class: 'etapa-item-encabezado' },
+      el('span', { class: 'etapa-nombre' }, `${etapa.orden}. ${etapa.nombre}`),
+      chipEstado(etapa.estado === 'COMPLETADA' ? 'TERMINADO' : etapa.estado === 'EN_CURSO' ? 'EN_PRODUCCION' : 'SOLICITADO'),
+      etapa.responsable ? chipResponsable(etapa.responsable) : null,
+    ),
     el('span', { class: 'etapa-area' }, etapa.area),
-    chipEstado(etapa.estado === 'COMPLETADA' ? 'TERMINADO' : etapa.estado === 'EN_CURSO' ? 'EN_PRODUCCION' : 'SOLICITADO'),
-    etapa.responsable ? el('span', { class: 'campo-ayuda' }, `Responsable: ${etapa.responsable}`) : null,
   )));
 }
 

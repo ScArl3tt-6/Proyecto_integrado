@@ -230,8 +230,12 @@ export function renderCuenta(main, sesion) {
 
   main.appendChild(
     el('section', { class: 'contenedor seccion-cuenta' },
-      el('h1', {}, 'Mi cuenta'),
-      el('p', {}, `Rol: ${ROL_TEXTO[sesion.rol] || sesion.rol}`),
+      el('h1', {}, sesion.nombre ? `Hola, ${sesion.nombre}` : 'Mi cuenta'),
+      el('dl', { class: 'lista-datos-cuenta' },
+        el('dt', {}, 'Rol'), el('dd', {}, ROL_TEXTO[sesion.rol] || sesion.rol),
+        sesion.area ? el('dt', {}, 'Área') : null, sesion.area ? el('dd', {}, sesion.area) : null,
+        sesion.correo ? el('dt', {}, 'Correo') : null, sesion.correo ? el('dd', {}, sesion.correo) : null,
+      ),
       el('h2', {}, 'Cambiar contraseña'),
       el('ul', { class: 'lista-reglas' },
         el('li', {}, 'Al menos 12 caracteres (se aceptan frases largas).'),

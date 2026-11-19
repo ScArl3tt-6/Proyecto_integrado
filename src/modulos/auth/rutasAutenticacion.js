@@ -25,7 +25,7 @@ const esquemaVerificarMfa = z.strictObject({
 const esquemaCodigoMfa = z.strictObject({ codigo: z.string().regex(/^\d{6}$/, 'Debe tener 6 dígitos') });
 const esquemaDesactivarMfa = z.strictObject({ contrasena: z.string().min(1).max(128) });
 
-function rutasAutenticacion({ autenticacion, entorno, autenticar, verificarCsrf }) {
+function rutasAutenticacion({ autenticacion, entorno, autenticar, verificarCsrf, usuarios }) {
   const r = express.Router();
   // Límites: por IP y correo (fuerza bruta sobre una cuenta) y por IP con umbral alto, porque los
   // operarios de planta comparten la misma IP pública al iniciar el turno (incidencia INC-02)
@@ -130,9 +130,13 @@ function rutasAutenticacion({ autenticacion, entorno, autenticar, verificarCsrf 
     return res.status(204).end();
   });
 
-  r.get('/sesion', autenticar, (req, res) => res.json({
-    id: req.usuario.id, rol: req.usuario.rol, idArea: req.usuario.idArea, mfaHabilitado: req.usuario.mfaHabilitado,
-  }));
+  r.get('/sesion', autenticar, async (req, res) => {
+    const perfil = await usuarios.obtenerPerfilPropio(req.usuario.id);
+    res.json({
+      id: req.usuario.id, rol: req.usuario.rol, idArea: req.usuario.idArea, mfaHabilitado: req.usuario.mfaHabilitado,
+      nombre: perfil?.nombre || null, correo: perfil?.correo || null, area: perfil?.area || null,
+    });
+  });
   return r;
 }
 

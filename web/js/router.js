@@ -22,6 +22,8 @@ const cabecera = document.getElementById('cabecera');
 const navPrincipal = document.getElementById('nav-principal');
 const textoUsuario = document.getElementById('texto-usuario');
 const botonSalir = document.getElementById('boton-salir');
+const avisoVersion = document.getElementById('aviso-version');
+const botonRecargarVersion = document.getElementById('boton-recargar-version');
 
 const RUTAS_PUBLICAS = new Set(['#/ingreso']);
 
@@ -125,7 +127,9 @@ async function enrutar() {
   }
 
   cabecera.hidden = false;
-  textoUsuario.textContent = ROL_TEXTO[sesion.rol] || sesion.rol;
+  const primerNombre = sesion.nombre ? sesion.nombre.trim().split(/\s+/)[0] : null;
+  textoUsuario.textContent = primerNombre ? `Hola, ${primerNombre}` : (ROL_TEXTO[sesion.rol] || sesion.rol);
+  textoUsuario.title = `${sesion.nombre || ''} · ${ROL_TEXTO[sesion.rol] || sesion.rol}`.trim();
   pintarMenu(sesion);
 
   if (hash === '#/' || hash === '') {
@@ -153,6 +157,10 @@ async function enrutar() {
 window.addEventListener('hashchange', enrutar);
 window.addEventListener('sst:sesion-expirada', (ev) => expirarSesion(ev.detail?.motivo));
 botonSalir.addEventListener('click', cerrarSesion);
+
+// No interrumpe lo que la persona esté haciendo: solo un aviso persistente y amable (punto A).
+window.addEventListener('sst:version-nueva', () => { avisoVersion.hidden = false; });
+botonRecargarVersion.addEventListener('click', () => location.reload());
 
 // Aviso temprano en el cliente (sin esperar la próxima llamada a la API): el servidor cierra la
 // sesión de verdad con el mismo límite (entorno.minutosInactividad) apenas llegue esa llamada.

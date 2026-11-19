@@ -135,6 +135,22 @@ describe('Pruebas de integración - flujo completo de un trabajo de bordado', ()
     expect(fechas).toEqual([...fechas].sort((a, b) => b - a));
     expect((await jorge.get('/api/auditoria/recientes')).status).toBe(403); // AUDITORIA_VER es solo de Administración
   });
+
+  // Punto C de la revisión del equipo (19-11-2026): datos de demostración viejos pueden apuntar a
+  // un usuario.id que ya no existe (por ejemplo, tras reseed de PostgreSQL); la bitácora nunca debe
+  // mostrar "Alguien" en ese caso (la pantalla, con este dato, muestra "Datos de demostración").
+  test('CP-80 un evento cuyo usuario.id ya no existe en PostgreSQL llega con nombre null, no con un nombre inventado', async () => {
+    await ctx.mongoDb.collection('bitacora_eventos').insertOne({
+      tipo: 'TRABAJO_CREADO',
+      usuario: { id: 999999, rol: 'VENDEDOR' },
+      entidad: { tipo: 'trabajo', codigo },
+      detalle: {},
+      ip: null,
+      fecha: new Date(),
+    });
+    const recientes = await koto.get('/api/auditoria/recientes?limite=1');
+    expect(recientes.body[0].usuario).toMatchObject({ id: 999999, rol: 'VENDEDOR', nombre: null });
+  });
 });
 
 describe('Pruebas de integración - perfiles y consistencia', () => {
@@ -152,6 +168,20 @@ describe('Pruebas de integración - perfiles y consistencia', () => {
       const nueva = await ctx.iniciarSesion('jorge');
       expect((await nueva.get('/api/auth/sesion')).body.rol).toBe('OPERARIO');
       expect((await nueva.post('/api/trabajos', { idTipo: 1, descripcion: 'Prueba de permisos', cantidad: 1, fechaCompromiso: fechaEnDias(3) })).status).toBe(403);
+    } finally {
+      await ctx.cerrar();
+    }
+  });
+
+  test('CP-78 "/auth/sesion" entrega nombre, correo y área (saludo personalizado, punto C de la revisión del equipo)', async () => {
+    const ctx = await crearContexto();
+    try {
+      const jorge = await ctx.iniciarSesion('jorge');
+      const sesion = (await jorge.get('/api/auth/sesion')).body;
+      expect(sesion).toMatchObject({ nombre: 'Jorge Saavedra', correo: 'jorge@kotoduo.test', area: 'Ventas' });
+
+      const marcela = await ctx.iniciarSesion('marcela'); // sin área asignada: debe venir null, no fallar
+      expect((await marcela.get('/api/auth/sesion')).body.area).toBeNull();
     } finally {
       await ctx.cerrar();
     }

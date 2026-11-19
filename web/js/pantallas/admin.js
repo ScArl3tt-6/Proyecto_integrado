@@ -292,8 +292,10 @@ function filaEvento(evento, etapasPorOrden) {
       evento.entidad?.tipo === 'trabajo' ? ` · ${evento.entidad.codigo}` : null,
     ),
     evento.usuario
-      ? el('p', { class: 'campo-ayuda' }, `${evento.usuario.nombre || 'Alguien'} · ${ROL_TEXTO[evento.usuario.rol] || evento.usuario.rol}`)
-      : null,
+      // Si no se puede resolver el nombre (por ejemplo, datos de demostración antiguos cuyo
+      // usuario.id ya no existe tras reiniciar la base), un texto honesto: nunca "Alguien".
+      ? el('p', { class: 'campo-ayuda' }, `${evento.usuario.nombre || 'Datos de demostración'} · ${ROL_TEXTO[evento.usuario.rol] || evento.usuario.rol}`)
+      : el('p', { class: 'campo-ayuda' }, 'Sistema'),
     (() => {
       const detalle = detalleEvento(evento, { nombreEtapa: etapasPorOrden[evento.detalle?.orden] });
       return detalle ? el('p', { class: 'campo-ayuda' }, detalle) : null;

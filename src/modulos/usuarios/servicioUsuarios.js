@@ -101,7 +101,20 @@ function crearServicioUsuarios({ pg, bitacora, autenticacion, entorno }) {
     await bitacora.registrar({ tipo: 'MFA_DESACTIVADO_ADMIN', usuario: admin, entidad: { tipo: 'usuario', codigo: String(idUsuario) } });
   }
 
-  return { crear, cambiarPerfil, cambiarEstado, listar, generarEnlaceRestablecimiento, desactivarMfa };
+  // Datos propios para el saludo personalizado del encabezado y "Mi cuenta" (punto C de la
+  // revisión del equipo, 19-11-2026): nombre, correo y nombre del área, no solo el id.
+  async function obtenerPerfilPropio(idUsuario) {
+    const { rows } = await pg.query(
+      `SELECT u.nombre, u.correo, a.nombre AS area
+         FROM usuario u
+         LEFT JOIN area a ON a.id_area = u.id_area
+        WHERE u.id_usuario = $1`,
+      [idUsuario],
+    );
+    return rows[0] || null;
+  }
+
+  return { crear, cambiarPerfil, cambiarEstado, listar, generarEnlaceRestablecimiento, desactivarMfa, obtenerPerfilPropio };
 }
 
 module.exports = { crearServicioUsuarios };

@@ -19,6 +19,21 @@ function leerCookie(nombre) {
   return coincidencia ? decodeURIComponent(coincidencia[1]) : null;
 }
 
+// Punto A de la revisión del equipo (19-11-2026): si el servidor que responde cambió de versión a
+// mitad de sesión (por ejemplo, alguien lo reinició con código nuevo, o quedó uno viejo corriendo),
+// se avisa una sola vez con un evento; no interrumpe la acción en curso ni reintenta nada.
+let versionConocida = null;
+let avisoYaEmitido = false;
+function notarVersion(respuesta) {
+  const version = respuesta.headers.get('x-sst-version');
+  if (!version) return;
+  if (versionConocida === null) { versionConocida = version; return; }
+  if (version !== versionConocida && !avisoYaEmitido) {
+    avisoYaEmitido = true;
+    window.dispatchEvent(new CustomEvent('sst:version-nueva'));
+  }
+}
+
 async function intentarRenovar() {
   try {
     const csrf = leerCookie('sst_csrf');
@@ -51,6 +66,8 @@ async function solicitud(metodo, ruta, cuerpo, { reintentando = false } = {}) {
   } catch {
     throw new ApiError(0, { error: 'Sin conexión' });
   }
+
+  notarVersion(respuesta);
 
   if (respuesta.status === 204) return null;
 

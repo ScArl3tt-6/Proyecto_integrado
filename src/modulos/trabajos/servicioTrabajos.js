@@ -125,6 +125,41 @@ function crearServicioTrabajos({ pg, bitacora }) {
     return resultado;
   }
 
+  // Punto B1 de la revisión del equipo (19-11-2026): si alguien tomó una etapa y la abandonó (se
+  // fue, se equivocó de etapa, quedó bloqueada), quien la tomó, Producción o Administración pueden
+  // liberarla para que quede disponible de nuevo. El sistema modela un único responsable por etapa
+  // (ver docs/CAMBIOS_RESPECTO_AL_DISENO.md): liberarla no "comparte" el trabajo ya hecho, solo
+  // permite que alguien (la misma persona u otra) la vuelva a tomar desde cero.
+  async function liberarEtapa(usuario, codigo, orden) {
+    const resultado = await pg.transaction(async (tx) => {
+      const { rows } = await tx.query(
+        `SELECT et.id_etapa_trabajo, et.estado, et.id_responsable, ep.id_area, t.estado AS estado_trabajo
+           FROM etapa_trabajo et
+           JOIN etapa_plantilla ep ON ep.id_etapa_plantilla = et.id_etapa_plantilla
+           JOIN trabajo t ON t.id_trabajo = et.id_trabajo
+          WHERE t.codigo = $1 AND ep.orden = $2 FOR UPDATE OF et`,
+        [codigo, orden],
+      );
+      const etapa = rows[0];
+      if (!etapa) throw new ErrorNegocio('Etapa no encontrada', 404);
+      if (usuario.rol === 'OPERARIO' && etapa.id_area !== usuario.idArea) {
+        throw new ErrorNegocio('No tiene permisos para esta acción', 403);
+      }
+      if (etapa.estado_trabajo !== 'EN_PRODUCCION') throw new ErrorNegocio('El trabajo no está en producción', 409);
+      if (etapa.estado !== 'EN_CURSO') throw new ErrorNegocio('La etapa no está en curso', 409);
+      if (!etapa.id_responsable) throw new ErrorNegocio('Esta etapa todavía no la ha tomado nadie: no hay nada que liberar.', 409);
+      if (usuario.rol === 'OPERARIO' && etapa.id_responsable !== usuario.id) {
+        throw new ErrorNegocio('Solo quien tomó esta etapa (o Producción) puede liberarla.', 403);
+      }
+      await tx.query('UPDATE etapa_trabajo SET id_responsable = NULL WHERE id_etapa_trabajo = $1', [etapa.id_etapa_trabajo]);
+      return { responsableAnterior: etapa.id_responsable };
+    });
+    await bitacora.registrar({
+      tipo: 'ETAPA_LIBERADA', usuario, entidad: { tipo: 'trabajo', codigo }, detalle: { orden, idResponsableAnterior: resultado.responsableAnterior },
+    });
+    return { codigo, etapaLiberada: orden };
+  }
+
   // RF-06 / sección 4.2: listado paginado con alcance según el rol (el permiso ya filtró el acceso a la ruta)
   // "busqueda" (por código o descripción) sirve, entre otras cosas, para elegir un trabajo de una
   // lista en vez de escribir el código a mano (punto 1 de la revisión del equipo, 18-11-2026).
@@ -282,7 +317,7 @@ function crearServicioTrabajos({ pg, bitacora }) {
   }
 
   return {
-    registrarSolicitud, tomarParaDiseno, actividadesDeMiArea, comenzarEtapa, completarEtapa, materiales, registrarMaterial,
+    registrarSolicitud, tomarParaDiseno, actividadesDeMiArea, comenzarEtapa, completarEtapa, liberarEtapa, materiales, registrarMaterial,
     obtenerPorCodigo, listar, detalle, detener, reanudar,
   };
 }

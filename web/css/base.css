@@ -79,6 +79,13 @@ code, .codigo-trabajo { font-family: var(--fuente-codigo); letter-spacing: .02em
   gap: var(--espacio-2);
   font-size: var(--texto-14);
   color: var(--color-texto-secundario);
+  max-width: 100%;
+}
+#texto-usuario {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 40vw;
 }
 
 .diseno-app { display: flex; align-items: flex-start; }

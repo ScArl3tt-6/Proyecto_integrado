@@ -291,3 +291,33 @@ en `coverage/coverage-final.json`):**
   se reportó (no saber quién la está haciendo) con mucho menos alcance.
 - **Verificación:** CP-74 (concurrencia real, `Promise.all`, verificado 3 veces seguidas sin
   fallar) y CP-75. Detalle completo en `evidencias/defectos.md`, DEF-22.
+
+**Actualización, punto B de la revisión del equipo (19-11-2026): liberar una etapa abandonada.**
+- **Qué faltaba:** "Comenzar etapa" resolvía quién la está trabajando, pero no qué pasa si esa
+  persona la abandona (se fue, se equivocó de etapa, quedó bloqueada): antes de esta actualización,
+  nadie más podía tomarla ni completarla, y quedaba trabada hasta tocar la base de datos a mano.
+- **Qué se agregó:** `POST /trabajos/:codigo/etapas/:orden/liberar` (`liberarEtapa()` en
+  `src/modulos/trabajos/servicioTrabajos.js`), que pone `id_responsable` de nuevo en `NULL` para que
+  cualquiera del área pueda tomarla desde cero. Puede liberarla quien la tomó, Producción o
+  Administración (permiso nuevo `ETAPA_LIBERAR`); ningún otro operario del área puede liberar la
+  etapa de otra persona. Queda registrado en la bitácora (`ETAPA_LIBERADA`, con el id de quien la
+  tenía antes).
+- **Decisión de modelado — un único responsable por etapa:** el sistema sigue modelando "quién la
+  tiene ahora" como una sola persona (una columna `id_responsable`, no una lista de colaboradores).
+  Liberar una etapa no "reparte" ni conserva el trabajo ya avanzado: dos personas no pueden figurar
+  como responsables a la vez, y liberar + volver a tomar reinicia quién aparece como responsable
+  (no el progreso real del trabajo físico, que nadie registra en este sistema etapa por etapa, solo
+  al completarla). Esta es una limitación conocida y deliberada, no un olvido: una etapa hecha entre
+  dos personas, o por turnos, se sigue viendo como si la hubiera hecho una sola. La asignación
+  explícita por Producción (propuesta no implementada, arriba) tampoco resolvería esto sin agregar
+  ese mismo concepto de "varios responsables", que el equipo no ha pedido.
+- **Datos de demostración existentes (anteriores a "Comenzar etapa"):** las etapas `EN_CURSO` que ya
+  existían en la base antes de este cambio (sembradas por `scripts/sembrar-demo.js` antes de hoy)
+  tienen `id_responsable` en `NULL` porque la columna siempre fue nullable y nunca se completó un
+  backfill: se comportan exactamente igual que una etapa recién activada sin tomar (cualquiera del
+  área puede tomarla con "Comenzar etapa"; Producción puede completarla directo). No se necesitó
+  ninguna migración de datos.
+- **Verificación:** CP-81, CP-82 y CP-83 (`tests/integracion/comenzarEtapa.test.js`): no se puede
+  liberar una etapa que nadie tomó, un operario ajeno no puede liberar la de otro, quien la tomó (o
+  Producción) sí puede, y queda de verdad disponible para cualquiera después. Detalle en
+  `evidencias/defectos.md`, DEF-25.

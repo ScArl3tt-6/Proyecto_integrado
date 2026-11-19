@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { el, vaciar, aviso, abrirDialogoConfirmacion } from '../ui.js';
-import { estadoVacio, estadoCarga, estadoError, chipAtrasado, paginador } from '../componentes.js';
+import { estadoVacio, estadoCarga, estadoError, chipAtrasado, chipResponsable, paginador } from '../componentes.js';
 
 export function renderMisActividades(main, sesion, irA) {
   const contenedor = el('section', { class: 'contenedor' }, el('h1', {}, 'Mis actividades'));
@@ -62,8 +62,9 @@ export function renderMisActividades(main, sesion, irA) {
       }
     });
 
-    // Tres estados posibles: nadie la ha tomado (botón "Comenzar etapa"), la tomé yo (botón
-    // "Completar etapa"), o la tomó otra persona del área (solo lectura, "En curso por <nombre>").
+    // Tres estados posibles: nadie la ha tomado (botón "Comenzar etapa"), la tomé yo (botones
+    // "Completar etapa" y "Liberar etapa"), o la tomó otra persona del área (solo lectura, con su
+    // nombre destacado junto al título de la etapa, no como texto chico — punto B3).
     let accion;
     if (!actividad.id_responsable) {
       const botonComenzar = el('button', { type: 'button', class: 'boton boton-primario boton-grande boton-ancho-completo' }, 'Comenzar etapa');
@@ -94,9 +95,24 @@ export function renderMisActividades(main, sesion, irA) {
           listaNodo.prepend(aviso('error', 'No pudimos completar la etapa. Inténtalo otra vez.'));
         }
       });
-      accion = botonCompletar;
+      const botonLiberar = el('button', { type: 'button', class: 'boton boton-secundario boton-ancho-completo' }, 'Liberar etapa');
+      botonLiberar.addEventListener('click', async () => {
+        const confirmado = await abrirDialogoConfirmacion({
+          titulo: 'Liberar etapa',
+          mensaje: `¿Dejar "${actividad.etapa_actual}" disponible de nuevo? Cualquier persona del área (incluida tú) podrá tomarla desde cero.`,
+          textoConfirmar: 'Liberar',
+        });
+        if (!confirmado) return;
+        try {
+          await api.post(`/trabajos/${actividad.codigo}/etapas/${actividad.orden}/liberar`, {});
+          cargar();
+        } catch {
+          listaNodo.prepend(aviso('error', 'No pudimos liberar la etapa. Inténtalo otra vez.'));
+        }
+      });
+      accion = el('div', { class: 'acciones-decision' }, botonCompletar, botonLiberar);
     } else {
-      accion = el('p', { class: 'campo-ayuda' }, `En curso por ${actividad.responsable}.`);
+      accion = null;
     }
 
     return el('article', { class: 'tarjeta tarjeta-trabajo tarjeta-actividad' },
@@ -108,7 +124,10 @@ export function renderMisActividades(main, sesion, irA) {
       el('p', { class: 'tarjeta-trabajo-meta' }, `${actividad.tipo} · ${actividad.cantidad} unidades`),
       el('div', { class: 'etapa-destacada' },
         el('span', { class: 'etapa-destacada-etiqueta' }, 'Etapa actual'),
-        el('span', { class: 'etapa-destacada-nombre' }, actividad.etapa_actual),
+        el('div', { class: 'etapa-destacada-fila' },
+          el('span', { class: 'etapa-destacada-nombre' }, actividad.etapa_actual),
+          actividad.id_responsable && actividad.id_responsable !== sesion.id ? chipResponsable(actividad.responsable) : null,
+        ),
       ),
       el('p', { class: 'tarjeta-trabajo-meta' }, actividad.siguiente_actividad ? `Sigue: ${actividad.siguiente_actividad}` : 'Es la última etapa de este trabajo.'),
       botonMateriales,

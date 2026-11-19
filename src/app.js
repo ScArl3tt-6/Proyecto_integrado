@@ -17,6 +17,7 @@ const { rutasTrabajos } = require('./modulos/trabajos/rutasTrabajos');
 const { rutasDisenos } = require('./modulos/disenos/rutasDisenos');
 const { rutasUsuarios, rutasAuditoria } = require('./modulos/usuarios/rutasUsuarios');
 const { rutasCatalogos } = require('./modulos/catalogos/rutasCatalogos');
+const { VERSION } = require('./version');
 
 function crearApp({ entorno, pg, mongoDb, registro = console }) {
   const bitacora = crearServicioBitacora(mongoDb, pg);
@@ -42,6 +43,11 @@ function crearApp({ entorno, pg, mongoDb, registro = console }) {
   }));
   // Las respuestas de la API contienen datos de sesión y de trabajos: no deben quedar en cachés del navegador ni de intermediarios
   app.use('/api', (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
+  // Punto A de la revisión del equipo (19-11-2026): si el servidor que de verdad está respondiendo
+  // quedó desactualizado respecto al código con el que se armó la pantalla (por ejemplo, alguien lo
+  // dejó corriendo antes de un cambio), el navegador lo nota solo y avisa en vez de fallar en
+  // silencio o confundir a quien prueba. Ver web/js/api.js (detección) y web/js/router.js (aviso).
+  app.use('/api', (req, res, next) => { res.set('X-SST-Version', VERSION); next(); });
   // Límite general por IP y minuto, contra abuso y denegación de servicio (el inicio de sesión tiene límites propios)
   app.use('/api', rateLimit({
     windowMs: 60 * 1000, limit: entorno.limiteGeneral, standardHeaders: 'draft-7', legacyHeaders: false,
@@ -56,7 +62,7 @@ function crearApp({ entorno, pg, mongoDb, registro = console }) {
   // a parsear un cuerpo que otro express.json() anterior marcó como leído).
   app.use('/api/disenos', sesion, verificarCsrf, express.json({ limit: '65mb' }), rutasDisenos(servicios));
   app.use(express.json({ limit: '100kb' }));
-  app.use('/api/auth', rutasAutenticacion({ autenticacion, entorno, autenticar: sesion, verificarCsrf }));
+  app.use('/api/auth', rutasAutenticacion({ autenticacion, entorno, autenticar: sesion, verificarCsrf, usuarios: servicios.usuarios }));
   app.use('/api/trabajos', sesion, verificarCsrf, rutasTrabajos(servicios));
   app.use('/api/usuarios', sesion, verificarCsrf, rutasUsuarios(servicios));
   app.use('/api/auditoria', sesion, rutasAuditoria(servicios));
