@@ -69,6 +69,12 @@ export function renderDetalleTrabajo(main, sesion, codigo) {
 
     contenedor.appendChild(el('h2', {}, 'Etapas'));
     contenedor.appendChild(listaEtapas(trabajo.etapas));
+    // Producción supervisa todas las áreas: puede completar la etapa vigente aunque nadie la haya
+    // tomado (o la haya tomado un operario), a diferencia del operario, que solo completa la suya.
+    if (sesion.rol === 'PRODUCCION' && trabajo.estado === 'EN_PRODUCCION') {
+      const vigente = trabajo.etapas.find((e) => e.estado === 'EN_CURSO');
+      if (vigente) contenedor.appendChild(botonCompletarComoProduccion(vigente));
+    }
 
     if (trabajo.disenos.length) {
       contenedor.appendChild(el('h2', {}, 'Versiones de diseño'));
@@ -206,6 +212,24 @@ export function renderDetalleTrabajo(main, sesion, codigo) {
         cargar();
       } catch {
         contenedor.prepend(aviso('error', 'No pudimos reanudar el trabajo. Inténtalo otra vez.'));
+      }
+    });
+    return boton;
+  }
+
+  function botonCompletarComoProduccion(etapa) {
+    const boton = el('button', { type: 'button', class: 'boton boton-secundario' }, `Completar "${etapa.nombre}"`);
+    boton.addEventListener('click', async () => {
+      const mensaje = etapa.responsable
+        ? `¿Completar "${etapa.nombre}"? La estaba trabajando ${etapa.responsable}.`
+        : `¿Completar "${etapa.nombre}"? Todavía no la había tomado ningún operario.`;
+      const confirmado = await abrirDialogoConfirmacion({ titulo: 'Completar etapa', mensaje, textoConfirmar: 'Completar' });
+      if (!confirmado) return;
+      try {
+        await api.post(`/trabajos/${codigo}/etapas/${etapa.orden}/completar`, {});
+        cargar();
+      } catch {
+        contenedor.prepend(aviso('error', 'No pudimos completar la etapa. Inténtalo otra vez.'));
       }
     });
     return boton;

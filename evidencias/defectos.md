@@ -770,3 +770,46 @@ completa para el informe (sección de validación de resultados).
   razonable esperar que el resto se beneficie igual, pero esto queda dicho explícitamente como no
   comprobado pantalla por pantalla.
 - **Estado:** Corregido en los casos verificados.
+
+## DEF-22 — Cualquier operario del área podía completar una etapa que no había tomado, sin que nadie supiera quién la estaba trabajando
+
+- **Encontrado en:** revisión del equipo con captura real ("Mis actividades" idéntica para todo
+  operario del área, punto 3 de la revisión del 18-11-2026, `CORRECCIONES_SSTKOTO.docx`).
+- **Severidad:** Alta (lógica de negocio: dos operarios podían reportar haber hecho el mismo
+  trabajo, o uno completar el trabajo de otro sin haberlo tocado).
+- **Causa confirmada:** `completarEtapa()` solo comprobaba que la etapa estuviera `EN_CURSO` y en
+  el área del operario; `id_responsable` se escribía recién AL completar, nunca antes, así que no
+  había forma de distinguir "nadie la ha tomado" de "la está trabajando otra persona".
+- **Corrección:** nuevo endpoint `POST /trabajos/:codigo/etapas/:orden/comenzar`, que reclama la
+  etapa de forma atómica (`UPDATE ... WHERE id_responsable IS NULL`, así que con dos solicitudes
+  concurrentes PostgreSQL solo deja pasar una); `completarEtapa()` ahora exige que
+  `id_responsable` sea quien la completa (salvo Producción, que supervisa todas las áreas y puede
+  completar cualquiera, la haya tomado alguien o no). "Mis actividades" muestra "Comenzar etapa"
+  (nadie la tomó), "Completar etapa" (la tomé yo) o "En curso por &lt;nombre&gt;" (la tomó otra
+  persona), según corresponda.
+- **Nueva ejecución:** CP-74 fuerza una concurrencia real (`Promise.all` con dos operarios de la
+  misma área pidiendo la misma etapa al mismo tiempo, no simulada): exactamente uno de los dos
+  recibe 200 y el otro 409, verificado 3 veces seguidas sin fallar. CP-75 confirma que Producción
+  completa sin haberla tomado, y que un operario recién creado no puede completar la etapa de
+  otro. CP-12 se actualizó para tomar cada etapa antes de completarla.
+- **Efecto secundario encontrado y corregido:** `scripts/sembrar-demo.js` y
+  `scripts/entorno-efimero.js` completaban las etapas del trabajo de demostración "Terminado" sin
+  tomarlas primero; dejaron de funcionar hasta agregarles el mismo paso de "comenzar". Se encontró
+  verificando en vivo, no se asumió que los scripts seguirían funcionando solo porque las pruebas
+  de Jest pasaban.
+- **Estado:** Corregido.
+
+## DEF-23 — Las especificaciones de una propuesta de diseño mostraban las claves internas en crudo ("tecnica", "ubicacion")
+
+- **Encontrado en:** revisión del equipo con captura real (punto 8 de la revisión del 18-11-2026).
+- **Severidad:** Media (no es un error de datos, pero confunde a quien usa la pantalla).
+- **Causa confirmada:** `produccion.js` armaba cada línea con `` `${clave}: ${valor}` `` directo
+  sobre las claves del objeto `especificaciones` (`tecnica`, `ubicacion`, `medidas`, `colores`),
+  sin traducirlas.
+- **Corrección:** `TEXTO_ESPECIFICACION` (nuevo, en `componentes.js`) traduce cada clave a
+  "Técnica", "Ubicación", etc.; se revisó el resto de la aplicación en busca del mismo patrón
+  (`Object.entries`/`Object.keys` renderizado directo) y no se encontró ningún otro caso.
+- **Nueva ejecución:** verificado con un recorrido real completo (Diseño envía una propuesta real
+  con los cuatro campos desde el formulario, Producción la revisa): "Técnica: Bordado",
+  "Ubicación: Pecho izquierdo", "Medidas: 8 x 8 cm", "Colores: morado, azul".
+- **Estado:** Corregido.

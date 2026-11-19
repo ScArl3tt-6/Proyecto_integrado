@@ -34,17 +34,21 @@ function crearServicioTrabajos({ pg, bitacora }) {
     return { codigo, estado: 'EN_DISENO' };
   }
 
-  // HU-04 / RF-04: actividades del área del operario, con la etapa vigente y la siguiente
+  // HU-04 / RF-04: actividades del área del operario, con la etapa vigente y la siguiente.
+  // Incluye quién la tomó (id_responsable/responsable): así el resto del área la ve "En curso por
+  // <nombre>" en vez de verla disponible para todos a la vez (ver comenzarEtapa).
   // Paginado: el celular del operario muestra 20 trabajos por página, ordenados por fecha comprometida (INC-03)
   async function actividadesDeMiArea(usuario, { pagina = 1, limite = 20 } = {}) {
     const { rows } = await pg.query(
       `SELECT t.codigo, tt.nombre AS tipo, t.descripcion, t.cantidad, t.fecha_compromiso, t.estado AS estado_trabajo,
-              ep.orden, ep.nombre AS etapa_actual, et.estado AS estado_etapa, ep_sig.nombre AS siguiente_actividad
+              ep.orden, ep.nombre AS etapa_actual, et.estado AS estado_etapa, ep_sig.nombre AS siguiente_actividad,
+              et.id_responsable, ur.nombre AS responsable
          FROM etapa_trabajo et
          JOIN etapa_plantilla ep ON ep.id_etapa_plantilla = et.id_etapa_plantilla
          JOIN trabajo t ON t.id_trabajo = et.id_trabajo
          JOIN tipo_trabajo tt ON tt.id_tipo = t.id_tipo
          LEFT JOIN etapa_plantilla ep_sig ON ep_sig.id_tipo = t.id_tipo AND ep_sig.orden = ep.orden + 1
+         LEFT JOIN usuario ur ON ur.id_usuario = et.id_responsable
         WHERE ep.id_area = $1 AND et.estado = 'EN_CURSO' AND t.estado = 'EN_PRODUCCION'
         ORDER BY t.fecha_compromiso ASC
         LIMIT $2 OFFSET $3`,
@@ -53,11 +57,34 @@ function crearServicioTrabajos({ pg, bitacora }) {
     return rows.map((r) => ({ ...r, atrasado: estaAtrasado({ estado: r.estado_trabajo, fecha_compromiso: r.fecha_compromiso }) }));
   }
 
-  // HU-05 / RF-05: completar la etapa vigente; el sistema activa la siguiente o cierra el trabajo
+  // Reclama la etapa vigente de forma atómica (punto 3 de la revisión del equipo, 18-11-2026): si
+  // dos operarios la toman a la vez, el UPDATE con "id_responsable IS NULL" en el WHERE solo puede
+  // afectar una fila incluso con dos solicitudes concurrentes (PostgreSQL serializa el acceso a esa
+  // fila); quien llega después recibe 0 filas y un aviso de que ya no está disponible.
+  async function comenzarEtapa(usuario, codigo, orden) {
+    const { rows } = await pg.query(
+      `UPDATE etapa_trabajo et SET id_responsable = $1, inicio = COALESCE(et.inicio, now())
+         FROM etapa_plantilla ep, trabajo t
+        WHERE et.id_etapa_plantilla = ep.id_etapa_plantilla AND et.id_trabajo = t.id_trabajo
+          AND t.codigo = $2 AND ep.orden = $3 AND t.estado = 'EN_PRODUCCION'
+          AND et.estado = 'EN_CURSO' AND et.id_responsable IS NULL AND ep.id_area = $4
+        RETURNING et.id_etapa_trabajo`,
+      [usuario.id, codigo, orden, usuario.idArea],
+    );
+    if (!rows[0]) {
+      throw new ErrorNegocio('Esta etapa ya no está disponible para tomar: puede que alguien más ya la haya tomado, o que no esté vigente.', 409);
+    }
+    await bitacora.registrar({ tipo: 'ETAPA_INICIADA', usuario, entidad: { tipo: 'trabajo', codigo }, detalle: { orden } });
+    return { codigo, etapaIniciada: orden };
+  }
+
+  // HU-05 / RF-05: completar la etapa vigente; el sistema activa la siguiente o cierra el trabajo.
+  // Solo quien la tomó (comenzarEtapa) puede completarla; Producción puede completar cualquiera
+  // (supervisa todas las áreas), la haya tomado un operario o no.
   async function completarEtapa(usuario, codigo, orden) {
     const resultado = await pg.transaction(async (tx) => {
       const { rows } = await tx.query(
-        `SELECT et.id_etapa_trabajo, et.estado, ep.id_area, t.id_trabajo, t.id_tipo, t.estado AS estado_trabajo
+        `SELECT et.id_etapa_trabajo, et.estado, et.id_responsable, ep.id_area, t.id_trabajo, t.id_tipo, t.estado AS estado_trabajo
            FROM etapa_trabajo et
            JOIN etapa_plantilla ep ON ep.id_etapa_plantilla = et.id_etapa_plantilla
            JOIN trabajo t ON t.id_trabajo = et.id_trabajo
@@ -66,13 +93,18 @@ function crearServicioTrabajos({ pg, bitacora }) {
       );
       const etapa = rows[0];
       if (!etapa) throw new ErrorNegocio('Etapa no encontrada', 404);
-      // Control por área (evita que un operario modifique trabajos de otra área cambiando el código en la URL)
-      if (etapa.id_area !== usuario.idArea) throw new ErrorNegocio('No tiene permisos para esta acción', 403);
+      if (usuario.rol === 'OPERARIO' && etapa.id_area !== usuario.idArea) {
+        // Control por área (evita que un operario modifique trabajos de otra área cambiando el código en la URL)
+        throw new ErrorNegocio('No tiene permisos para esta acción', 403);
+      }
       if (etapa.estado_trabajo !== 'EN_PRODUCCION') throw new ErrorNegocio('El trabajo no está en producción', 409);
       if (etapa.estado !== 'EN_CURSO') throw new ErrorNegocio('La etapa no está en curso', 409);
+      if (usuario.rol === 'OPERARIO' && etapa.id_responsable !== usuario.id) {
+        throw new ErrorNegocio('Primero debes tomar esta etapa (botón "Comenzar etapa") antes de poder completarla.', 409);
+      }
 
       await tx.query(
-        "UPDATE etapa_trabajo SET estado = 'COMPLETADA', termino = now(), id_responsable = $1 WHERE id_etapa_trabajo = $2",
+        "UPDATE etapa_trabajo SET estado = 'COMPLETADA', termino = now(), id_responsable = COALESCE(id_responsable, $1) WHERE id_etapa_trabajo = $2",
         [usuario.id, etapa.id_etapa_trabajo],
       );
       const siguiente = await tx.query(
@@ -94,7 +126,9 @@ function crearServicioTrabajos({ pg, bitacora }) {
   }
 
   // RF-06 / sección 4.2: listado paginado con alcance según el rol (el permiso ya filtró el acceso a la ruta)
-  async function listar(usuario, { estado, area, pagina = 1, limite = 20 } = {}) {
+  // "busqueda" (por código o descripción) sirve, entre otras cosas, para elegir un trabajo de una
+  // lista en vez de escribir el código a mano (punto 1 de la revisión del equipo, 18-11-2026).
+  async function listar(usuario, { estado, area, busqueda, pagina = 1, limite = 20 } = {}) {
     const valores = [estado || null, area || null];
     let alcance = '';
     if (usuario.rol === 'VENDEDOR') {
@@ -102,6 +136,10 @@ function crearServicioTrabajos({ pg, bitacora }) {
       alcance = `AND t.id_vendedor = $${valores.length}`;
     } else if (usuario.rol === 'DISENO') {
       alcance = "AND t.estado IN ('SOLICITADO', 'EN_DISENO')";
+    }
+    if (busqueda) {
+      valores.push(`%${busqueda}%`);
+      alcance += ` AND (t.codigo ILIKE $${valores.length} OR t.descripcion ILIKE $${valores.length})`;
     }
     valores.push(limite, (pagina - 1) * limite);
     const idxLimite = valores.length - 1;
@@ -244,7 +282,7 @@ function crearServicioTrabajos({ pg, bitacora }) {
   }
 
   return {
-    registrarSolicitud, tomarParaDiseno, actividadesDeMiArea, completarEtapa, materiales, registrarMaterial,
+    registrarSolicitud, tomarParaDiseno, actividadesDeMiArea, comenzarEtapa, completarEtapa, materiales, registrarMaterial,
     obtenerPorCodigo, listar, detalle, detener, reanudar,
   };
 }

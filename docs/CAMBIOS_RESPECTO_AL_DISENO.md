@@ -267,3 +267,27 @@ en `coverage/coverage-final.json`):**
   escribir el `<img src="data:...">`, se revisó la CSP existente y se notó que `img-src` no estaba
   declarado, así que heredaba el valor por defecto sin `data:`. El recorrido real en navegador
   (Playwright) confirmó después que el QR se ve correctamente con el cambio.
+
+### 3. `etapa_trabajo.id_responsable` ahora se escribe al tomar la etapa, no solo al completarla
+
+- **Qué decía el diseño original:** según el Informe 2, `id_responsable` queda vacío hasta que la
+  etapa se completa (recién ahí se registra quién la hizo).
+- **Qué cambió y por qué (punto 3 de la revisión del equipo, 18-11-2026, con captura real):** se
+  detectó que, con el diseño original, cualquier operario del área podía completar una etapa que
+  nunca había tomado — no había ninguna forma de saber, mientras la etapa estaba en curso, si
+  alguien ya la estaba trabajando. La corrección agrega un paso explícito, "Comenzar etapa"
+  (`POST /trabajos/:codigo/etapas/:orden/comenzar`), que escribe `id_responsable` de inmediato, de
+  forma atómica (dos operarios no pueden tomar la misma etapa a la vez: ver DEF-22). Como
+  consecuencia, `id_responsable` deja de estar vacío mientras la etapa sigue en curso: queda
+  escrito desde que alguien la toma, no solo cuando termina.
+- **Impacto:** ninguna columna nueva (la columna ya existía, nullable, para este mismo propósito);
+  cambia únicamente CUÁNDO se escribe. `completarEtapa()` ahora exige que quien completa sea quien
+  la tomó (salvo Producción, que puede completar cualquiera sin haberla tomado).
+- **Propuesta NO implementada, a la espera de decisión del equipo:** asignación explícita por
+  Producción (elegir de antemano qué operario hace cada etapa, en vez de que cualquiera del área
+  la tome por su cuenta). Se descartó implementarla ahora porque agrega una pantalla y una decisión
+  de negocio nueva (¿qué pasa si la persona asignada no está disponible? ¿puede reasignarse?) que
+  el equipo no pidió todavía; el mecanismo de "Comenzar etapa" ya resuelve el problema concreto que
+  se reportó (no saber quién la está haciendo) con mucho menos alcance.
+- **Verificación:** CP-74 (concurrencia real, `Promise.all`, verificado 3 veces seguidas sin
+  fallar) y CP-75. Detalle completo en `evidencias/defectos.md`, DEF-22.

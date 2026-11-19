@@ -66,8 +66,11 @@ async function principal() {
     idTipo: 1, descripcion: 'Poleras bordadas para taller interno', cantidad: 20, fechaCompromiso: fechaEnDias(-1),
   });
   await aprobar(terminado);
+  await ctx.servicios.trabajos.comenzarEtapa(luis, terminado, 1);
   await ctx.servicios.trabajos.completarEtapa(luis, terminado, 1);
+  await ctx.servicios.trabajos.comenzarEtapa(luis, terminado, 2);
   await ctx.servicios.trabajos.completarEtapa(luis, terminado, 2);
+  await ctx.servicios.trabajos.comenzarEtapa(luis, terminado, 3);
   await ctx.servicios.trabajos.completarEtapa(luis, terminado, 3);
 
   const rutaCredenciales = path.join(os.tmpdir(), `sst-kotoduo-entorno-efimero-${process.pid}.txt`);

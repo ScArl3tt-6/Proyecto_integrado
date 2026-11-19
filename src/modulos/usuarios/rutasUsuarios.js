@@ -54,6 +54,11 @@ function rutasUsuarios({ usuarios }) {
 
 function rutasAuditoria({ bitacora }) {
   const r = express.Router();
+  // Montada antes que "/trabajos/:codigo" no hace falta aquí (son rutas distintas), pero si
+  // alguna vez calzaran, esta debe ir primero para que "/recientes" no se intente leer como código.
+  r.get('/recientes', autorizar('AUDITORIA_VER'),
+    validar(z.strictObject({ limite: z.coerce.number().int().min(1).max(100).default(30) }), 'query'),
+    async (req, res) => res.json(await bitacora.consultarRecientes(req.datos.query.limite)));
   r.get('/trabajos/:codigo', autorizar('AUDITORIA_VER'),
     validar(z.strictObject({ codigo: z.string().regex(/^KT-\d{4}-\d{4}$/) }), 'params'),
     async (req, res) => res.json(await bitacora.consultarPorTrabajo(req.datos.params.codigo)));

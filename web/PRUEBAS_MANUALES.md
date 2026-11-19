@@ -20,6 +20,8 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-12 | Restablecimiento de contraseña: Administración genera el enlace y la persona lo usa, sin sesión, para crear una contraseña nueva | |
 | PM-13 | Verificación en dos pasos (MFA): activar con un código real, ingresar con el segundo paso, y desactivarla (propia y desde Administración) | |
 | PM-14 | Administración crea una cuenta nueva desde "Usuarios": aparece en el listado, puede ingresar con lo que se le entregó, y un correo repetido se rechaza con un aviso claro | |
+| PM-15 | "Comenzar etapa": dos operarios del área ven la misma actividad; solo uno puede tomarla, el otro la ve "En curso por &lt;nombre&gt;"; solo quien la tomó puede completarla | |
+| PM-16 | Bitácora: texto humano (no códigos), nombre y rol de quién hizo cada cosa, detalle útil, últimos eventos visibles sin buscar, y elegir un trabajo de una lista con búsqueda | |
 
 ## Pasos detallados
 
@@ -123,3 +125,26 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 3. Cierra sesión e ingresa con el correo y la contraseña que acabas de crear. **Esperado:** entra con normalidad a la pantalla de inicio del rol asignado.
 4. Vuelve a crear una cuenta con el mismo correo que ya usaste. **Esperado:** aviso claro de que el correo ya está registrado, sin crear una segunda cuenta.
 5. Intenta crear una cuenta con una contraseña de menos de 12 caracteres o con el nombre repetido dentro de la contraseña: el error aparece junto al campo antes de llamar a la API (ver PM-06).
+
+### PM-15 — "Comenzar etapa": reclamo y quién la está trabajando
+1. Crea (o usa) dos cuentas Operario de la misma área (por ejemplo, Bordado) y abre sesión con cada una en una ventana distinta del navegador.
+2. Con un trabajo en producción en esa etapa, ambas cuentas deben ver la misma actividad en «Mis actividades», sin responsable asignado, con un botón «Comenzar etapa».
+3. Presiona «Comenzar etapa» en la primera ventana. **Esperado:** pasa a mostrar «Completar etapa» solo en esa ventana.
+4. Refresca (o vuelve a entrar a) la segunda ventana. **Esperado:** ya no ve «Comenzar etapa»; ve «En curso por <nombre de la primera persona>», sin botón para completarla.
+5. Si la segunda persona llega a presionar «Comenzar etapa» casi al mismo tiempo que la primera (dos clics simultáneos, por ejemplo abriendo la red lenta del navegador para alcanzar a hacer ambos clics), solo una de las dos debe quedar como responsable; la otra recibe un aviso de que la etapa ya no está disponible para tomar, sin error feo ni pantalla rota.
+6. Con una tercera cuenta Operario recién creada (que nunca tomó esta etapa), intenta completarla llamando directamente a la pantalla de esa actividad: no debe poder completarla.
+7. La persona que sí tomó la etapa la completa con normalidad; el trabajo avanza a la siguiente etapa como siempre.
+8. Como `marcela` (Producción), confirma que puede completar una etapa que nadie ha tomado aún, sin necesidad de "Comenzar etapa" primero (atajo para el caso de que alguien olvide tomarla).
+
+**Confirmado, 19-11-2026:** verificado también a nivel de API con dos solicitudes HTTP disparadas en paralelo (`Promise.all`) contra el mismo endpoint, repetido 3 veces sin fallas: siempre gana exactamente una.
+
+### PM-16 — Bitácora con texto humano y búsqueda de trabajo
+1. Ingresa como `koto` (Administrador) y ve a «Bitácora». **Esperado:** sin escribir nada, ya se ven los últimos eventos de todos los trabajos (no una pantalla vacía pidiendo buscar primero).
+2. Revisa esos eventos: no debe aparecer ningún código interno (`DISENO_APROBADO`, `TRABAJO_CREADO`, etc.); en su lugar, frases en español («Diseño aprobado», «Solicitud creada»...), la fecha en formato legible, y quién lo hizo (nombre y rol), no un identificador numérico.
+3. En el campo de búsqueda escribe parte de un código o descripción de un trabajo (por ejemplo `KT-2026` o una palabra de la descripción). **Esperado:** aparece una lista para elegir (sin tener que memorizar el código exacto) y, al elegir uno, la bitácora se filtra a los eventos de ese trabajo solamente.
+4. Escribe el código completo de un trabajo de una sola vez (pegarlo, o escribirlo muy rápido). **Esperado:** filtra igual, sin necesidad de elegirlo de la lista.
+5. Con un trabajo filtrado, presiona «Ver los últimos eventos de todos». **Esperado:** vuelve a la vista general sin filtro.
+6. Revisa un evento de "Etapa de producción tomada" o completada: el detalle debe nombrar la etapa con su nombre real (por ejemplo "Preparación de matriz de bordado"), no solo un número de orden.
+7. Revisa un evento de un rechazo: el detalle debe mostrar «Motivo: …» con el texto completo, no solo "Diseño rechazado".
+
+**Confirmado, 19-11-2026:** verificado en el entorno aislado con navegador real (Playwright): búsqueda progresiva, pegado del código completo, botón para quitar el filtro, ausencia de códigos internos, formato «Nombre · Rol», y el detalle de etapa y de motivo de rechazo, todos correctos.

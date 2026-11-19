@@ -23,7 +23,7 @@ export function renderMisActividades(main, sesion, irA) {
       if (!actividades.length) {
         listaNodo.appendChild(estadoVacio(pagina === 1 ? 'No tienes actividades en curso en tu área por ahora.' : 'No hay más actividades.'));
       } else {
-        for (const actividad of actividades) listaNodo.appendChild(tarjetaActividad(actividad));
+        for (const actividad of actividades) listaNodo.appendChild(tarjetaActividad(actividad, sesion));
       }
       piePagina.appendChild(paginador({ pagina, llena: actividades.length === 20, alCambiar: (p) => { pagina = p; cargar(); } }));
     } catch {
@@ -32,7 +32,7 @@ export function renderMisActividades(main, sesion, irA) {
     }
   }
 
-  function tarjetaActividad(actividad) {
+  function tarjetaActividad(actividad, sesion) {
     const materialesContenedor = el('div', { class: 'materiales-contenedor' });
     materialesContenedor.hidden = true;
     const botonMateriales = el('button', {
@@ -62,20 +62,42 @@ export function renderMisActividades(main, sesion, irA) {
       }
     });
 
-    const botonCompletar = el('button', { type: 'button', class: 'boton boton-primario boton-grande boton-ancho-completo' }, 'Completar etapa');
-    botonCompletar.addEventListener('click', async () => {
-      const mensaje = actividad.siguiente_actividad
-        ? `¿Terminaste "${actividad.etapa_actual}"? Sigue: "${actividad.siguiente_actividad}".`
-        : `¿Terminaste "${actividad.etapa_actual}"? Con esto el trabajo queda Terminado.`;
-      const confirmado = await abrirDialogoConfirmacion({ titulo: 'Completar etapa', mensaje, textoConfirmar: 'Completar' });
-      if (!confirmado) return;
-      try {
-        await api.post(`/trabajos/${actividad.codigo}/etapas/${actividad.orden}/completar`, {});
-        cargar();
-      } catch {
-        listaNodo.prepend(aviso('error', 'No pudimos completar la etapa. Inténtalo otra vez.'));
-      }
-    });
+    // Tres estados posibles: nadie la ha tomado (botón "Comenzar etapa"), la tomé yo (botón
+    // "Completar etapa"), o la tomó otra persona del área (solo lectura, "En curso por <nombre>").
+    let accion;
+    if (!actividad.id_responsable) {
+      const botonComenzar = el('button', { type: 'button', class: 'boton boton-primario boton-grande boton-ancho-completo' }, 'Comenzar etapa');
+      botonComenzar.addEventListener('click', async () => {
+        botonComenzar.disabled = true;
+        botonComenzar.textContent = 'Comenzando…';
+        try {
+          await api.post(`/trabajos/${actividad.codigo}/etapas/${actividad.orden}/comenzar`, {});
+          cargar();
+        } catch (err) {
+          listaNodo.prepend(aviso('error', err?.cuerpo?.error || 'No pudimos tomar la etapa. Puede que alguien más ya la haya tomado.'));
+          cargar();
+        }
+      });
+      accion = botonComenzar;
+    } else if (actividad.id_responsable === sesion.id) {
+      const botonCompletar = el('button', { type: 'button', class: 'boton boton-primario boton-grande boton-ancho-completo' }, 'Completar etapa');
+      botonCompletar.addEventListener('click', async () => {
+        const mensaje = actividad.siguiente_actividad
+          ? `¿Terminaste "${actividad.etapa_actual}"? Sigue: "${actividad.siguiente_actividad}".`
+          : `¿Terminaste "${actividad.etapa_actual}"? Con esto el trabajo queda Terminado.`;
+        const confirmado = await abrirDialogoConfirmacion({ titulo: 'Completar etapa', mensaje, textoConfirmar: 'Completar' });
+        if (!confirmado) return;
+        try {
+          await api.post(`/trabajos/${actividad.codigo}/etapas/${actividad.orden}/completar`, {});
+          cargar();
+        } catch {
+          listaNodo.prepend(aviso('error', 'No pudimos completar la etapa. Inténtalo otra vez.'));
+        }
+      });
+      accion = botonCompletar;
+    } else {
+      accion = el('p', { class: 'campo-ayuda' }, `En curso por ${actividad.responsable}.`);
+    }
 
     return el('article', { class: 'tarjeta tarjeta-trabajo tarjeta-actividad' },
       el('div', { class: 'tarjeta-trabajo-encabezado' },
@@ -91,7 +113,7 @@ export function renderMisActividades(main, sesion, irA) {
       el('p', { class: 'tarjeta-trabajo-meta' }, actividad.siguiente_actividad ? `Sigue: ${actividad.siguiente_actividad}` : 'Es la última etapa de este trabajo.'),
       botonMateriales,
       materialesContenedor,
-      botonCompletar,
+      accion,
     );
   }
 }

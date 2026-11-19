@@ -85,4 +85,16 @@ describe('Listado y detalle de trabajos con alcance por rol', () => {
     const codigosPanel = Object.values(panel.body.grupos).flat().map((t) => t.codigo);
     expect(codigosPanel.filter((c) => c === trabajo.codigo)).toHaveLength(1);
   });
+
+  test('CP-76 "busqueda" filtra el listado por código o por descripción (para elegir un trabajo de una lista)', async () => {
+    const porCodigo = await koto.get(`/api/trabajos?busqueda=${codigoPaula}&limite=50`);
+    expect(porCodigo.body.map((t) => t.codigo)).toEqual([codigoPaula]);
+
+    const porDescripcion = await koto.get('/api/trabajos?busqueda=sublimados&limite=50');
+    expect(porDescripcion.body.map((t) => t.codigo)).toContain(codigoPaula);
+    expect(porDescripcion.body.map((t) => t.codigo)).not.toContain(codigoJorge);
+
+    const sinCoincidencias = await koto.get('/api/trabajos?busqueda=esto-no-deberia-existir-en-ningun-trabajo');
+    expect(sinCoincidencias.body).toEqual([]);
+  });
 });

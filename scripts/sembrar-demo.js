@@ -118,8 +118,11 @@ async function principal() {
     idTipo: 1, descripcion: 'Poleras bordadas para taller interno', cantidad: 20, fechaCompromiso: fechaEnDias(-1),
   });
   await aprobar(terminado);
+  await servicios.trabajos.comenzarEtapa(luis, terminado, 1);
   await servicios.trabajos.completarEtapa(luis, terminado, 1);
+  await servicios.trabajos.comenzarEtapa(luis, terminado, 2);
   await servicios.trabajos.completarEtapa(luis, terminado, 2);
+  await servicios.trabajos.comenzarEtapa(luis, terminado, 3);
   await servicios.trabajos.completarEtapa(luis, terminado, 3);
 
   const lineas = [

@@ -3,7 +3,7 @@ const ATRIBUTOS_PERMITIDOS = new Set([
   'id', 'class', 'type', 'name', 'value', 'placeholder', 'for', 'href', 'src', 'alt', 'title', 'target', 'rel', 'role', 'tabindex',
   'aria-invalid', 'aria-describedby', 'aria-live', 'aria-label', 'aria-hidden', 'aria-current', 'aria-expanded', 'aria-controls',
   'autocomplete', 'disabled', 'required', 'minlength', 'maxlength', 'min', 'max', 'step', 'checked', 'open',
-  'novalidate', 'method', 'accept', 'multiple', 'selected', 'readonly', 'inputmode',
+  'novalidate', 'method', 'accept', 'multiple', 'selected', 'readonly', 'inputmode', 'list',
 ]);
 
 export function el(etiqueta, atributos = {}, ...hijos) {
@@ -40,6 +40,15 @@ export function describirErrorApi(err, mapaCampos = {}, generico = 'No pudimos g
     return `Revisa estos campos: ${nombres.join(', ')}.`;
   }
   return err?.cuerpo?.error || generico;
+}
+
+// Para no mandar una solicitud por cada letra escrita en un buscador (produccion.js, admin.js).
+export function conEspera(fn, esperaMs = 300) {
+  let temporizador = null;
+  return (...args) => {
+    clearTimeout(temporizador);
+    temporizador = setTimeout(() => fn(...args), esperaMs);
+  };
 }
 
 export function vaciar(nodo) {

@@ -77,12 +77,18 @@ describe('Pruebas de integración - flujo completo de un trabajo de bordado', ()
     });
   });
 
-  test('CP-12 (HU-05) completar las etapas actualiza el estado hasta TERMINADO', async () => {
+  test('CP-12 (HU-05) tomar y completar las etapas actualiza el estado hasta TERMINADO', async () => {
+    const sinTomar = await luis.post(`/api/trabajos/${codigo}/etapas/1/completar`);
+    expect(sinTomar.status).toBe(409); // nadie la ha tomado todavía (ver CP-74/CP-75)
+
+    await luis.post(`/api/trabajos/${codigo}/etapas/1/comenzar`);
     const e1 = await luis.post(`/api/trabajos/${codigo}/etapas/1/completar`);
     expect(e1.body).toMatchObject({ siguienteOrden: 2, estadoTrabajo: 'EN_PRODUCCION' });
     const fueraDeOrden = await luis.post(`/api/trabajos/${codigo}/etapas/3/completar`);
     expect(fueraDeOrden.status).toBe(409);
+    await luis.post(`/api/trabajos/${codigo}/etapas/2/comenzar`);
     await luis.post(`/api/trabajos/${codigo}/etapas/2/completar`);
+    await luis.post(`/api/trabajos/${codigo}/etapas/3/comenzar`);
     const e3 = await luis.post(`/api/trabajos/${codigo}/etapas/3/completar`);
     expect(e3.body).toMatchObject({ siguienteOrden: null, estadoTrabajo: 'TERMINADO' });
 
@@ -111,8 +117,23 @@ describe('Pruebas de integración - flujo completo de un trabajo de bordado', ()
     const bitacora = await koto.get(`/api/auditoria/trabajos/${codigo}`);
     expect(bitacora.body.map((e) => e.tipo)).toEqual([
       'TRABAJO_CREADO', 'DISENO_INICIADO', 'DISENO_ENVIADO', 'DISENO_RECHAZADO', 'DISENO_ENVIADO',
-      'DISENO_APROBADO', 'ETAPA_COMPLETADA', 'ETAPA_COMPLETADA', 'ETAPA_COMPLETADA',
+      'DISENO_APROBADO', 'ETAPA_INICIADA', 'ETAPA_COMPLETADA', 'ETAPA_INICIADA', 'ETAPA_COMPLETADA',
+      'ETAPA_INICIADA', 'ETAPA_COMPLETADA',
     ]);
+    // Punto 1 de la revisión del equipo (18-11-2026): la bitácora debe decir POR QUIÉN, con nombre
+    // real, no solo el rol (la base documental solo guarda el id; el nombre se resuelve al leer).
+    expect(bitacora.body[0]).toMatchObject({ tipo: 'TRABAJO_CREADO', usuario: { id: ctx.usuarios.jorge.idUsuario, rol: 'VENDEDOR', nombre: 'Jorge Saavedra' } });
+  });
+
+  test('CP-77 "/auditoria/recientes" muestra los últimos eventos de cualquier trabajo, no solo de uno', async () => {
+    const res = await koto.get('/api/auditoria/recientes?limite=5');
+    expect(res.status).toBe(200);
+    expect(res.body.length).toBeGreaterThan(0);
+    expect(res.body.length).toBeLessThanOrEqual(5);
+    // Más reciente primero
+    const fechas = res.body.map((e) => new Date(e.fecha).getTime());
+    expect(fechas).toEqual([...fechas].sort((a, b) => b - a));
+    expect((await jorge.get('/api/auditoria/recientes')).status).toBe(403); // AUDITORIA_VER es solo de Administración
   });
 });
 

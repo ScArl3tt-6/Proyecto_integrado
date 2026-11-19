@@ -1,15 +1,6 @@
 import { api, ApiError } from '../api.js';
-import { el, vaciar, aviso, abrirDialogoConfirmacion, abrirDialogoMotivo, enlaceVolver } from '../ui.js';
-import { estadoVacio, estadoCarga, estadoError, paginador } from '../componentes.js';
-
-// Para no mandar una solicitud por cada letra escrita en el buscador.
-function conEspera(fn, esperaMs = 350) {
-  let temporizador = null;
-  return (...args) => {
-    clearTimeout(temporizador);
-    temporizador = setTimeout(() => fn(...args), esperaMs);
-  };
-}
+import { el, vaciar, aviso, abrirDialogoConfirmacion, abrirDialogoMotivo, enlaceVolver, conEspera } from '../ui.js';
+import { estadoVacio, estadoCarga, estadoError, paginador, TEXTO_ESPECIFICACION } from '../componentes.js';
 
 const MOTIVOS_RECHAZO = [
   'El diseño no cumple las medidas solicitadas',
@@ -137,7 +128,7 @@ export function renderDecidirDiseno(main, sesion, idDiseno, irA) {
     const especificaciones = propuesta.especificaciones || {};
     if (Object.keys(especificaciones).length) {
       contenedor.appendChild(el('h2', {}, 'Especificaciones'));
-      contenedor.appendChild(el('ul', { class: 'lista-reglas' }, ...Object.entries(especificaciones).map(([clave, valor]) => el('li', {}, `${clave}: ${Array.isArray(valor) ? valor.join(', ') : valor}`))));
+      contenedor.appendChild(el('ul', { class: 'lista-reglas' }, ...Object.entries(especificaciones).map(([clave, valor]) => el('li', {}, `${TEXTO_ESPECIFICACION[clave] || clave}: ${Array.isArray(valor) ? valor.join(', ') : valor}`))));
     }
     if (propuesta.comentarios?.length) {
       contenedor.appendChild(el('h2', {}, 'Comentarios'));

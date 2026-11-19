@@ -19,7 +19,7 @@ const { rutasUsuarios, rutasAuditoria } = require('./modulos/usuarios/rutasUsuar
 const { rutasCatalogos } = require('./modulos/catalogos/rutasCatalogos');
 
 function crearApp({ entorno, pg, mongoDb, registro = console }) {
-  const bitacora = crearServicioBitacora(mongoDb);
+  const bitacora = crearServicioBitacora(mongoDb, pg);
   const autenticacion = crearServicioAutenticacion({ pg, entorno, bitacora });
   const servicios = {
     bitacora,

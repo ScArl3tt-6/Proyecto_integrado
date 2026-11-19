@@ -1,6 +1,6 @@
 import { api, ApiError } from '../api.js';
-import { el, vaciar, aviso, abrirDialogoConfirmacion, etiquetaCampo, describirErrorApi } from '../ui.js';
-import { estadoVacio, estadoCarga, estadoError } from '../componentes.js';
+import { el, vaciar, aviso, abrirDialogoConfirmacion, etiquetaCampo, describirErrorApi, conEspera } from '../ui.js';
+import { estadoVacio, estadoCarga, estadoError, TEXTO_EVENTO, detalleEvento } from '../componentes.js';
 import { ROL_TEXTO, AREAS_POR_ROL } from '../permisos.js';
 
 const CAMPOS_CREAR_CUENTA = { nombre: 'Nombre', correo: 'Correo', rol: 'Rol', area: 'Área', contrasena: 'Contraseña inicial' };
@@ -280,50 +280,110 @@ export function renderUsuarios(main, sesion, irA) {
   }
 }
 
+function formatoFechaHoraBitacora(fecha) {
+  return new Date(fecha).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function filaEvento(evento, etapasPorOrden) {
+  return el('li', { class: 'tarjeta' },
+    el('p', {},
+      el('strong', {}, TEXTO_EVENTO[evento.tipo] || evento.tipo),
+      ' · ', formatoFechaHoraBitacora(evento.fecha),
+      evento.entidad?.tipo === 'trabajo' ? ` · ${evento.entidad.codigo}` : null,
+    ),
+    evento.usuario
+      ? el('p', { class: 'campo-ayuda' }, `${evento.usuario.nombre || 'Alguien'} · ${ROL_TEXTO[evento.usuario.rol] || evento.usuario.rol}`)
+      : null,
+    (() => {
+      const detalle = detalleEvento(evento, { nombreEtapa: etapasPorOrden[evento.detalle?.orden] });
+      return detalle ? el('p', { class: 'campo-ayuda' }, detalle) : null;
+    })(),
+  );
+}
+
+// Punto 1 de la revisión del equipo (18-11-2026): códigos internos traducidos, quién lo hizo (con
+// nombre, no solo rol), detalle útil, elegir el trabajo de una lista con búsqueda (en vez de
+// escribir el código), y los últimos eventos visibles por defecto sin tener que buscar primero.
 export function renderBitacora(main, sesion, irA) {
-  const campoCodigo = el('input', { id: 'codigo-bitacora', type: 'text', placeholder: 'KT-2026-0001', maxlength: 15, required: true, 'aria-describedby': 'codigo-bitacora-error' });
-  const errorCodigo = el('p', { class: 'campo-error', id: 'codigo-bitacora-error', role: 'alert' });
-  errorCodigo.hidden = true;
-  const botonBuscar = el('button', { type: 'submit', class: 'boton boton-primario' }, 'Buscar');
+  const contenedorAviso = el('div');
+  const campoBusqueda = el('input', {
+    id: 'busqueda-bitacora', type: 'text', list: 'trabajos-bitacora', placeholder: 'Ej.: KT-2026-0005 o "poleras"', autocomplete: 'off',
+  });
+  const listaTrabajos = el('datalist', { id: 'trabajos-bitacora' });
+  const botonQuitarFiltro = el('button', { type: 'button', class: 'boton boton-secundario' }, 'Ver los últimos eventos de todos');
+  botonQuitarFiltro.hidden = true;
   const resultado = el('div');
 
-  const form = el('form', { novalidate: true },
-    el('div', { class: 'campo' }, etiquetaCampo('Código de trabajo', { for: 'codigo-bitacora' }), campoCodigo, errorCodigo),
-    botonBuscar,
-  );
+  main.appendChild(el('section', { class: 'contenedor' },
+    el('h1', {}, 'Bitácora'),
+    contenedorAviso,
+    el('div', { class: 'campo' },
+      etiquetaCampo('Filtrar por trabajo', { for: 'busqueda-bitacora', opcional: true }),
+      campoBusqueda, listaTrabajos,
+    ),
+    botonQuitarFiltro,
+    resultado,
+  ));
 
-  main.appendChild(el('section', { class: 'contenedor' }, el('h1', {}, 'Bitácora'), form, resultado));
+  const buscarTrabajos = conEspera(async (texto) => {
+    if (!texto.trim()) { vaciar(listaTrabajos); return; }
+    try {
+      const trabajos = await api.get(`/trabajos?busqueda=${encodeURIComponent(texto.trim())}&limite=8`);
+      vaciar(listaTrabajos);
+      for (const t of trabajos) listaTrabajos.appendChild(el('option', { value: t.codigo }, t.descripcion));
+    } catch { /* la búsqueda es una ayuda opcional; si falla, se puede seguir escribiendo el código a mano */ }
+  });
+  campoBusqueda.addEventListener('input', () => {
+    const valor = campoBusqueda.value.trim().toUpperCase();
+    // Un código completo (escrito a mano, pegado, o elegido de la lista: las tres formas disparan
+    // este mismo evento) carga directo esa bitácora, sin depender de que la búsqueda de sugerencias
+    // ya haya llegado — si el código no existe, cargarTrabajo ya avisa con claridad.
+    if (/^KT-\d{4}-\d{4}$/.test(valor)) { cargarTrabajo(valor); return; }
+    buscarTrabajos(campoBusqueda.value);
+  });
+  botonQuitarFiltro.addEventListener('click', () => {
+    campoBusqueda.value = '';
+    botonQuitarFiltro.hidden = true;
+    cargarRecientes();
+  });
 
-  form.addEventListener('submit', async (evento) => {
-    evento.preventDefault();
-    const codigo = campoCodigo.value.trim().toUpperCase();
+  async function cargarRecientes() {
     vaciar(resultado);
-    errorCodigo.hidden = true;
-    campoCodigo.removeAttribute('aria-invalid');
-    if (!codigo) {
-      campoCodigo.setAttribute('aria-invalid', 'true');
-      errorCodigo.textContent = 'Escribe un código de trabajo.';
-      errorCodigo.hidden = false;
-      return;
-    }
-    if (!/^KT-\d{4}-\d{4}$/.test(codigo)) {
-      campoCodigo.setAttribute('aria-invalid', 'true');
-      errorCodigo.textContent = 'Usa el formato KT-AAAA-NNNN.';
-      errorCodigo.hidden = false;
-      return;
-    }
+    vaciar(contenedorAviso);
     resultado.appendChild(estadoCarga());
     try {
-      const eventos = await api.get(`/auditoria/trabajos/${codigo}`);
+      const eventos = await api.get('/auditoria/recientes');
       vaciar(resultado);
-      if (!eventos.length) { resultado.appendChild(estadoVacio('No hay eventos para ese código.')); return; }
-      resultado.appendChild(el('ol', { class: 'lista-bitacora' }, ...eventos.map((e) => el('li', { class: 'tarjeta' },
-        el('p', {}, el('strong', {}, e.tipo), ' · ', new Date(e.fecha).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' })),
-        e.usuario ? el('p', { class: 'campo-ayuda' }, `Rol: ${ROL_TEXTO[e.usuario.rol] || e.usuario.rol}`) : null,
-      ))));
+      if (!eventos.length) { resultado.appendChild(estadoVacio('Todavía no hay eventos registrados.')); return; }
+      resultado.appendChild(el('p', { class: 'campo-ayuda' }, 'Últimos eventos de todos los trabajos. Escribe arriba para filtrar por uno en particular.'));
+      resultado.appendChild(el('ol', { class: 'lista-bitacora' }, ...eventos.map((e) => filaEvento(e, {}))));
     } catch {
       vaciar(resultado);
-      resultado.appendChild(estadoError('No pudimos cargar la bitácora. Revisa tu conexión e inténtalo otra vez.', () => form.requestSubmit()));
+      resultado.appendChild(estadoError('No pudimos cargar la bitácora. Revisa tu conexión e inténtalo otra vez.', cargarRecientes));
     }
-  });
+  }
+
+  async function cargarTrabajo(codigo) {
+    vaciar(resultado);
+    vaciar(contenedorAviso);
+    botonQuitarFiltro.hidden = false;
+    resultado.appendChild(estadoCarga());
+    try {
+      const [eventos, trabajo] = await Promise.all([
+        api.get(`/auditoria/trabajos/${codigo}`),
+        api.get(`/trabajos/${codigo}`).catch(() => null), // para traducir "orden" a un nombre de etapa; no es crítico si falla
+      ]);
+      const etapasPorOrden = Object.fromEntries((trabajo?.etapas || []).map((e) => [e.orden, e.nombre]));
+      vaciar(resultado);
+      if (!eventos.length) { resultado.appendChild(estadoVacio('No hay eventos para ese trabajo.')); return; }
+      resultado.appendChild(el('p', { class: 'campo-ayuda' }, `Mostrando ${codigo}.`));
+      resultado.appendChild(el('ol', { class: 'lista-bitacora' }, ...eventos.map((e) => filaEvento(e, etapasPorOrden))));
+    } catch (err) {
+      vaciar(resultado);
+      const mensaje = err instanceof ApiError && err.status === 404 ? 'No encontramos ese código de trabajo.' : 'No pudimos cargar la bitácora. Revisa tu conexión e inténtalo otra vez.';
+      resultado.appendChild(estadoError(mensaje, () => cargarTrabajo(codigo)));
+    }
+  }
+
+  cargarRecientes();
 }

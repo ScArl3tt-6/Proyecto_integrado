@@ -21,6 +21,7 @@ const esquemaPaginacion = z.strictObject({
 const esquemaListado = z.strictObject({
   estado: estados.optional(),
   area: areas.optional(),
+  busqueda: z.string().trim().min(1).max(60).optional(),
   pagina: z.coerce.number().int().min(1).max(500).default(1),
   limite: z.coerce.number().int().min(1).max(50).default(20),
 });
@@ -63,6 +64,11 @@ function rutasTrabajos({ trabajos }) {
 
   r.post('/:codigo/tomar-diseno', autorizar('DISENO_ENVIAR'), validar(esquemaParamsTrabajo, 'params'), async (req, res) => {
     res.json(await trabajos.tomarParaDiseno(req.usuario, req.datos.params.codigo));
+  });
+
+  r.post('/:codigo/etapas/:orden/comenzar', autorizar('ETAPA_AVANZAR'), validar(esquemaParamsEtapa, 'params'), async (req, res) => {
+    const { codigo, orden } = req.datos.params;
+    res.json(await trabajos.comenzarEtapa(req.usuario, codigo, orden));
   });
 
   r.post('/:codigo/etapas/:orden/completar', autorizar('ETAPA_AVANZAR'), validar(esquemaParamsEtapa, 'params'), async (req, res) => {
