@@ -2,7 +2,7 @@
 // administración), con el alcance que ya decide el servidor (403 si el trabajo no corresponde).
 import { api, ApiError } from '../api.js';
 import { el, vaciar, aviso, abrirDialogoConfirmacion, abrirDialogoMotivo, enlaceVolver, etiquetaCampo, describirErrorApi } from '../ui.js';
-import { chipEstado, chipAtrasado, listaEtapas, estadoCarga, estadoError, formatoFechaHora, filaEvento, textoEtapaActualSiguiente } from '../componentes.js';
+import { chipEstado, chipAtrasado, listaEtapas, estadoCarga, estadoError, formatoFecha, formatoFechaHora, filaEvento, textoEtapaActualSiguiente } from '../componentes.js';
 import { tienePermiso, INICIO_POR_ROL } from '../permisos.js';
 
 const MOTIVOS_DETENER = [
@@ -52,7 +52,7 @@ export function renderDetalleTrabajo(main, sesion, codigo) {
       ),
     );
     contenedor.appendChild(el('p', {}, trabajo.descripcion));
-    contenedor.appendChild(el('p', { class: 'campo-ayuda' }, `${trabajo.tipo} · ${trabajo.cantidad} unidades · compromiso ${String(trabajo.fecha_compromiso || '').slice(0, 10)}`));
+    contenedor.appendChild(el('p', { class: 'campo-ayuda' }, `${trabajo.tipo} · ${trabajo.cantidad} unidades · compromiso ${trabajo.fecha_compromiso ? formatoFecha(trabajo.fecha_compromiso) : '—'}`));
 
     if (disenoRechazado) {
       contenedor.appendChild(aviso('info', `Motivo del último rechazo: ${disenoRechazado.motivo}`));

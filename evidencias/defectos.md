@@ -1189,3 +1189,35 @@ completa para el informe (sección de validación de resultados).
   legible, fondo de modal correctamente oscurecido (ver DEF-36), formularios y tablas coherentes en
   todas las pantallas revisadas.
 - **Estado:** Corregido.
+
+## DEF-38 — La fecha comprometida se veía en dos formatos distintos según la pantalla
+
+- **Encontrado en:** punto 13 de la revisión del equipo (19-11-2026).
+- **Severidad:** Baja (el dato era el mismo; solo cambiaba cómo se mostraba).
+- **Causa confirmada:** las tarjetas de trabajo (`tarjetaTrabajo()`, usadas en "Mis solicitudes" y
+  la bandeja de Diseño) mostraban "Compromiso: 28-11-2026" (día-mes-año, vía `formatoFecha()`),
+  pero el detalle de un trabajo (`detalleTrabajo.js`) mostraba el valor crudo que entrega la API
+  sin pasar por ningún formateador: "compromiso 2026-11-28" (año-mes-día).
+- **Corrección:** `detalleTrabajo.js` ahora usa el mismo `formatoFecha()` ya compartido (se
+  exportó desde `componentes.js`, antes era privado) en vez de recortar el texto crudo a mano. Con
+  esto, junto con la unificación de fecha+hora ya hecha en el punto 2 (`formatoFechaHora()`,
+  compartido entre Bitácora y el historial del detalle), queda un solo formateador por tipo de
+  dato (fecha sola, fecha con hora) para toda la aplicación.
+- **Nueva ejecución:** verificado con navegador real: el mismo trabajo muestra "28-11-2026" tanto
+  en la tarjeta de "Mis solicitudes" como en su propio detalle.
+- **Estado:** Corregido.
+
+## DEF-39 — Un aviso de materiales faltantes quedaba con una viñeta de lista pegada a la caja
+
+- **Encontrado en:** barrido de espaciado del punto 14 de la revisión del equipo (19-11-2026), al
+  revisar en vivo el aviso agregado en el punto 2 ("faltan materiales").
+- **Severidad:** Baja (cosmético).
+- **Causa confirmada:** el aviso de "Todavía no hay materiales registrados…" se insertaba dentro
+  de un `<li>` de `.lista-reglas`, que sí tiene viñeta (correcto para una lista de texto plano);
+  al ser ahora una caja de aviso con su propio fondo y relleno, la viñeta quedaba pegada al borde
+  de la caja, como un error de maquetación.
+- **Corrección:** `.lista-reglas li:has(.aviso) { list-style: none; }` — sin viñeta solo cuando el
+  contenido del ítem ya es su propia caja.
+- **Nueva ejecución:** verificado con navegador real, antes y después del cambio (se confirmó que
+  la viñeta aparecía realmente, no se asumió).
+- **Estado:** Corregido.

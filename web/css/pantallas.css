@@ -18,6 +18,10 @@
 .seccion-cuenta h2 { margin-top: var(--espacio-4); }
 .lista-reglas { margin: 0 0 var(--espacio-2); padding-left: var(--espacio-3); color: var(--color-texto-secundario); font-size: var(--texto-14); }
 .lista-reglas li { margin-bottom: 4px; }
+/* Punto 14 de la revisión del equipo (19-11-2026): un aviso de materiales faltantes (punto 2)
+   quedaba con el topo de viñeta de la lista justo al lado de la caja del aviso, como si fuera un
+   error de maquetación. Sin viñeta cuando el contenido ya es su propio recuadro. */
+.lista-reglas li:has(.aviso) { list-style: none; }
 
 .lista-datos-cuenta {
   display: grid;

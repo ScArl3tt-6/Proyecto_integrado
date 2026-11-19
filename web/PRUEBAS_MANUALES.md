@@ -34,6 +34,8 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-26 | Tabla de Usuarios: una acción principal visible y el resto en un menú "⋯", alineados; en celular, tarjetas con etiqueta antes de cada dato | |
 | PM-27 | Fondo oscuro de los modales (no un lavado gris) y selector de archivos con el estilo y el idioma de la app (el calendario de fecha se deja nativo, justificado) | |
 | PM-28 | Paleta azul pastel derivada del logo de Kotoduo, coherente en toda la app; contraste medido con herramienta (axe-core) en 1280 y 390px, no heredado de la paleta anterior | |
+| PM-29 | Un solo formato de fecha ("Compromiso") en toda la app: igual en las tarjetas que en el detalle de un trabajo | |
+| PM-30 | Espaciado: ningún título pegado al elemento anterior ni viñeta de lista pegada a una caja de aviso, en las pantallas revisadas | |
 
 ## Pasos detallados
 
@@ -277,3 +279,16 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 6. Con una herramienta de auditoría de accesibilidad (axe-core u otra), corre un análisis de contraste sobre varias pantallas reales, en 1280 y 390px. **Esperado:** 0 violaciones de `color-contrast`.
 
 **Confirmado, 19-11-2026:** paleta nueva (`--azul-50` a `--azul-950`) con 3 tonos tomados muestreando los píxeles reales de `web/img/logo-kotoduo-original.png` (no a ojo). Auditoría con `@axe-core/playwright` contra 8 pantallas reales (Panel general, Usuarios, Bitácora, Mi cuenta, Aprobaciones, Mis solicitudes, Nueva solicitud, Ingreso) en 1280 y 390px: **0 violaciones de `color-contrast` y 0 violaciones totales de WCAG 2 A/AA** en las 16 combinaciones. El foco de teclado mejoró de 2.04:1 a 6.08:1 contra blanco (no heredado de la paleta anterior, que fallaba el 3:1 exigido). Verificado visualmente con capturas reales a ambos anchos.
+
+### PM-29 — Un solo formato de fecha
+1. Como `jorge` (Vendedor), anota la fecha de compromiso de cualquier solicitud en «Mis solicitudes» (por ejemplo "28-11-2026").
+2. Entra al detalle de esa misma solicitud. **Esperado:** la fecha de compromiso se ve exactamente igual ("28-11-2026"), nunca en otro orden ("2026-11-28").
+3. Revisa cualquier evento de la Bitácora o del Historial de un trabajo. **Esperado:** la fecha con hora sigue un solo formato en toda la app (día-mes-año, hora de 12 con a. m./p. m.).
+
+**Confirmado, 19-11-2026:** verificado con navegador real: el mismo trabajo mostró "28-11-2026" tanto en la tarjeta como en el detalle (antes del arreglo, el detalle mostraba "2026-11-28").
+
+### PM-30 — Espaciado consistente (punto 14)
+1. Recorre varias pantallas (Mi cuenta, Bitácora, Novedades, Nueva solicitud, Mis actividades, detalle de un trabajo) a 1280 y 390px. **Esperado:** ningún título queda pegado al botón o la lista de la sección anterior (continuación de DEF-20/DEF-21); los botones que van en pareja (por ejemplo "Ver materiales y medidas" / "Ver historial") se ven alineados y con el mismo espacio entre sí en toda la app.
+2. En el detalle de un trabajo EN_PRODUCCION que todavía no tiene materiales registrados, revisa la sección "Materiales". **Esperado:** el aviso "Todavía no hay materiales registrados…" se ve como una caja completa, sin ninguna viñeta de lista pegada a su borde.
+
+**Confirmado, 19-11-2026:** barrido con navegador real en 6 pantallas × 2 anchos; se encontró y corrigió DEF-39 (viñeta pegada a un aviso) durante este mismo barrido, verificado antes y después del cambio.

@@ -106,7 +106,11 @@ export function chipResponsable(nombre) {
   return el('span', { class: 'chip chip-responsable' }, el('span', { class: 'icono-responsable', 'aria-hidden': 'true' }), nombre);
 }
 
-function formatoFecha(fecha) {
+// Un solo formato de fecha (sin hora) en toda la aplicación (punto 13 de la revisión del equipo,
+// 19-11-2026): antes "Compromiso" se veía "28-11-2026" en las tarjetas (tarjetaTrabajo) pero
+// "2026-11-28" en el detalle de un trabajo (el AAAA-MM-DD crudo que entrega la API, mostrado tal
+// cual, sin pasar por este formateador).
+export function formatoFecha(fecha) {
   const texto = String(fecha).slice(0, 10);
   const [anio, mes, dia] = texto.split('-');
   return `${dia}-${mes}-${anio}`;
