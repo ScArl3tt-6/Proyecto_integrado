@@ -22,7 +22,7 @@ const esquemaDecision = z.strictObject({
 // Lista de aprobaciones pendientes: contador, orden, búsqueda y paginación (DEF-12/Parte B).
 const esquemaPendientes = z.strictObject({
   busqueda: z.string().trim().min(1).max(60).optional(),
-  orden: z.enum(['fecha_compromiso', 'enviado_en']).default('fecha_compromiso'),
+  orden: z.enum(['entrega_proxima', 'recientes', 'antiguos']).default('entrega_proxima'),
   pagina: z.coerce.number().int().min(1).max(500).default(1),
   limite: z.coerce.number().int().min(1).max(50).default(20),
 });

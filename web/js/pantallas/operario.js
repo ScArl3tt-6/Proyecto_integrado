@@ -21,7 +21,11 @@ export function renderMisActividades(main, sesion, irA) {
       const actividades = await api.get(`/trabajos/mis-actividades?pagina=${pagina}&limite=20`);
       vaciar(listaNodo);
       if (!actividades.length) {
-        listaNodo.appendChild(estadoVacio(pagina === 1 ? 'No tienes actividades en curso en tu área por ahora.' : 'No hay más actividades.'));
+        // Punto 7 de la revisión del equipo (20-11-2026): no bastaba con decir que no había
+        // actividades — había que explicar por qué, para que no se lea como una falla.
+        listaNodo.appendChild(estadoVacio(pagina === 1
+          ? 'No tienes actividades en este momento. Aparecerán aquí apenas Producción apruebe un diseño cuya primera etapa sea de tu área, o cuando te toque la etapa siguiente de un trabajo ya en curso.'
+          : 'No hay más actividades.'));
       } else {
         for (const actividad of actividades) listaNodo.appendChild(tarjetaActividad(actividad, sesion));
       }

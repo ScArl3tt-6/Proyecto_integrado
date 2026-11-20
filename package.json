@@ -50,6 +50,7 @@
     "eslint-plugin-security": "^4.2.0",
     "globals": "^17.13.0",
     "jest": "^30.5.2",
+    "playwright": "^1.65.1",
     "supertest": "^7.3.1"
   },
   "jest": {

@@ -147,7 +147,7 @@ function crearServicioDisenos({ pg, mongoDb, bitacora }) {
   // Versiones esperando decisión de Producción (sección 4.4). Contador, orden, búsqueda y
   // paginación (Parte B, a partir del aviso del equipo sobre DEF-12): sin esto, una bandeja con
   // muchas propuestas pendientes no se puede usar de verdad.
-  async function pendientes({ busqueda, orden = 'fecha_compromiso', pagina = 1, limite = 20 } = {}) {
+  async function pendientes({ busqueda, orden = 'entrega_proxima', pagina = 1, limite = 20 } = {}) {
     const condiciones = ["d.estado = 'PENDIENTE'"];
     const valores = [];
     if (busqueda) {
@@ -155,7 +155,10 @@ function crearServicioDisenos({ pg, mongoDb, bitacora }) {
       condiciones.push(`(t.codigo ILIKE $${valores.length} OR t.descripcion ILIKE $${valores.length})`);
     }
     const whereSql = condiciones.join(' AND ');
-    const ordenSql = orden === 'enviado_en' ? 'd.enviado_en ASC' : 't.fecha_compromiso ASC';
+    // Mismo orden que el resto de la app (punto 3 de la revisión del equipo, 20-11-2026). "recientes"
+    // antes decía "primero" pero ordenaba ASC (las más antiguas primero, al revés de lo que decía
+    // su propia etiqueta); queda corregido al unificarlo aquí.
+    const ordenSql = orden === 'recientes' ? 'd.enviado_en DESC' : orden === 'antiguos' ? 'd.enviado_en ASC' : 't.fecha_compromiso ASC';
 
     const { rows: totalRows } = await pg.query(
       `SELECT COUNT(*)::int AS n FROM diseno d JOIN trabajo t ON t.id_trabajo = d.id_trabajo WHERE ${whereSql}`, valores,

@@ -1,21 +1,24 @@
 import { api, ApiError } from '../api.js';
 import { el, vaciar, aviso, etiquetaCampo, describirErrorApi } from '../ui.js';
-import { tarjetaTrabajo, estadoVacio, estadoCarga, estadoError, paginador, TEXTO_ESTADO } from '../componentes.js';
+import { tarjetaTrabajo, estadoVacio, estadoCarga, estadoError, paginador, TEXTO_ESTADO, selectorOrden, barraFiltros, AYUDA_ORDEN } from '../componentes.js';
 
 const CAMPOS_NUEVA_SOLICITUD = { idTipo: 'Tipo de trabajo', descripcion: 'Descripción', cantidad: 'Cantidad', fechaCompromiso: 'Fecha comprometida' };
 
 export function renderMisSolicitudes(main, sesion, irA) {
   const filtroEstado = el('select', { id: 'filtro-estado' }, el('option', { value: '' }, 'Todos los estados'),
     ...Object.entries(TEXTO_ESTADO).map(([valor, texto]) => el('option', { value: valor }, texto)));
+  let orden = 'entrega_proxima';
 
   const contenedor = el('section', { class: 'contenedor' },
     el('div', { class: 'encabezado-pantalla' },
       el('h1', {}, 'Mis solicitudes'),
       el('a', { class: 'boton boton-primario', href: '#/nueva-solicitud' }, 'Nueva solicitud'),
     ),
-    el('div', { class: 'filtros-lista' },
+    barraFiltros(
       el('div', { class: 'campo' }, el('label', { for: 'filtro-estado' }, 'Filtrar por estado'), filtroEstado),
+      selectorOrden({ id: 'orden-mis-solicitudes', valor: orden, alCambiar: (v) => { orden = v; pagina = 1; cargar(); } }),
     ),
+    el('p', { class: 'campo-ayuda' }, AYUDA_ORDEN),
   );
   const listaNodo = el('div', { class: 'lista-trabajos' });
   const piePagina = el('div');
@@ -35,7 +38,7 @@ export function renderMisSolicitudes(main, sesion, irA) {
       const filtro = filtroEstado.value ? `&estado=${filtroEstado.value}` : '';
       // Punto 9 de la revisión del equipo (19-11-2026): "Mis solicitudes" ya no se ve plana, pide
       // la línea de tiempo de etapas junto con el resto del listado.
-      const trabajos = await api.get(`/trabajos?pagina=${pagina}&limite=20&conEtapas=true${filtro}`);
+      const trabajos = await api.get(`/trabajos?pagina=${pagina}&limite=20&conEtapas=true&orden=${orden}${filtro}`);
       vaciar(listaNodo);
       if (!trabajos.length) {
         listaNodo.appendChild(estadoVacio(pagina === 1 ? 'Todavía no registras solicitudes.' : 'No hay más solicitudes.'));

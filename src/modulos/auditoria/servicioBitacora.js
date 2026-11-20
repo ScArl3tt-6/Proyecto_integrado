@@ -15,24 +15,46 @@ function crearServicioBitacora(mongoDb, pg) {
     });
   }
 
-  // Junta el nombre real (PostgreSQL) de cada usuario.id, y el nombre del material cuando el
-  // detalle trae un idMaterial (MATERIAL_REGISTRADO): la bitácora en Mongo solo guarda ids (nunca
+  // Junta el nombre real (PostgreSQL) de cada usuario.id, el nombre del material cuando el detalle
+  // trae un idMaterial (MATERIAL_REGISTRADO), y el nombre de la etapa cuando trae un orden
+  // (ETAPA_INICIADA/COMPLETADA/LIBERADA): la bitácora en Mongo solo guarda ids/números (nunca
   // nombres, para no duplicarlos ni dejarlos desactualizados si cambian); se resuelve al leer, no
-  // al escribir. Punto 1 de la revisión del equipo, 18-11-2026 ("detalle útil").
+  // al escribir. Punto 1 de la revisión del equipo, 18-11-2026 ("detalle útil"); el de la etapa se
+  // agregó el 20-11-2026 porque solo se resolvía cuando quien llamaba ya tenía a mano las etapas
+  // de ESE trabajo (el detalle de un trabajo, o la Bitácora ya filtrada a uno): en la vista general
+  // (varios trabajos a la vez, con tipos distintos) y en el historial de "Mis actividades" seguía
+  // mostrando "Etapa n.º 2" en vez del nombre real.
   async function enriquecer(eventos) {
     const idsUsuario = [...new Set(eventos.map((e) => e.usuario?.id).filter((id) => id !== null && id !== undefined))];
     const idsMaterial = [...new Set(eventos.map((e) => e.detalle?.idMaterial).filter((id) => id !== null && id !== undefined))];
-    const [usuarios, materiales] = await Promise.all([
+    const codigosConEtapa = [...new Set(
+      eventos.filter((e) => e.entidad?.tipo === 'trabajo' && e.detalle?.orden !== null && e.detalle?.orden !== undefined)
+        .map((e) => e.entidad.codigo),
+    )];
+    const [usuarios, materiales, etapas] = await Promise.all([
       idsUsuario.length ? pg.query('SELECT id_usuario, nombre FROM usuario WHERE id_usuario = ANY($1::int[])', [idsUsuario]) : { rows: [] },
       idsMaterial.length ? pg.query('SELECT id_material, nombre, unidad FROM material WHERE id_material = ANY($1::int[])', [idsMaterial]) : { rows: [] },
+      codigosConEtapa.length
+        ? pg.query(
+            `SELECT t.codigo, ep.orden, ep.nombre
+               FROM trabajo t
+               JOIN etapa_plantilla ep ON ep.id_tipo = t.id_tipo
+              WHERE t.codigo = ANY($1::text[])`,
+            [codigosConEtapa],
+          )
+        : { rows: [] },
     ]);
     const nombresUsuario = Object.fromEntries(usuarios.rows.map((r) => [r.id_usuario, r.nombre]));
     const nombresMaterial = Object.fromEntries(materiales.rows.map((r) => [r.id_material, { nombre: r.nombre, unidad: r.unidad }]));
-    return eventos.map((e) => ({
-      ...e,
-      usuario: e.usuario ? { ...e.usuario, nombre: nombresUsuario[e.usuario.id] || null } : null,
-      detalle: e.detalle?.idMaterial ? { ...e.detalle, material: nombresMaterial[e.detalle.idMaterial] || null } : e.detalle,
-    }));
+    const nombresEtapa = Object.fromEntries(etapas.rows.map((r) => [`${r.codigo}:${r.orden}`, r.nombre]));
+    return eventos.map((e) => {
+      let detalle = e.detalle;
+      if (detalle?.idMaterial) detalle = { ...detalle, material: nombresMaterial[detalle.idMaterial] || null };
+      if (e.entidad?.tipo === 'trabajo' && detalle?.orden !== null && detalle?.orden !== undefined) {
+        detalle = { ...detalle, nombreEtapa: nombresEtapa[`${e.entidad.codigo}:${detalle.orden}`] || null };
+      }
+      return { ...e, usuario: e.usuario ? { ...e.usuario, nombre: nombresUsuario[e.usuario.id] || null } : null, detalle };
+    });
   }
 
   async function consultarPorTrabajo(codigo) {
@@ -68,9 +90,13 @@ function crearServicioBitacora(mongoDb, pg) {
   // Punto 5 de la revisión del equipo (19-11-2026): novedades para Vendedor y Diseño, a partir de
   // eventos que YA existen (sin servicios nuevos ni correo): cuando una solicitud propia se
   // rechaza, se aprueba, cambia de etapa o termina. Diseño, en particular, pierde acceso al detalle
-  // del trabajo apenas envía la propuesta (ver DEF-29): esta es, en la práctica, la única forma que
+  // del trabajo apenas envía la propuesta (ver DEF-29/DEF-42): esta es, en la práctica, la única forma que
   // le queda de enterarse de si fue aprobada o rechazada.
-  async function consultarNovedades(usuario) {
+  // Paginado ("Cargar más") y marca de leída por evento agregados en la segunda vuelta del punto 3
+  // de la revisión del equipo (20-11-2026): con pocas novedades alcanzaba con traerlas todas de una
+  // vez, pero con muchas hacía falta poder seguir cargando, filtrar por leídas/no leídas, y agrupar
+  // por día en el cliente (para eso cada evento necesita saber si ya se vio, no solo el total).
+  async function consultarNovedades(usuario, { pagina = 1, limite = 20 } = {}) {
     let condicion;
     if (usuario.rol === 'VENDEDOR') {
       const { rows } = await pg.query('SELECT codigo FROM trabajo WHERE id_vendedor = $1', [usuario.id]);
@@ -90,13 +116,21 @@ function crearServicioBitacora(mongoDb, pg) {
         ],
       };
     } else {
-      return { noVistas: 0, eventos: [] };
+      return { noVistas: 0, total: 0, eventos: [] };
     }
 
     const { rows: [{ novedades_vistas_en: vistasEn }] } = await pg.query('SELECT novedades_vistas_en FROM usuario WHERE id_usuario = $1', [usuario.id]);
-    const eventos = await coleccion.find(condicion, { projection: { _id: 0, ip: 0 } }).sort({ fecha: -1 }).limit(30).toArray();
-    const noVistas = eventos.filter((e) => e.fecha > vistasEn).length;
-    return { noVistas, eventos: await enriquecer(eventos) };
+    // "nunca visitada" llega de PostgreSQL como el número -Infinity, no como un Date (un TIMESTAMPTZ
+    // '-infinity' no es representable como fecha de JavaScript): para comparar fechas de Mongo contra
+    // esto (tanto en la consulta como en JS) hace falta una fecha real, nunca ese número especial.
+    const umbralVistas = vistasEn instanceof Date ? vistasEn : new Date(0);
+    const [total, noVistas, eventos] = await Promise.all([
+      coleccion.countDocuments(condicion),
+      coleccion.countDocuments({ $and: [condicion, { fecha: { $gt: umbralVistas } }] }),
+      coleccion.find(condicion, { projection: { _id: 0, ip: 0 } }).sort({ fecha: -1 }).skip((pagina - 1) * limite).limit(limite).toArray(),
+    ]);
+    const enriquecidos = await enriquecer(eventos);
+    return { noVistas, total, eventos: enriquecidos.map((e) => ({ ...e, leida: e.fecha <= umbralVistas })) };
   }
 
   async function marcarNovedadesVistas(usuario) {

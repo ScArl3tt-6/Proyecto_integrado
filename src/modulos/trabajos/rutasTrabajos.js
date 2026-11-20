@@ -18,10 +18,14 @@ const esquemaPaginacion = z.strictObject({
   pagina: z.coerce.number().int().min(1).max(500).default(1),
   limite: z.coerce.number().int().min(1).max(50).default(20),
 });
+// Mismo orden en todas las listas de trabajos de la app (punto 3 de la revisión del equipo,
+// 20-11-2026): "entrega_proxima" por fecha_compromiso, "recientes"/"antiguos" por creado_en.
+const ordenes = z.enum(['entrega_proxima', 'recientes', 'antiguos']);
 const esquemaListado = z.strictObject({
   estado: estados.optional(),
   area: areas.optional(),
   busqueda: z.string().trim().min(1).max(60).optional(),
+  orden: ordenes.default('entrega_proxima'),
   pagina: z.coerce.number().int().min(1).max(500).default(1),
   limite: z.coerce.number().int().min(1).max(50).default(20),
   // Línea de tiempo de etapas por trabajo (punto 9 de la revisión del equipo, 19-11-2026): opcional

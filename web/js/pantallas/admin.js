@@ -360,15 +360,11 @@ export function renderBitacora(main, sesion, irA) {
     botonQuitarFiltro.hidden = false;
     resultado.appendChild(estadoCarga());
     try {
-      const [eventos, trabajo] = await Promise.all([
-        api.get(`/auditoria/trabajos/${codigo}`),
-        api.get(`/trabajos/${codigo}`).catch(() => null), // para traducir "orden" a un nombre de etapa; no es crítico si falla
-      ]);
-      const etapasPorOrden = Object.fromEntries((trabajo?.etapas || []).map((e) => [e.orden, e.nombre]));
+      const eventos = await api.get(`/auditoria/trabajos/${codigo}`);
       vaciar(resultado);
       if (!eventos.length) { resultado.appendChild(estadoVacio('No hay eventos para ese trabajo.')); return; }
       resultado.appendChild(el('p', { class: 'campo-ayuda' }, `Mostrando ${codigo}.`));
-      resultado.appendChild(el('ol', { class: 'lista-bitacora' }, ...eventos.map((e) => filaEvento(e, { etapasPorOrden }))));
+      resultado.appendChild(el('ol', { class: 'lista-bitacora' }, ...eventos.map((e) => filaEvento(e))));
     } catch (err) {
       vaciar(resultado);
       const mensaje = err instanceof ApiError && err.status === 404 ? 'No encontramos ese código de trabajo.' : 'No pudimos cargar la bitácora. Revisa tu conexión e inténtalo otra vez.';

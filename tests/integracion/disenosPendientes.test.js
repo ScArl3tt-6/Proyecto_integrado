@@ -73,4 +73,16 @@ describe('Propuestas de diseño pendientes de decisión', () => {
     const ordenInvalido = await marcela.get('/api/disenos/pendientes?orden=no-es-valido');
     expect(ordenInvalido.status).toBe(400);
   });
+
+  // Punto 3 de la revisión del equipo (20-11-2026): mismo selector de orden en toda la app
+  // ("entrega_proxima" / "recientes" / "antiguos"). "recientes" decía "primero" en la pantalla pero
+  // antes ordenaba ASC (las más antiguas primero): queda corregido junto con la unificación.
+  test('CP-93 "recientes" trae lo último enviado primero y "antiguos" lo más viejo primero', async () => {
+    const recientes = await marcela.get('/api/disenos/pendientes?orden=recientes&limite=50');
+    const antiguos = await marcela.get('/api/disenos/pendientes?orden=antiguos&limite=50');
+    const codigosRecientes = recientes.body.items.map((p) => p.codigo);
+    const codigosAntiguos = antiguos.body.items.map((p) => p.codigo);
+    expect(codigosRecientes).toEqual([...codigosAntiguos].reverse());
+    expect(codigosAntiguos[0]).toBe(codigo); // el primero en enviarse, en beforeAll
+  });
 });

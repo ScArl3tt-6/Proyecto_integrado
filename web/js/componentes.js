@@ -40,17 +40,20 @@ export const TEXTO_EVENTO = {
 
 // Detalle legible de un evento (punto 1: "con el detalle útil: etapa, material, motivo"), a
 // partir de lo que ya guarda cada evento (ver bitacora.registrar en cada servicio) más los nombres
-// que el servidor ya resolvió (usuario.nombre, detalle.material) al leer la bitácora.
-export function detalleEvento(evento, { nombreEtapa } = {}) {
+// que el servidor ya resolvió (usuario.nombre, detalle.material, detalle.nombreEtapa) al leer la
+// bitácora — el de la etapa se resuelve en el servidor desde el 20-11-2026 (antes había que
+// pasárselo a mano desde quien llamaba, y "Mis actividades" y la vista general de varios trabajos
+// nunca lo hacían: mostraban "Etapa n.º 2" en vez del nombre real).
+export function detalleEvento(evento) {
   const d = evento.detalle || {};
   switch (evento.tipo) {
     case 'DISENO_ENVIADO': return `Versión ${d.version}.`;
     case 'DISENO_APROBADO': return null;
     case 'DISENO_RECHAZADO': return d.motivo ? `Motivo: ${d.motivo}` : null;
     case 'ETAPA_INICIADA':
-    case 'ETAPA_LIBERADA': return nombreEtapa ? `Etapa: ${nombreEtapa}` : (d.orden ? `Etapa n.º ${d.orden}` : null);
+    case 'ETAPA_LIBERADA': return d.nombreEtapa ? `Etapa: ${d.nombreEtapa}` : (d.orden ? `Etapa n.º ${d.orden}` : null);
     case 'ETAPA_COMPLETADA': {
-      const etapa = nombreEtapa ? `Etapa: ${nombreEtapa}.` : (d.orden ? `Etapa n.º ${d.orden}.` : '');
+      const etapa = d.nombreEtapa ? `Etapa: ${d.nombreEtapa}.` : (d.orden ? `Etapa n.º ${d.orden}.` : '');
       return d.trabajoTerminado ? `${etapa} Era la última etapa: el trabajo quedó terminado.`.trim() : (etapa || null);
     }
     case 'TRABAJO_DETENIDO': return d.motivo ? `Motivo: ${d.motivo}` : null;
@@ -60,15 +63,19 @@ export function detalleEvento(evento, { nombreEtapa } = {}) {
 }
 
 // Una fila de la bitácora (texto humano, no el código interno), compartida por la Bitácora de
-// Administración y el historial dentro del detalle de un trabajo (punto 2 de la revisión del
-// equipo, 19-11-2026). "mostrarCodigo" solo tiene sentido en la vista general (no filtrada a un
-// único trabajo, donde repetirlo en cada fila sería ruido).
-export function filaEvento(evento, { etapasPorOrden = {}, mostrarCodigo = false } = {}) {
+// Administración, "Mis actividades" y el historial dentro del detalle de un trabajo (punto 2 de la
+// revisión del equipo, 19-11-2026). "mostrarCodigo" solo tiene sentido en la vista general (no
+// filtrada a un único trabajo, donde repetirlo en cada fila sería ruido).
+export function filaEvento(evento, { mostrarCodigo = false } = {}) {
   return el('li', { class: 'tarjeta' },
     el('p', {},
       el('strong', {}, TEXTO_EVENTO[evento.tipo] || evento.tipo),
       ' · ', formatoFechaHora(evento.fecha),
       mostrarCodigo && evento.entidad?.tipo === 'trabajo' ? ` · ${evento.entidad.codigo}` : null,
+      // "leida" solo viene en eventos de Novedades (punto 3 de la revisión del equipo, 20-11-2026,
+      // segunda vuelta); en Bitácora/historial el campo no existe y este chip nunca aparece.
+      evento.leida === false ? ' ' : null,
+      evento.leida === false ? el('span', { class: 'chip chip-aviso' }, 'Nueva') : null,
     ),
     evento.usuario
       // Si no se puede resolver el nombre (por ejemplo, datos de demostración antiguos cuyo
@@ -76,7 +83,7 @@ export function filaEvento(evento, { etapasPorOrden = {}, mostrarCodigo = false 
       ? el('p', { class: 'campo-ayuda' }, `${evento.usuario.nombre || 'Datos de demostración'} · ${ROL_TEXTO[evento.usuario.rol] || evento.usuario.rol}`)
       : el('p', { class: 'campo-ayuda' }, 'Sistema'),
     (() => {
-      const detalle = detalleEvento(evento, { nombreEtapa: etapasPorOrden[evento.detalle?.orden] });
+      const detalle = detalleEvento(evento);
       return detalle ? el('p', { class: 'campo-ayuda' }, detalle) : null;
     })(),
   );
@@ -97,6 +104,36 @@ export function chipEstado(estado) {
 
 export function chipAtrasado() {
   return el('span', { class: 'chip chip-error' }, 'Atrasado');
+}
+
+// Vocabulario propio de una VERSIÓN de diseño (diseno.estado / aprobacion_diseno.decision):
+// PENDIENTE/APROBADO/RECHAZADO. Punto 4 de la revisión del equipo (20-11-2026): una versión
+// rechazada mostraba el chip "Detenido" (vocabulario de trabajo.estado, prestado por error) y el
+// texto crudo "Decisión: RECHAZADO"; cada estado necesita su propia etiqueta, nunca prestada de
+// otro vocabulario ni el valor interno sin traducir.
+export const TEXTO_ESTADO_DISENO = {
+  PENDIENTE: 'Pendiente',
+  APROBADO: 'Aprobada',
+  RECHAZADO: 'Rechazada',
+};
+
+const CLASE_ESTADO_DISENO = {
+  PENDIENTE: 'chip-aviso',
+  APROBADO: 'chip-ok',
+  RECHAZADO: 'chip-error',
+};
+
+export function chipEstadoDiseno(estado) {
+  return el('span', { class: `chip ${CLASE_ESTADO_DISENO[estado] || 'chip-neutro'}` }, TEXTO_ESTADO_DISENO[estado] || estado);
+}
+
+// Línea "quién decidió, cuándo y por qué" de una versión ya decidida (aprobada o rechazada);
+// null mientras sigue pendiente (todavía no hay aprobador, fecha ni motivo que mostrar).
+export function textoDecisionDiseno(d) {
+  if (!d.decision) return null;
+  const quien = d.aprobador ? `${d.aprobador}` : 'Datos de demostración';
+  const base = `${TEXTO_ESTADO_DISENO[d.decision] || d.decision} por ${quien} el ${formatoFechaHora(d.decidido_en)}`;
+  return d.motivo ? `${base}. Motivo: ${d.motivo}` : base;
 }
 
 // Quién tiene tomada una etapa de producción ahora mismo: antes era texto chico bajo el botón
@@ -132,10 +169,17 @@ export function textoEtapaActualSiguiente(trabajo) {
 }
 
 // Un solo formato de fecha y hora para toda la aplicación (punto 13 de la revisión del equipo,
-// 19-11-2026): antes cada pantalla tenía su propia copia de esta misma línea.
+// 19-11-2026; corregido el punto 6, 20-11-2026): "toLocaleString('es-CL', ...)" entregaba año a 2
+// dígitos y "p. m." con espacio angosto ("19-11-26 10:41 p. m."), distinto del DD-MM-AAAA a 4
+// dígitos de formatoFecha ("12-11-2026") — dos formatos distintos convivían en la misma pantalla.
+// Se construye a mano, con la MISMA fecha de formatoFecha más HH:MM en 24 horas: un solo formato,
+// sin depender de qué locale tenga configurado el navegador.
 export function formatoFechaHora(fecha, vacio = '—') {
   if (!fecha) return vacio;
-  return new Date(fecha).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
+  const d = new Date(fecha);
+  const dosDigitos = (n) => String(n).padStart(2, '0');
+  const fechaTexto = `${dosDigitos(d.getDate())}-${dosDigitos(d.getMonth() + 1)}-${d.getFullYear()}`;
+  return `${fechaTexto} ${dosDigitos(d.getHours())}:${dosDigitos(d.getMinutes())}`;
 }
 
 // Tarjeta única de trabajo, reutilizada por las cinco pantallas de perfil. Si "trabajo.etapas"
@@ -202,4 +246,48 @@ export function paginador({ pagina, llena, alCambiar }) {
   const siguiente = el('button', { type: 'button', class: 'boton boton-secundario', disabled: !llena }, 'Siguiente');
   siguiente.addEventListener('click', () => alCambiar(pagina + 1));
   return el('div', { class: 'paginador' }, anterior, el('span', { class: 'campo-ayuda' }, `Página ${pagina}`), siguiente);
+}
+
+// Mismo selector de orden en toda la app: Vendedor ("Mis solicitudes"), Diseño (bandeja),
+// Producción (Aprobaciones) y Panel general (punto 3 de la revisión del equipo, 20-11-2026). Antes
+// cada pantalla tenía su propio control (algunas ninguno) y Producción decía "Más urgentes
+// primero" con una etiqueta distinta a las demás.
+export const OPCIONES_ORDEN = [
+  { valor: 'entrega_proxima', etiqueta: 'Entrega más próxima' },
+  { valor: 'recientes', etiqueta: 'Más recientes' },
+  { valor: 'antiguos', etiqueta: 'Más antiguos' },
+];
+
+// Texto de ayuda del selector de orden. Va SIEMPRE fuera de la fila de filtros (ver barraFiltros):
+// metido dentro de su propio ".campo", hacía que ese campo tuviera una línea más que sus vecinos y
+// "align-items: flex-end" los desalineaba (punto 2 de la revisión del equipo, 20-11-2026, segunda
+// vuelta — DEF-48).
+export const AYUDA_ORDEN = '"Entrega más próxima" ordena por la fecha de entrega comprometida; las otras dos, por fecha de creación.';
+
+export function selectorOrden({ id = 'orden', valor = 'entrega_proxima', alCambiar }) {
+  const select = el('select', { id },
+    ...OPCIONES_ORDEN.map((o) => el('option', { value: o.valor, selected: o.valor === valor || undefined }, o.etiqueta)));
+  select.addEventListener('change', () => alCambiar(select.value));
+  return el('div', { class: 'campo' }, el('label', { for: id }, 'Ordenar por'), select);
+}
+
+// Barra de filtros ÚNICA y reutilizable (punto 2 de la revisión del equipo, 20-11-2026, segunda
+// vuelta — DEF-48): antes cada pantalla armaba su propia fila de filtros a mano, y un campo con
+// una línea de más (como el de orden, con su texto de ayuda) empujaba hacia abajo a sus vecinos,
+// porque "align-items: flex-end" alinea por la base de la fila. Con esta barra, cada ".campo" que
+// se le pase tiene siempre la misma altura (una etiqueta y un control, nunca una ayuda dentro), así
+// que quedan alineados sin importar cuántos o cuáles se combinen; cualquier texto de ayuda va
+// aparte, debajo de toda la fila.
+export function barraFiltros(...campos) {
+  return el('div', { class: 'filtros-lista' }, ...campos);
+}
+
+// Mismo criterio de orden para listas que ya se traen completas y se ordenan en el navegador
+// (Panel general), en vez de pedírselo al servidor con "?orden=".
+export function ordenarPorOpcion(lista, orden, { entrega, creacion }) {
+  const copia = [...lista];
+  if (orden === 'entrega_proxima') { copia.sort((a, b) => new Date(entrega(a)) - new Date(entrega(b))); return copia; }
+  copia.sort((a, b) => new Date(creacion(a)) - new Date(creacion(b)));
+  if (orden === 'recientes') copia.reverse();
+  return copia;
 }

@@ -5,7 +5,7 @@ const { estaAtrasado } = require('../../dominio/flujoTrabajo');
 function crearServicioPanel({ pg }) {
   async function resumen(hoy = new Date()) {
     const { rows } = await pg.query(
-      `SELECT t.codigo, tt.nombre AS tipo, t.estado, t.fecha_compromiso,
+      `SELECT t.codigo, tt.nombre AS tipo, t.estado, t.fecha_compromiso, t.creado_en,
               COALESCE(a.nombre, CASE WHEN t.estado IN ('SOLICITADO','EN_DISENO') THEN 'Diseño'
                                       WHEN t.estado = 'PENDIENTE_APROBACION' THEN 'Producción (aprobación)' END) AS area_responsable,
               DATE_PART('day', now() - COALESCE(et.inicio, t.actualizado_en))::int AS dias_en_etapa

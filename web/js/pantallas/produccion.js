@@ -1,6 +1,6 @@
 import { api, ApiError } from '../api.js';
 import { el, vaciar, aviso, abrirDialogoConfirmacion, abrirDialogoMotivo, enlaceVolver, conEspera } from '../ui.js';
-import { estadoVacio, estadoCarga, estadoError, paginador, TEXTO_ESPECIFICACION } from '../componentes.js';
+import { estadoVacio, estadoCarga, estadoError, paginador, TEXTO_ESPECIFICACION, TEXTO_ESTADO_DISENO, selectorOrden, barraFiltros, AYUDA_ORDEN } from '../componentes.js';
 
 const MOTIVOS_RECHAZO = [
   'El diseño no cumple las medidas solicitadas',
@@ -35,17 +35,16 @@ function tarjetaArchivo(idDiseno, archivo) {
 
 export function renderAprobaciones(main, sesion, irA) {
   const campoBusqueda = el('input', { id: 'buscar-aprobaciones', type: 'text', placeholder: 'Ej.: KT-2026-0005 o "poleras"' });
-  const campoOrden = el('select', { id: 'orden-aprobaciones' },
-    el('option', { value: 'fecha_compromiso' }, 'Más urgentes primero'),
-    el('option', { value: 'enviado_en' }, 'Más recientes primero'));
+  let orden = 'entrega_proxima';
   const contador = el('p', { class: 'campo-ayuda' }, '');
 
   const contenedor = el('section', { class: 'contenedor' },
     el('h1', {}, 'Aprobaciones'),
-    el('div', { class: 'filtros-lista' },
+    barraFiltros(
       el('div', { class: 'campo' }, el('label', { for: 'buscar-aprobaciones' }, 'Buscar por código o descripción'), campoBusqueda),
-      el('div', { class: 'campo' }, el('label', { for: 'orden-aprobaciones' }, 'Ordenar por'), campoOrden),
+      selectorOrden({ id: 'orden-aprobaciones', valor: orden, alCambiar: (v) => { orden = v; pagina = 1; cargar(); } }),
     ),
+    el('p', { class: 'campo-ayuda' }, AYUDA_ORDEN),
     contador,
   );
   const listaNodo = el('div', { class: 'lista-trabajos' });
@@ -56,7 +55,6 @@ export function renderAprobaciones(main, sesion, irA) {
 
   let pagina = 1;
   campoBusqueda.addEventListener('input', conEspera(() => { pagina = 1; cargar(); }));
-  campoOrden.addEventListener('change', () => { pagina = 1; cargar(); });
   cargar();
 
   async function cargar() {
@@ -66,7 +64,7 @@ export function renderAprobaciones(main, sesion, irA) {
     listaNodo.appendChild(estadoCarga());
     try {
       const busqueda = campoBusqueda.value.trim() ? `&busqueda=${encodeURIComponent(campoBusqueda.value.trim())}` : '';
-      const { total, items } = await api.get(`/disenos/pendientes?pagina=${pagina}&limite=20&orden=${campoOrden.value}${busqueda}`);
+      const { total, items } = await api.get(`/disenos/pendientes?pagina=${pagina}&limite=20&orden=${orden}${busqueda}`);
       vaciar(listaNodo);
       contador.textContent = total === 0 ? '' : `${total} propuesta${total === 1 ? '' : 's'} pendiente${total === 1 ? '' : 's'} de decisión`;
       if (!items.length) {
@@ -140,7 +138,7 @@ export function renderDecidirDiseno(main, sesion, idDiseno, irA) {
     }
 
     if (diseno.estado !== 'PENDIENTE') {
-      contenedor.appendChild(aviso('info', `Esta versión ya tiene una decisión registrada (${diseno.estado}).`));
+      contenedor.appendChild(aviso('info', `Esta versión ya tiene una decisión registrada (${TEXTO_ESTADO_DISENO[diseno.estado] || diseno.estado}).`));
       return;
     }
 
@@ -163,9 +161,12 @@ export function renderDecidirDiseno(main, sesion, idDiseno, irA) {
         textoConfirmar: 'Rechazar',
       });
       if (!motivo) return;
+      // Punto 5 de la revisión del equipo (20-11-2026): el mensaje rechaza la PROPUESTA (una
+      // versión), no a la persona que la envió — antes decía "Se rechazará a ${disenador}", como
+      // si el rechazo fuera contra ella en vez de contra el diseño que mandó.
       const confirmado = await abrirDialogoConfirmacion({
         titulo: 'Confirmar rechazo',
-        mensaje: `Se rechazará a ${diseno.disenador} (quien envió esta versión); el trabajo de ${diseno.vendedor} vuelve a "En diseño" para que ${diseno.disenador} pueda retomarlo con una nueva versión. Motivo: "${motivo}".`,
+        mensaje: `Se rechazará la versión ${diseno.version} de ${diseno.codigo}, enviada por ${diseno.disenador}; el trabajo vuelve a "En diseño" para que ${diseno.disenador} pueda retomarlo con una nueva versión. Motivo: "${motivo}".`,
         textoConfirmar: 'Rechazar',
         peligro: true,
       });

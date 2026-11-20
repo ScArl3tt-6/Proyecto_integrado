@@ -54,6 +54,10 @@ describe('Pruebas unitarias - seguridad del dominio', () => {
   test('CP-06 la matriz RBAC deniega por defecto y separa funciones', () => {
     expect(tienePermiso('PRODUCCION', 'DISENO_APROBAR')).toBe(true);
     expect(tienePermiso('ADMINISTRADOR', 'DISENO_APROBAR')).toBe(false);
+    // Punto 1 de la revisión del equipo (20-11-2026, segunda vuelta): Diseño ve de solo lectura los
+    // trabajos pendientes de aprobación y ya aprobados (filtros "Esperando aprobación"/"Aprobados"),
+    // pero nunca puede decidir — ese permiso sigue siendo exclusivo de Producción/Administración.
+    expect(tienePermiso('DISENO', 'DISENO_APROBAR')).toBe(false);
     expect(tienePermiso('OPERARIO', 'TRABAJO_CREAR')).toBe(false);
     expect(tienePermiso('VENDEDOR', 'PANEL_VER')).toBe(false);
     expect(tienePermiso('ROL_INVENTADO', 'PANEL_VER')).toBe(false);

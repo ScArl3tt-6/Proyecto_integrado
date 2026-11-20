@@ -28,11 +28,39 @@ describe('Novedades: aviso visible (contador + lista) para Vendedor y Diseño', 
     expect((await luis.get('/api/auditoria/novedades')).status).toBe(403);
   });
 
+  // DEF-29 / DEF-42 / punto 2 de la revisión del equipo (20-11-2026): antes, apenas Diseño enviaba la
+  // propuesta, el trabajo (ya en PENDIENTE_APROBACION) desaparecía de su bandeja y de su alcance
+  // por completo; Novedades era la única forma de enterarse de la decisión. Ahora Diseño sigue
+  // viendo el trabajo (listado, detalle e historial) mientras espera la aprobación.
+  test('CP-92 Diseño sigue viendo el trabajo mientras está PENDIENTE_APROBACION (ya no desaparece al enviar la propuesta)', async () => {
+    const listado = await valentina.get('/api/trabajos');
+    expect(listado.status).toBe(200);
+    expect(listado.body.map((t) => t.codigo)).toContain(codigo);
+
+    const detalle = await valentina.get(`/api/trabajos/${codigo}`);
+    expect(detalle.status).toBe(200);
+    expect(detalle.body.estado).toBe('PENDIENTE_APROBACION');
+
+    const historial = await valentina.get(`/api/trabajos/${codigo}/historial`);
+    expect(historial.status).toBe(200);
+    expect(historial.body.map((e) => e.tipo)).toContain('DISENO_ENVIADO');
+  });
+
   test('CP-87 Vendedor y Diseño ven la aprobación de la propuesta como novedad, con contador de no vistas', async () => {
     const antes = await jorge.get('/api/auditoria/novedades');
     expect(antes.body).toMatchObject({ noVistas: 0, eventos: [] }); // todavía no hay nada que avisar
 
     await marcela.post(`/api/disenos/${idDiseno}/decision`, { decision: 'APROBADO' });
+
+    // DEF-29/DEF-42, segunda vuelta (punto 1, 20-11-2026): tras aprobarse, el trabajo pasa a
+    // EN_PRODUCCION; Diseño lo sigue viendo (filtro "Aprobados"), de solo lectura — no puede decidir.
+    const listadoTrasAprobar = await valentina.get('/api/trabajos');
+    expect(listadoTrasAprobar.body.map((t) => t.codigo)).toContain(codigo);
+    const detalleTrasAprobar = await valentina.get(`/api/trabajos/${codigo}`);
+    expect(detalleTrasAprobar.status).toBe(200);
+    expect(detalleTrasAprobar.body.estado).toBe('EN_PRODUCCION');
+    const otraPropuesta = await valentina.post(`/api/disenos/${idDiseno}/decision`, { decision: 'APROBADO' });
+    expect(otraPropuesta.status).toBe(403);
 
     const jorgeNovedades = await jorge.get('/api/auditoria/novedades');
     expect(jorgeNovedades.body.noVistas).toBe(1);

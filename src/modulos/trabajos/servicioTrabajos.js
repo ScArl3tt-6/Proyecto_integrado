@@ -168,14 +168,19 @@ function crearServicioTrabajos({ pg, bitacora }) {
   // RF-06 / sección 4.2: listado paginado con alcance según el rol (el permiso ya filtró el acceso a la ruta)
   // "busqueda" (por código o descripción) sirve, entre otras cosas, para elegir un trabajo de una
   // lista en vez de escribir el código a mano (punto 1 de la revisión del equipo, 18-11-2026).
-  async function listar(usuario, { estado, area, busqueda, pagina = 1, limite = 20, conEtapas = false } = {}) {
+  async function listar(usuario, { estado, area, busqueda, orden = 'entrega_proxima', pagina = 1, limite = 20, conEtapas = false } = {}) {
     const valores = [estado || null, area || null];
     let alcance = '';
     if (usuario.rol === 'VENDEDOR') {
       valores.push(usuario.id);
       alcance = `AND t.id_vendedor = $${valores.length}`;
     } else if (usuario.rol === 'DISENO') {
-      alcance = "AND t.estado IN ('SOLICITADO', 'EN_DISENO')";
+      // Incluye PENDIENTE_APROBACION (punto 2 de la revisión del equipo, 20-11-2026): antes, apenas
+      // se enviaba la propuesta, el trabajo desaparecía por completo de la bandeja de Diseño (DEF-29/DEF-42)
+      // y la única forma de saber si se aprobó o rechazó era "Novedades". Se agregó EN_PRODUCCION
+      // (misma revisión, segunda vuelta) para el filtro "Aprobados": acceso de solo lectura (sigue
+      // sin poder decidir ni tomar etapas; eso lo decide el permiso DISENO_APROBAR, no el alcance).
+      alcance = "AND t.estado IN ('SOLICITADO', 'EN_DISENO', 'PENDIENTE_APROBACION', 'EN_PRODUCCION')";
     }
     if (busqueda) {
       valores.push(`%${busqueda}%`);
@@ -200,9 +205,13 @@ function crearServicioTrabajos({ pg, bitacora }) {
            WHERE et2.id_trabajo = t.id_trabajo)`
       : 'NULL::json';
 
+    // "orden" ya viene validado por el esquema (zod enum) antes de llegar aquí: no hay valores
+    // libres que interpolar en el SQL.
+    const ordenSql = orden === 'recientes' ? 'sub.creado_en DESC' : orden === 'antiguos' ? 'sub.creado_en ASC' : 'sub.fecha_compromiso ASC';
+
     const { rows } = await pg.query(
       `SELECT * FROM (
-          SELECT t.codigo, tt.nombre AS tipo, t.descripcion, t.cantidad, t.fecha_compromiso, t.estado,
+          SELECT t.codigo, tt.nombre AS tipo, t.descripcion, t.cantidad, t.fecha_compromiso, t.estado, t.creado_en,
                  COALESCE(a.nombre, CASE WHEN t.estado IN ('SOLICITADO','EN_DISENO') THEN 'Diseño'
                                          WHEN t.estado = 'PENDIENTE_APROBACION' THEN 'Producción (aprobación)' END) AS area_responsable,
                  ep.nombre AS etapa_actual,
@@ -215,7 +224,7 @@ function crearServicioTrabajos({ pg, bitacora }) {
            WHERE ($1::varchar IS NULL OR t.estado = $1) ${alcance}
        ) sub
        WHERE $2::varchar IS NULL OR sub.area_responsable = $2
-       ORDER BY sub.fecha_compromiso ASC
+       ORDER BY ${ordenSql}
        LIMIT $${idxLimite} OFFSET $${idxOffset}`,
       valores,
     );
@@ -225,7 +234,7 @@ function crearServicioTrabajos({ pg, bitacora }) {
   // Comprueba que el trabajo esté dentro del alcance de datos del rol (no solo el acceso a la ruta)
   function verificarAlcance(usuario, trabajo) {
     if (usuario.rol === 'VENDEDOR' && trabajo.id_vendedor !== usuario.id) throw new ErrorNegocio('No tiene permisos para esta acción', 403);
-    if (usuario.rol === 'DISENO' && !['SOLICITADO', 'EN_DISENO'].includes(trabajo.estado)) throw new ErrorNegocio('No tiene permisos para esta acción', 403);
+    if (usuario.rol === 'DISENO' && !['SOLICITADO', 'EN_DISENO', 'PENDIENTE_APROBACION', 'EN_PRODUCCION'].includes(trabajo.estado)) throw new ErrorNegocio('No tiene permisos para esta acción', 403);
   }
 
   // Detalle con etapas y versiones de diseño, respetando el mismo alcance que el listado
@@ -245,10 +254,12 @@ function crearServicioTrabajos({ pg, bitacora }) {
         [trabajo.id_trabajo],
       ),
       pg.query(
-        `SELECT d.version, d.estado, ud.nombre AS disenador, d.enviado_en, ap.decision, ap.motivo, ap.decidido_en
+        `SELECT d.version, d.estado, ud.nombre AS disenador, d.enviado_en,
+                ap.decision, ap.motivo, ap.decidido_en, ua.nombre AS aprobador
            FROM diseno d
            LEFT JOIN usuario ud ON ud.id_usuario = d.id_disenador
            LEFT JOIN aprobacion_diseno ap ON ap.id_diseno = d.id_diseno
+           LEFT JOIN usuario ua ON ua.id_usuario = ap.id_aprobador
           WHERE d.id_trabajo = $1
           ORDER BY d.version`,
         [trabajo.id_trabajo],

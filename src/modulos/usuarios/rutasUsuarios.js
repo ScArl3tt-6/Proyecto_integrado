@@ -64,8 +64,11 @@ function rutasAuditoria({ bitacora }) {
     validar(z.strictObject({ codigo: z.string().regex(/^KT-\d{4}-\d{4}$/) }), 'params'),
     async (req, res) => res.json(await bitacora.consultarPorTrabajo(req.datos.params.codigo)));
 
-  // Punto 5 de la revisión del equipo (19-11-2026): novedades para Vendedor y Diseño.
-  r.get('/novedades', autorizar('NOVEDADES_VER'), async (req, res) => res.json(await bitacora.consultarNovedades(req.usuario)));
+  // Punto 5 de la revisión del equipo (19-11-2026): novedades para Vendedor y Diseño. Paginado
+  // ("Cargar más") agregado en la segunda vuelta del punto 3 (20-11-2026).
+  r.get('/novedades', autorizar('NOVEDADES_VER'),
+    validar(z.strictObject({ pagina: z.coerce.number().int().min(1).max(500).default(1), limite: z.coerce.number().int().min(1).max(50).default(20) }), 'query'),
+    async (req, res) => res.json(await bitacora.consultarNovedades(req.usuario, req.datos.query)));
   r.post('/novedades/vistas', autorizar('NOVEDADES_VER'), async (req, res) => {
     await bitacora.marcarNovedadesVistas(req.usuario);
     return res.status(204).end();

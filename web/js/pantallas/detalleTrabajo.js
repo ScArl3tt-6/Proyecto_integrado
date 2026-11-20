@@ -2,7 +2,7 @@
 // administración), con el alcance que ya decide el servidor (403 si el trabajo no corresponde).
 import { api, ApiError } from '../api.js';
 import { el, vaciar, aviso, abrirDialogoConfirmacion, abrirDialogoMotivo, enlaceVolver, etiquetaCampo, describirErrorApi } from '../ui.js';
-import { chipEstado, chipAtrasado, listaEtapas, estadoCarga, estadoError, formatoFecha, formatoFechaHora, filaEvento, textoEtapaActualSiguiente } from '../componentes.js';
+import { chipEstado, chipEstadoDiseno, textoDecisionDiseno, chipAtrasado, listaEtapas, estadoCarga, estadoError, formatoFecha, formatoFechaHora, filaEvento, textoEtapaActualSiguiente } from '../componentes.js';
 import { tienePermiso, INICIO_POR_ROL } from '../permisos.js';
 
 const MOTIVOS_DETENER = [
@@ -85,9 +85,9 @@ export function renderDetalleTrabajo(main, sesion, codigo) {
     if (trabajo.disenos.length) {
       contenedor.appendChild(el('h2', {}, 'Versiones de diseño'));
       contenedor.appendChild(el('ul', { class: 'lista-versiones' }, ...trabajo.disenos.map((d) => el('li', { class: 'tarjeta' },
-        el('p', {}, el('strong', {}, `Versión ${d.version}`), ' · ', chipEstado(d.estado === 'APROBADO' ? 'TERMINADO' : d.estado === 'RECHAZADO' ? 'DETENIDO' : 'PENDIENTE_APROBACION')),
+        el('p', {}, el('strong', {}, `Versión ${d.version}`), ' · ', chipEstadoDiseno(d.estado)),
         el('p', { class: 'campo-ayuda' }, `Diseñador: ${d.disenador || '—'} · enviado ${formatoFechaHora(d.enviado_en)}`),
-        d.decision ? el('p', { class: 'campo-ayuda' }, `Decisión: ${d.decision}${d.motivo ? ` — ${d.motivo}` : ''}`) : null,
+        (() => { const texto = textoDecisionDiseno(d); return texto ? el('p', { class: 'campo-ayuda' }, texto) : null; })(),
       ))));
     }
 
@@ -135,8 +135,7 @@ export function renderDetalleTrabajo(main, sesion, codigo) {
       const eventos = await api.get(`/trabajos/${codigo}/historial`);
       vaciar(listaHistorial);
       if (!eventos.length) { listaHistorial.appendChild(el('p', { class: 'campo-ayuda' }, 'Todavía no hay eventos registrados.')); return; }
-      const etapasPorOrden = Object.fromEntries((trabajo.etapas || []).map((e) => [e.orden, e.nombre]));
-      listaHistorial.appendChild(el('ol', { class: 'lista-bitacora' }, ...eventos.map((e) => filaEvento(e, { etapasPorOrden }))));
+      listaHistorial.appendChild(el('ol', { class: 'lista-bitacora' }, ...eventos.map((e) => filaEvento(e))));
     } catch {
       vaciar(listaHistorial);
       listaHistorial.appendChild(estadoError('No pudimos cargar el historial. Revisa tu conexión e inténtalo otra vez.', () => cargarHistorial(listaHistorial, trabajo)));

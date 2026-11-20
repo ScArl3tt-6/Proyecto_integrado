@@ -1,6 +1,6 @@
 import { api, ApiError } from '../api.js';
 import { el, vaciar, aviso, abrirDialogoConfirmacion, enlaceVolver, etiquetaCampo, describirErrorApi } from '../ui.js';
-import { tarjetaTrabajo, estadoVacio, estadoCarga, estadoError } from '../componentes.js';
+import { tarjetaTrabajo, estadoVacio, estadoCarga, estadoError, selectorOrden, ordenarPorOpcion, barraFiltros, AYUDA_ORDEN } from '../componentes.js';
 
 const CAMPOS_PROPUESTA = { archivos: 'Archivos', 'archivos.0.nombre': 'Archivos', 'archivos.0.contenidoBase64': 'Archivos', comentario: 'Comentario' };
 
@@ -11,12 +11,47 @@ const CABECERAS_FIRMA = {
 };
 const TAMANO_MAXIMO = 15 * 1024 * 1024;
 
+// Punto 2 de la revisión del equipo (20-11-2026, segunda vuelta): "Todos" muestra las cuatro
+// secciones naturales de la bandeja; los otros cinco acotan a una sola. "Rechazados" es un recorte
+// de "En diseño" (los que además tienen un rechazo reciente por corregir), no una sección aparte.
+const FILTROS = [
+  { clave: 'TODOS', etiqueta: 'Todos' },
+  { clave: 'POR_TOMAR', etiqueta: 'Por tomar' },
+  { clave: 'EN_DISENO', etiqueta: 'En diseño' },
+  { clave: 'EN_APROBACION', etiqueta: 'Esperando aprobación' },
+  { clave: 'RECHAZADOS', etiqueta: 'Rechazados' },
+  { clave: 'APROBADOS', etiqueta: 'Aprobados' },
+];
+
 export function renderBandejaDiseno(main, sesion, irA) {
-  const contenedor = el('section', { class: 'contenedor' }, el('h1', {}, 'Bandeja de diseño'));
+  let filtroActivo = 'TODOS';
+  let orden = 'entrega_proxima';
+  let datos = null;
+
+  const filaFiltros = el('div', { class: 'filtros-lista', role: 'group', 'aria-label': 'Filtrar bandeja de diseño' });
+  const filaOrden = barraFiltros(selectorOrden({ id: 'orden-bandeja-diseno', valor: orden, alCambiar: (v) => { orden = v; pintarLista(); } }));
   const listaNodo = el('div', { class: 'lista-trabajos' });
-  contenedor.appendChild(listaNodo);
+  const contenedor = el('section', { class: 'contenedor' },
+    el('h1', {}, 'Bandeja de diseño'), filaFiltros, filaOrden,
+    el('p', { class: 'campo-ayuda' }, AYUDA_ORDEN),
+    listaNodo,
+  );
   main.appendChild(contenedor);
+
+  pintarFiltros();
   cargar();
+
+  function pintarFiltros() {
+    vaciar(filaFiltros);
+    for (const f of FILTROS) {
+      const activo = filtroActivo === f.clave;
+      const boton = el('button', {
+        type: 'button', class: `boton boton-chip ${activo ? 'boton-primario' : 'boton-secundario'}`, 'aria-pressed': String(activo),
+      }, f.etiqueta);
+      boton.addEventListener('click', () => { filtroActivo = f.clave; pintarFiltros(); pintarLista(); });
+      filaFiltros.appendChild(boton);
+    }
+  }
 
   async function cargar() {
     vaciar(listaNodo);
@@ -24,26 +59,73 @@ export function renderBandejaDiseno(main, sesion, irA) {
     try {
       const trabajos = await api.get('/trabajos?limite=50');
       const porTomar = trabajos.filter((t) => t.estado === 'SOLICITADO');
-      const enCurso = trabajos.filter((t) => t.estado === 'EN_DISENO');
-      const motivos = await motivosDeRechazo(enCurso);
-
+      const enDiseno = trabajos.filter((t) => t.estado === 'EN_DISENO');
+      // Incluye PENDIENTE_APROBACION (DEF-29/DEF-42): antes de este arreglo, el trabajo desaparecía por
+      // completo de la bandeja apenas se enviaba la propuesta. EN_PRODUCCION (filtro "Aprobados",
+      // segunda vuelta del punto 2) para seguir viendo qué pasó con una propuesta ya aprobada.
+      const enAprobacion = trabajos.filter((t) => t.estado === 'PENDIENTE_APROBACION');
+      const aprobados = trabajos.filter((t) => t.estado === 'EN_PRODUCCION');
+      const motivos = await motivosDeRechazo(enDiseno);
+      datos = { porTomar, enDiseno, enAprobacion, aprobados, motivos };
+      pintarLista();
+    } catch {
+      datos = null;
       vaciar(listaNodo);
-      listaNodo.appendChild(el('h2', {}, 'Por tomar'));
-      if (!porTomar.length) listaNodo.appendChild(estadoVacio('No hay solicitudes nuevas por tomar.'));
-      for (const trabajo of porTomar) listaNodo.appendChild(tarjetaTrabajo(trabajo, { accion: botonTomar(trabajo) }));
+      listaNodo.appendChild(estadoError('No pudimos cargar la bandeja. Revisa tu conexión e inténtalo otra vez.', cargar));
+    }
+  }
 
-      listaNodo.appendChild(el('h2', {}, 'En diseño'));
-      if (!enCurso.length) listaNodo.appendChild(estadoVacio('No tienes trabajos en diseño en este momento.'));
-      for (const trabajo of enCurso) {
+  function ordenar(lista) {
+    return ordenarPorOpcion(lista, orden, { entrega: (t) => t.fecha_compromiso, creacion: (t) => t.creado_en });
+  }
+
+  function pintarLista() {
+    if (!datos) return;
+    vaciar(listaNodo);
+    const { porTomar, enDiseno, enAprobacion, aprobados, motivos } = datos;
+    const rechazados = enDiseno.filter((t) => motivos[t.codigo]);
+
+    if (filtroActivo === 'TODOS' || filtroActivo === 'POR_TOMAR') {
+      listaNodo.appendChild(el('h2', {}, 'Por tomar'));
+      const lista = ordenar(porTomar);
+      if (!lista.length) listaNodo.appendChild(estadoVacio('No hay solicitudes nuevas por tomar.'));
+      for (const trabajo of lista) listaNodo.appendChild(tarjetaTrabajo(trabajo, { accion: botonTomar(trabajo) }));
+    }
+
+    if (filtroActivo === 'TODOS' || filtroActivo === 'EN_DISENO' || filtroActivo === 'RECHAZADOS') {
+      const soloRechazados = filtroActivo === 'RECHAZADOS';
+      listaNodo.appendChild(el('h2', {}, soloRechazados ? 'Rechazados' : 'En diseño'));
+      const lista = ordenar(soloRechazados ? rechazados : enDiseno);
+      if (!lista.length) {
+        listaNodo.appendChild(estadoVacio(soloRechazados ? 'No hay propuestas rechazadas por corregir.' : 'No tienes trabajos en diseño en este momento.'));
+      }
+      for (const trabajo of lista) {
         const motivo = motivos[trabajo.codigo];
         const extra = motivo ? aviso('info', `Motivo del rechazo: ${motivo}`) : null;
         const enviar = el('a', { class: 'boton boton-primario', href: `#/disenos/${trabajo.codigo}/enviar` }, 'Enviar propuesta');
         const verDetalle = el('a', { class: 'boton boton-secundario', href: `#/trabajos/${trabajo.codigo}` }, 'Ver detalle e historial');
         listaNodo.appendChild(tarjetaTrabajo(trabajo, { accion: el('div', { class: 'acciones-decision' }, verDetalle, enviar), detalleExtra: extra }));
       }
-    } catch {
-      vaciar(listaNodo);
-      listaNodo.appendChild(estadoError('No pudimos cargar la bandeja. Revisa tu conexión e inténtalo otra vez.', cargar));
+    }
+
+    if (filtroActivo === 'TODOS' || filtroActivo === 'EN_APROBACION') {
+      listaNodo.appendChild(el('h2', {}, 'Esperando aprobación'));
+      const lista = ordenar(enAprobacion);
+      if (!lista.length) listaNodo.appendChild(estadoVacio('No tienes propuestas esperando la decisión de Producción.'));
+      for (const trabajo of lista) {
+        const verDetalle = el('a', { class: 'boton boton-secundario', href: `#/trabajos/${trabajo.codigo}` }, 'Ver detalle e historial');
+        listaNodo.appendChild(tarjetaTrabajo(trabajo, { accion: verDetalle }));
+      }
+    }
+
+    if (filtroActivo === 'TODOS' || filtroActivo === 'APROBADOS') {
+      listaNodo.appendChild(el('h2', {}, 'Aprobados'));
+      const lista = ordenar(aprobados);
+      if (!lista.length) listaNodo.appendChild(estadoVacio('No tienes propuestas aprobadas en producción por ahora.'));
+      for (const trabajo of lista) {
+        const verDetalle = el('a', { class: 'boton boton-secundario', href: `#/trabajos/${trabajo.codigo}` }, 'Ver detalle e historial');
+        listaNodo.appendChild(tarjetaTrabajo(trabajo, { accion: verDetalle }));
+      }
     }
   }
 
