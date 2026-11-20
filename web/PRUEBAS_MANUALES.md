@@ -27,15 +27,24 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-19 | Saludo personalizado ("Hola, &lt;nombre&gt;") en el encabezado y en "Mi cuenta" (con rol, área y correo), sin desbordes en celular | |
 | PM-20 | Historial humano dentro del detalle de un trabajo, visible según el rol (Vendedor, Diseño, Producción, Operario); etapa actual/siguiente en lenguaje claro; falta de materiales destacada | |
 | PM-21 | Aprobar/rechazar una propuesta: la pantalla dice a quién corresponde, el diálogo dice la consecuencia (etapa que sigue, o a qué estado vuelve y quién lo retoma), y tras confirmar se ve el resultado en el detalle del trabajo | |
-| PM-22 | Novedades (Vendedor y Diseño): contador en el menú y lista cuando una solicitud propia se aprueba, se rechaza o termina; baja a 0 al visitarla; Diseño se entera incluso de propuestas que ya no puede ver en detalle | |
+| PM-22 | Novedades (Vendedor y Diseño): contador, filtros, agrupación por día, "Marcar todas como leídas" y "Cargar más"; Diseño se entera incluso de propuestas que ya no puede ver en detalle | |
 | PM-23 | Vista previa de un PDF o imagen de una propuesta, dentro de la misma pantalla de "Decidir propuesta" (sin el ícono de contenido bloqueado) | |
 | PM-24 | La URL base de los enlaces de primer acceso/restablecimiento es configurable (`SST_URL_BASE`), no queda fija en "localhost" | |
 | PM-25 | "Mis solicitudes" (Vendedor): línea de tiempo de etapas, motivo del atraso, y etapa actual/siguiente en lenguaje claro, en cada tarjeta | |
 | PM-26 | Tabla de Usuarios: una acción principal visible y el resto en un menú "⋯", alineados; en celular, tarjetas con etiqueta antes de cada dato | |
 | PM-27 | Fondo oscuro de los modales (no un lavado gris) y selector de archivos con el estilo y el idioma de la app (el calendario de fecha se deja nativo, justificado) | |
 | PM-28 | Paleta azul pastel derivada del logo de Kotoduo, coherente en toda la app; contraste medido con herramienta (axe-core) en 1280 y 390px, no heredado de la paleta anterior | |
-| PM-29 | Un solo formato de fecha ("Compromiso") en toda la app: igual en las tarjetas que en el detalle de un trabajo | |
+| PM-29 | Un solo formato de fecha y hora ("Compromiso" y Bitácora/historial) en toda la app, en 24 horas y año a 4 dígitos | |
 | PM-30 | Espaciado: ningún título pegado al elemento anterior ni viñeta de lista pegada a una caja de aviso, en las pantallas revisadas | |
+| PM-31 | Novedades funciona contra la base real, con el esquema al día (`npm run verificar` detecta columnas faltantes) | |
+| PM-32 | Bandeja de Diseño: secciones "Esperando aprobación" y "Aprobados" (el trabajo ya no desaparece al enviar ni al aprobarse) y 6 filtros; Diseño ve de solo lectura, nunca puede decidir | |
+| PM-33 | Un solo selector de orden ("Entrega más próxima" / "Más recientes" / "Más antiguos") en Mis solicitudes, Bandeja de diseño, Aprobaciones y Panel general | |
+| PM-34 | Una versión de diseño rechazada/aprobada/pendiente muestra su propia etiqueta ("Rechazada"/"Aprobada"/"Pendiente"), con quién decidió, cuándo y el motivo | |
+| PM-35 | La confirmación de rechazo habla de la propuesta/versión que se rechaza, no de la persona que la envió | |
+| PM-36 | Bitácora e historial muestran el nombre real de la etapa ("Bordado de prendas"), no "Etapa n.º 2", en las cuatro vistas que las usan | |
+| PM-37 | "Mis actividades" (Operario) explica, cuando no hay nada, cuándo van a aparecer actividades | |
+| PM-38 | Una sola barra de filtros reutilizable, con los campos alineados (Panel general, Aprobaciones, Mis solicitudes, Bandeja de diseño) | |
+| PM-39 | Novedades: 6 filtros, agrupación por día, chip "Nueva", "Marcar todas como leídas" (manual, ya no automático) y "Cargar más" | |
 
 ## Pasos detallados
 
@@ -214,15 +223,20 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 
 **Confirmado, 19-11-2026:** verificado con navegador real (aprobación y rechazo completos, revisando el texto exacto de ambos diálogos) y con prueba automática (CP-85).
 
-### PM-22 — Novedades para Vendedor y Diseño
+### PM-22 — Novedades para Vendedor y Diseño (actualizado 20-11-2026, ver DEF-49)
 1. Como `marcela` (Producción), aprueba o rechaza una propuesta pendiente.
 2. Como `jorge` (Vendedor, quien registró esa solicitud), ingresa o navega a cualquier pantalla. **Esperado:** en el menú, junto a "Novedades", aparece un número (el contador de novedades sin ver).
-3. Entra a «Novedades». **Esperado:** aparece un resumen ("N novedades nuevas…") y, en la lista, el evento humano correspondiente ("Diseño aprobado" o "Diseño rechazado", con fecha y detalle), igual de legible que la Bitácora de Administración.
-4. Navega a cualquier otra pantalla y vuelve a mirar el menú. **Esperado:** el número ya no aparece (se marcó como vista al abrir "Novedades").
-5. Como `valentina` (Diseño, quien envió esa propuesta), entra a «Novedades». **Esperado:** ve el mismo aviso de aprobación o rechazo de SU propuesta (y de ninguna otra que no haya enviado ella).
-6. Avanza un trabajo hasta que termine todas sus etapas de producción. **Esperado:** tanto Vendedor como Diseño ven en Novedades que ese trabajo terminó (Diseño, en particular, ya no puede ver el detalle de un trabajo terminado, así que esta es su única forma de saberlo).
+3. Entra a «Novedades». **Esperado:** aparece un resumen ("N novedades nuevas…") y, en la lista, el evento humano correspondiente ("Diseño aprobado" o "Diseño rechazado", con fecha y detalle), igual de legible que la Bitácora de Administración; los eventos quedan agrupados por día ("Hoy", "Ayer", o la fecha), y cada uno sin leer muestra un chip "Nueva".
+4. Vuelve a mirar el menú sin hacer nada más. **Esperado (cambió respecto a antes):** el número sigue apareciendo — ya no se marca como vista solo con abrir la pantalla.
+5. En «Novedades», presiona "Marcar todas como leídas". **Esperado:** el chip "Nueva" desaparece de todas, el resumen pasa a "No tienes novedades nuevas…", y el contador del menú baja a 0.
+6. Prueba los filtros (Todas, No leídas, Rechazos, Aprobados, En producción, Terminados). **Esperado:** cada uno muestra solo lo que le corresponde (algunos pueden salir vacíos según el rol: por ejemplo, Diseño no recibe avisos de etapas intermedias, solo el término).
+7. Si hay más de 20 novedades, presiona "Cargar más" al final de la lista. **Esperado:** se agregan más sin perder lo ya cargado ni el filtro activo.
+8. Como `valentina` (Diseño, quien envió esa propuesta), entra a «Novedades». **Esperado:** ve el mismo aviso de aprobación o rechazo de SU propuesta (y de ninguna otra que no haya enviado ella).
+9. Avanza un trabajo hasta que termine todas sus etapas de producción. **Esperado:** tanto Vendedor como Diseño ven en Novedades que ese trabajo terminó.
 
-**Confirmado, 19-11-2026:** verificado con 4 pruebas automáticas (CP-86 a CP-89: sin permiso para otros roles, contador correcto, aislamiento entre personas, aviso de término) y con navegador real (contador en el menú, lista, y que baja a 0 tras visitarla).
+**Confirmado, 19-11-2026:** verificado con 4 pruebas automáticas (CP-86 a CP-89: sin permiso para otros roles, contador correcto, aislamiento entre personas, aviso de término) y con navegador real (contador en el menú, lista, y que baja a 0 tras visitarla — este último punto cambió, ver abajo).
+
+**Actualizado, 20-11-2026 (DEF-49):** se quitó el marcado automático al abrir la pantalla (ahora es manual, con el botón del paso 5) y se agregaron filtros, agrupación por día, chip "Nueva" y "Cargar más". Verificado con 96/96 pruebas automáticas en verde y con navegador real (Playwright/Chromium, 1280 y 390px) contra una copia de la base real: filtros, agrupación, botón de marcar todas y paginación funcionan sin errores de consola, para Diseño y Vendedor.
 
 ### PM-23 — Vista previa de PDF/imagen sin bloqueo (punto 6)
 1. Como `valentina` (Diseño), envía una propuesta real con un archivo PDF (uno de verdad, no solo texto con la extensión .pdf).
@@ -280,15 +294,94 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 
 **Confirmado, 19-11-2026:** paleta nueva (`--azul-50` a `--azul-950`) con 3 tonos tomados muestreando los píxeles reales de `web/img/logo-kotoduo-original.png` (no a ojo). Auditoría con `@axe-core/playwright` contra 8 pantallas reales (Panel general, Usuarios, Bitácora, Mi cuenta, Aprobaciones, Mis solicitudes, Nueva solicitud, Ingreso) en 1280 y 390px: **0 violaciones de `color-contrast` y 0 violaciones totales de WCAG 2 A/AA** en las 16 combinaciones. El foco de teclado mejoró de 2.04:1 a 6.08:1 contra blanco (no heredado de la paleta anterior, que fallaba el 3:1 exigido). Verificado visualmente con capturas reales a ambos anchos.
 
-### PM-29 — Un solo formato de fecha
+### PM-29 — Un solo formato de fecha y hora (actualizado 20-11-2026, ver DEF-46)
 1. Como `jorge` (Vendedor), anota la fecha de compromiso de cualquier solicitud en «Mis solicitudes» (por ejemplo "28-11-2026").
-2. Entra al detalle de esa misma solicitud. **Esperado:** la fecha de compromiso se ve exactamente igual ("28-11-2026"), nunca en otro orden ("2026-11-28").
-3. Revisa cualquier evento de la Bitácora o del Historial de un trabajo. **Esperado:** la fecha con hora sigue un solo formato en toda la app (día-mes-año, hora de 12 con a. m./p. m.).
+2. Entra al detalle de esa misma solicitud. **Esperado:** la fecha de compromiso se ve exactamente igual ("28-11-2026"), nunca en otro orden ("2026-11-28") ni con año a 2 dígitos.
+3. Revisa cualquier evento de la Bitácora o del Historial de un trabajo. **Esperado:** la fecha con hora sigue un solo formato en TODA la app: "DD-MM-AAAA HH:MM" en 24 horas, con año a 4 dígitos (por ejemplo "20-11-2026 14:05") — ya no "DD-MM-AA h:mm a. m./p. m." (año a 2 dígitos, 12 horas).
+4. Compara una fecha de compromiso (sin hora) con la fecha de un evento de bitácora (con hora) en la misma pantalla. **Esperado:** el mismo patrón día-mes-año en ambas, la segunda con ", HH:MM" además.
 
 **Confirmado, 19-11-2026:** verificado con navegador real: el mismo trabajo mostró "28-11-2026" tanto en la tarjeta como en el detalle (antes del arreglo, el detalle mostraba "2026-11-28").
+
+**Actualizado, 20-11-2026 (DEF-46):** la usuaria encontró un tercer formato en uso ("19-11-26 10:41 p. m.", año a 2 dígitos) que convivía con el de 4 dígitos de este mismo PM. `formatoFechaHora()` ya no delega en `toLocaleString` (dependía del locale del navegador); ahora construye el texto a mano con el mismo patrón de `formatoFecha()`. Verificado por código y por los datos que entrega la API contra una copia de la base real; **verificación visual con navegador real pendiente** (no disponible en este entorno — ver DEF-40).
 
 ### PM-30 — Espaciado consistente (punto 14)
 1. Recorre varias pantallas (Mi cuenta, Bitácora, Novedades, Nueva solicitud, Mis actividades, detalle de un trabajo) a 1280 y 390px. **Esperado:** ningún título queda pegado al botón o la lista de la sección anterior (continuación de DEF-20/DEF-21); los botones que van en pareja (por ejemplo "Ver materiales y medidas" / "Ver historial") se ven alineados y con el mismo espacio entre sí en toda la app.
 2. En el detalle de un trabajo EN_PRODUCCION que todavía no tiene materiales registrados, revisa la sección "Materiales". **Esperado:** el aviso "Todavía no hay materiales registrados…" se ve como una caja completa, sin ninguna viñeta de lista pegada a su borde.
 
 **Confirmado, 19-11-2026:** barrido con navegador real en 6 pantallas × 2 anchos; se encontró y corrigió DEF-39 (viñeta pegada a un aviso) durante este mismo barrido, verificado antes y después del cambio.
+
+### PM-31 — Novedades funciona contra la base real, con el esquema al día (punto 1, ver DEF-40)
+1. En la base REAL (no la efímera de pruebas), ejecuta `npm run verificar`. **Esperado (antes de aplicar la migración):** aparece `[FALLA] PostgreSQL: columnas de esquema.sql presentes en esta base — faltan usuario.novedades_vistas_en`.
+2. Ejecuta `npm run db:agregar-novedades-vistas` contra la base real. **Esperado:** "Columna "novedades_vistas_en" lista en "usuario"." (no borra ni modifica ningún dato: solo agrega la columna con un valor por defecto).
+3. Repite `npm run verificar`. **Esperado:** esa verificación ya aparece en `[ OK ]`.
+4. Como `jorge` (Vendedor) y como `valentina` (Diseño), entra a «Novedades». **Esperado:** ya no aparece "No pudimos cargar las novedades…"; aparece el resumen y la lista (rechazo, aprobación, etapa siguiente o terminado), con el contador de no vistas.
+
+**Confirmado, 20-11-2026 (parcial):** causa y corrección verificadas de punta a punta con peticiones HTTP reales (equivalentes a las del navegador) contra una COPIA desechable de la base real, con sus datos de demostración reales: antes de la migración, `GET /api/auditoria/novedades` devolvía 500 para Jorge y Valentina; después de aplicar `npm run db:agregar-novedades-vistas` en esa copia, ambos reciben 200 con sus novedades reales. `npm run verificar` (nuevo chequeo de esquema) detectó la columna faltante correctamente contra la base real. **Pendiente:** que la usuaria ejecute el paso 2 contra la base real (no se tocó la base real directamente, solo la copia) y confirme el paso 4 con un navegador real — este entorno no tiene uno disponible.
+
+### PM-32 — Bandeja de Diseño con "Esperando aprobación", "Aprobados" y filtros (punto 2, ver DEF-29/DEF-42)
+1. Como `valentina` (Diseño), envía una propuesta para un trabajo. **Esperado:** el trabajo YA NO desaparece de la bandeja: aparece en una nueva sección "Esperando aprobación".
+2. Con el filtro "Todos" (por defecto), confirma que se ven las cuatro secciones, en este orden: "Por tomar", "En diseño", "Esperando aprobación" y "Aprobados".
+3. Cambia el filtro a cada uno de los seis: Todos, Por tomar, En diseño, Esperando aprobación, Rechazados, Aprobados. **Esperado:** cada uno muestra solo su sección correspondiente ("Rechazados" es un recorte de "En diseño", no una sección nueva bajo "Todos").
+4. Desde "Esperando aprobación", abre "Ver detalle e historial" del trabajo. **Esperado:** ya no da error de permisos.
+5. Como `marcela` (Producción), aprueba esa misma propuesta. Como `valentina`, vuelve a la bandeja y filtra por "Aprobados". **Esperado:** el trabajo aparece ahí (ya en producción), de solo lectura.
+6. Como `valentina`, intenta decidir una propuesta (por ejemplo, llamando a la acción de aprobar/rechazar de otra forma). **Esperado:** 403 — Diseño nunca tiene el permiso para decidir, solo para ver.
+
+**Confirmado, 20-11-2026 (segunda vuelta):** verificado con un navegador real de verdad (Playwright/Chromium, 1280 y 390px) contra una copia desechable de la base real, con un proceso del servidor recién iniciado (el servidor de demostración real necesita un reinicio para tomar estos cambios: Node cachea los módulos de backend en memoria). Las seis secciones/filtros se ven y funcionan correctamente, incluido "Aprobados"; 0 errores de consola. Prueba automática ampliada (CP-92 + nueva verificación de visibilidad tras aprobar) y `tests/unit/dominio.test.js` (Diseño sin permiso para decidir). 96/96 pruebas en verde.
+
+### PM-33 — Un solo selector de orden en toda la app (punto 3, ver DEF-43)
+1. En «Mis solicitudes» (Vendedor), «Bandeja de diseño» (Diseño), «Aprobaciones» (Producción) y «Panel general», busca el selector "Ordenar por". **Esperado:** las mismas tres opciones, con el mismo texto, en las cuatro pantallas: "Entrega más próxima", "Más recientes", "Más antiguos", con una nota de ayuda bajo el selector.
+2. Elige "Entrega más próxima". **Esperado:** la lista queda ordenada por la fecha de entrega comprometida, la más próxima primero.
+3. Elige "Más recientes" en «Aprobaciones». **Esperado:** la propuesta enviada más recientemente aparece primero (antes de este arreglo, "Más recientes primero" en realidad mostraba la más ANTIGUA primero).
+4. Elige "Más antiguos" en la misma pantalla. **Esperado:** el orden queda exactamente invertido respecto al de "Más recientes".
+
+**Confirmado, 20-11-2026 (parcial):** nueva prueba automática CP-93 (`disenosPendientes.test.js`): "recientes" y "antiguos" quedan en orden inverso exacto entre sí, y "antiguos" trae primero lo que se envió primero. Verificado también con peticiones HTTP reales contra la copia de la base real.
+
+**Actualizado, 20-11-2026 (segunda vuelta):** verificado con navegador real de verdad (Playwright/Chromium, 1280 y 390px) contra una copia de la base real, en las cuatro pantallas. De paso se encontró y corrigió un desalineamiento del campo vecino (ver PM-38/DEF-48).
+
+### PM-34 — Etiquetas propias para cada estado de una versión de diseño (punto 4, ver DEF-44)
+1. Rechaza una propuesta con un motivo. Como Vendedor, Diseño o Producción, entra al detalle del trabajo y revisa "Versiones de diseño". **Esperado:** el chip de esa versión dice "Rechazada" (no "Detenido"), y debajo aparece "Rechazada por &lt;nombre de quien decidió&gt; el &lt;fecha y hora&gt;. Motivo: &lt;el motivo&gt;" (no "Decisión: RECHAZADO").
+2. Aprueba otra propuesta. **Esperado:** el chip dice "Aprobada" (no "Terminado"), con "Aprobada por &lt;nombre&gt; el &lt;fecha y hora&gt;" (sin motivo).
+3. Una versión recién enviada, todavía sin decisión: **Esperado:** el chip dice "Pendiente", sin ninguna línea de decisión debajo.
+4. Como Producción, intenta reabrir "Decidir propuesta" sobre una versión ya decidida. **Esperado:** el aviso dice "...ya tiene una decisión registrada (Rechazada)." o "(Aprobada)", nunca el valor crudo "(RECHAZADO)"/"(APROBADO)".
+
+**Confirmado, 20-11-2026 (parcial):** nueva prueba automática `tests/unit/etiquetasEstado.test.js`: cada estado (de trabajo y de versión de diseño) tiene su propia etiqueta, sin duplicados, nunca el valor interno sin traducir, y específicamente una versión rechazada/aprobada nunca comparte etiqueta con un trabajo detenido/terminado. Verificado con peticiones HTTP reales contra la copia de la base real que la API ya entrega quién decidió (`aprobador`).
+
+**Actualizado, 20-11-2026 (segunda vuelta):** verificado con navegador real de verdad (Playwright/Chromium) contra una copia de la base real, sobre KT-2026-0003: versión 1 con chip "Rechazada" y "Rechazada por Marcela Fuentes el 17-11-2026 19:53. Motivo: El tamaño del letrero supera el ancho permitido por la fachada"; versión 2 con chip "Pendiente", sin línea de decisión.
+
+### PM-35 — La confirmación de rechazo habla de la propuesta, no de la persona (punto 5, ver DEF-45)
+1. Como `marcela` (Producción), abre "Rechazar" sobre cualquier propuesta pendiente e ingresa un motivo.
+2. Lee el diálogo de confirmación. **Esperado:** dice "Se rechazará la versión N de KT-2026-XXXX, enviada por &lt;diseñador/a&gt;; el trabajo vuelve a 'En diseño' para que &lt;diseñador/a&gt; pueda retomarlo con una nueva versión. Motivo: '...'." — nunca "Se rechazará a &lt;nombre&gt;" como sujeto de la frase.
+
+**Confirmado, 20-11-2026 (parcial):** verificado por revisión de código (es un diálogo del navegador sin cobertura de prueba automática de backend).
+
+**Actualizado, 20-11-2026 (segunda vuelta):** verificado con navegador real de verdad (Playwright/Chromium) contra una copia de la base real, completando el flujo de rechazo real: el diálogo dijo exactamente "Se rechazará la versión 2 de KT-2026-0003, enviada por Valentina Rojas; el trabajo vuelve a 'En diseño' para que Valentina Rojas pueda retomarlo con una nueva versión. Motivo: 'Las medidas no coinciden con lo pedido'."
+
+### PM-36 — Nombre real de la etapa en Bitácora e historial (punto 6, primera mitad, ver DEF-41)
+1. Como Administración, entra a «Bitácora» sin filtrar por ningún trabajo (vista "recientes", varios trabajos a la vez). **Esperado:** los eventos de etapa dicen "Etapa: &lt;nombre real, por ejemplo "Bordado de prendas"&gt;", nunca "Etapa n.º 2".
+2. Como Operario, revisa el historial dentro de "Mis actividades". **Esperado:** mismo nombre real, no un número.
+3. Compara con la Bitácora filtrada a un solo trabajo, y con el historial del detalle de un trabajo (los dos casos que ya funcionaban bien). **Esperado:** el mismo nombre en los cuatro lugares.
+
+**Confirmado, 20-11-2026 (parcial):** 96/96 pruebas en verde en la suite completa (ver resumen final). Verificado con peticiones HTTP reales contra la copia de la base real: la respuesta de `/api/auditoria/novedades` ya incluye `"nombreEtapa": "Preparación de matriz de bordado"`, etc.
+
+**Actualizado, 20-11-2026 (segunda vuelta):** verificado con navegador real de verdad (Playwright/Chromium) contra una copia de la base real: "Mis solicitudes" y "Mis actividades" muestran el nombre real de la etapa.
+
+### PM-37 — Estado vacío explicativo en "Mis actividades" (punto 7, ver DEF-47)
+1. Como un Operario sin ninguna etapa `EN_CURSO` en su área en este momento, entra a «Mis actividades». **Esperado:** en vez de solo "No tienes actividades...", explica cuándo van a aparecer (apenas Producción apruebe un diseño cuya primera etapa sea de su área, o cuando le toque la etapa siguiente de un trabajo ya en curso).
+
+**Confirmado, 20-11-2026 (parcial):** verificado por revisión de código contra la consulta real de `actividadesDeMiArea()` (la explicación corresponde exactamente a cuándo aparece una fila). **No verificado todavía con un navegador real** que el mensaje se vea así cuando la lista está realmente vacía — este entorno ya tiene navegador (Playwright) pero el operario de la copia de la base real usada en esta vuelta sí tenía una actividad en curso.
+
+### PM-38 — Una sola barra de filtros, con los campos alineados (punto 2, segunda vuelta, ver DEF-48)
+1. En «Panel general» y «Aprobaciones» (Producción), a 1280px, compara la base de los campos "Filtrar por área"/"Buscar por código o descripción" contra "Ordenar por". **Esperado:** ambos quedan exactamente a la misma altura (antes, "Ordenar por" empujaba al otro campo hacia abajo).
+2. Confirma que el texto de ayuda del orden ("Entrega más próxima ordena...") aparece UNA vez, debajo de toda la fila de filtros, no pegado a un solo campo.
+3. Repite en «Mis solicitudes» (Vendedor) y la bandeja de Diseño.
+4. A 390px, confirma que los filtros se acomodan en columna sin scroll horizontal.
+
+**Confirmado, 20-11-2026:** verificado con navegador real de verdad (Playwright/Chromium, 1280 y 390px) contra una copia de la base real, antes y después del cambio: en Panel general y Aprobaciones, "Filtrar por área"/"Buscar..." y "Ordenar por" quedan a la misma altura; 0 errores de consola.
+
+### PM-39 — Novedades: filtros, agrupación por día, "Marcar todas como leídas" y "Cargar más" (punto 3, segunda vuelta, ver DEF-49)
+1. Como `jorge` o `valentina`, entra a «Novedades» con varias novedades acumuladas de distintos días. **Esperado:** aparecen agrupadas bajo encabezados "Hoy", "Ayer" o la fecha; cada novedad sin leer muestra un chip "Nueva".
+2. Prueba los 6 filtros (Todas, No leídas, Rechazos, Aprobados, En producción, Terminados). **Esperado:** cada uno acota la lista ya cargada a lo que corresponde.
+3. Presiona "Marcar todas como leídas". **Esperado:** desaparecen los chips "Nueva", el resumen pasa a "No tienes novedades nuevas…" y el contador del menú baja a 0 — y esto YA NO pasa solo con abrir la pantalla (antes sí).
+4. Si hay más de 20, presiona "Cargar más". **Esperado:** se agregan sin perder el filtro activo.
+
+**Confirmado, 20-11-2026:** verificado con navegador real de verdad (Playwright/Chromium, 1280 y 390px) contra una copia de la base real, para Diseño y Vendedor: agrupación por día, filtros, botón de marcar todas y el cambio de comportamiento (ya no se marca solo con abrir). 96/96 pruebas automáticas en verde, incluida una que detectó y permitió corregir un error real (`-infinity` mal comparado en MongoDB) introducido al mover el cálculo de "no leídas" al servidor.

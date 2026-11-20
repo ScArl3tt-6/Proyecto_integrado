@@ -942,7 +942,10 @@ completa para el informe (sección de validación de resultados).
 - **Nueva ejecución:** CP-84 (`tests/integracion/trabajosListadoDetalle.test.js`): el alcance por
   rol se respeta, y a Operario le llega acotado a su área y sin eventos de diseño. Verificado con
   navegador real en los 4 roles con acceso (Vendedor, Diseño, Producción, Operario).
-- **Estado:** Corregido (con la limitación anotada arriba, pendiente de confirmación).
+- **Actualización (20-11-2026):** la limitación anotada arriba quedó confirmada como un problema
+  real (punto 2 de la revisión del equipo) y se amplió el alcance de Diseño a
+  `PENDIENTE_APROBACION` — ver DEF-42, que registra el arreglo completo (alcance + bandeja).
+- **Estado:** Corregido.
 
 ## DEF-30 — Aprobar o rechazar una propuesta no decía a quién, con qué consecuencia, ni dejaba ninguna confirmación visible
 
@@ -1221,3 +1224,299 @@ completa para el informe (sección de validación de resultados).
 - **Nueva ejecución:** verificado con navegador real, antes y después del cambio (se confirmó que
   la viñeta aparecía realmente, no se asumió).
 - **Estado:** Corregido.
+
+## DEF-40 — "Novedades" fallaba (error interno) para Vendedor y Diseño en la base real, por una columna que solo existía en la base efímera de pruebas
+
+- **Encontrado en:** aviso de la usuaria, 20-11-2026 ("EN LA PANTALLA DEL VENDEDOR ES LO UNICO
+  RARO.docx", 8 capturas reales) — punto 1 de esa revisión.
+- **Severidad:** Alta (la pantalla no cargaba nada; afectaba a Vendedor y Diseño en la base real
+  de demostración, no solo en un caso límite).
+- **Causa confirmada:** `src/db/esquema.sql` agregó `usuario.novedades_vistas_en` para la
+  funcionalidad de Novedades (punto 5 de la revisión anterior, 19-11-2026). Las bases EFÍMERAS
+  (`scripts/entorno-efimero.js`, usadas por `npm run test`) aplican `esquema.sql` completo en cada
+  ejecución, así que siempre tienen la columna. La base REAL persistente de demostración, creada
+  antes con `npm run db:crear`, solo recibe cambios de esquema posteriores si alguien corre a mano
+  el script de migración correspondiente (`scripts/db/agregar-*.js`) — paso que no se había hecho
+  para esta columna. Confirmado con una consulta de solo lectura directa contra la base real
+  (`information_schema.columns`): la columna no existía. Reproducido también de punta a punta
+  contra una COPIA desechable de la base real (mismos datos de demostración, `pg_dump`/`psql`,
+  sin tocar la base real ni la efímera): `GET /api/auditoria/novedades` como Jorge (Vendedor) y
+  como Valentina (Diseño) devolvía 500 ("Error interno"), que en el navegador se muestra como "No
+  pudimos cargar las novedades. Revisa tu conexión e inténtalo otra vez." — el mismo mensaje
+  genérico que usa cualquier error de red, por lo que no daba ninguna pista de la causa real.
+- **Corrección:** ninguna en el código (la columna y el servicio ya estaban bien escritos). Lo que
+  falta es ejecutar la migración ya existente contra la base real:
+  **`npm run db:agregar-novedades-vistas`** (es idempotente: no hace nada si la columna ya existe,
+  y no borra ni modifica ningún dato). Verificado en la copia desechable: tras aplicar esa misma
+  migración, ambas cuentas volvieron a recibir 200 con sus novedades reales (rechazo, aprobación,
+  etapa completada), incluido el contador de no vistas.
+- **Prevención (para que no vuelva a pasar, ni con esta columna ni con la próxima):** `npm run
+  verificar` ahora compara, contra la base real que tenga configurada, cada columna que declara
+  `src/db/esquema.sql` contra `information_schema.columns`, y reporta por nombre cualquier columna
+  que falte. Verificado contra la base real: detectó exactamente `usuario.novedades_vistas_en`
+  como faltante, antes de aplicar la migración.
+- **Nueva ejecución:** diagnóstico y verificación de la causa y de la corrección hechos contra una
+  copia real de la base (datos de demostración reales, no la base efímera vacía), con peticiones
+  HTTP reales (`curl` con cookies de sesión) equivalentes a lo que haría el navegador — no se probó
+  todavía con un navegador real abriendo la pantalla, porque este entorno no tiene uno disponible;
+  queda pendiente que alguien confirme visualmente después de ejecutar la migración en la base real.
+- **Estado:** Causa y corrección verificadas contra una copia de la base real; pendiente que la
+  usuaria ejecute `npm run db:agregar-novedades-vistas` contra la base real (acción sobre la base
+  real: se deja para que la ejecute ella, no se tocó la base real directamente).
+
+## DEF-41 — La Bitácora y el historial mostraban "Etapa n.º 2" en vez del nombre real de la etapa, en la vista general y en "Mis actividades"
+
+- **Encontrado en:** capturas de la usuaria, 20-11-2026 (punto 6, primera mitad).
+- **Severidad:** Baja (el dato existía y era correcto en otras pantallas; aquí solo faltaba
+  traducirlo a un nombre).
+- **Causa confirmada:** el nombre de la etapa se resolvía en el cliente, no en el servidor, y solo
+  en las dos pantallas que YA tenían a mano las etapas de ESE trabajo para otra cosa (el detalle de
+  un trabajo, y la Bitácora ya filtrada a uno): cada una armaba su propio mapa "orden → nombre" con
+  una segunda petición. La vista general de Bitácora (varios trabajos de tipos distintos a la vez) y
+  el historial dentro de "Mis actividades" nunca armaban ese mapa, así que mostraban el número crudo.
+- **Corrección:** el nombre de la etapa se resuelve ahora en el servidor, al leer la bitácora
+  (`servicioBitacora.enriquecer()`), igual que ya se hacía con el nombre de usuario y de material:
+  una sola consulta por lote, agregada automáticamente a cualquier evento de tipo "trabajo" con un
+  número de etapa, sin que quien llama tenga que pedirlo aparte. Las dos pantallas que ya armaban su
+  propio mapa se simplificaron (ya no hacen la segunda petición).
+- **Nueva ejecución:** 96/96 pruebas automáticas en verde en la suite completa. Verificado además con
+  peticiones HTTP reales contra una copia de la base real: la vista general de novedades de Jorge y
+  Valentina ya trae `"nombreEtapa": "Preparación de matriz de bordado"`, etc., en vez del número.
+- **Actualización (20-11-2026, segunda vuelta):** verificado con un navegador real de verdad
+  (Playwright/Chromium) contra una copia de la base real: "Mis solicitudes" (Vendedor) y "Mis
+  actividades" (Operario) muestran el nombre real de la etapa ("Bordado de prendas", etc.), nunca
+  un número.
+- **Estado:** Corregido y verificado con navegador real (Playwright) contra una copia de la base
+  real.
+
+## DEF-42 — El trabajo desaparecía por completo de la bandeja de Diseño apenas se enviaba la propuesta, sin ninguna sección de espera ni filtros
+
+- **Encontrado en:** capturas de la usuaria, 20-11-2026 (punto 2). Limitación ya anotada antes en
+  DEF-29, ahora confirmada como un problema a corregir.
+- **Severidad:** Media (Diseño perdía toda visibilidad de su propio trabajo mientras esperaba la
+  decisión de Producción, y no tenía forma de filtrar por estado).
+- **Causa confirmada:** `servicioTrabajos.listar()` y `detalle()` restringían el alcance de rol
+  `DISENO` a `estado IN ('SOLICITADO', 'EN_DISENO')` únicamente: apenas una propuesta se envía, el
+  trabajo pasa a `PENDIENTE_APROBACION` y queda fuera de ese filtro — invisible en `GET /trabajos`
+  y con 403 en `GET /trabajos/:codigo`, no solo "oculto en la pantalla". `renderBandejaDiseno()`
+  tampoco tenía ninguna sección ni filtro para ese estado (ni para ningún otro).
+- **Corrección:** se amplió el alcance de `DISENO` a `PENDIENTE_APROBACION` en `listar()` y
+  `verificarAlcance()` (`src/modulos/trabajos/servicioTrabajos.js`); la bandeja (`diseno.js`) suma
+  una tercera sección, "Esperando aprobación", y una barra de filtros (Todos, Por tomar, En diseño,
+  Rechazados, En aprobación) — "Rechazados" es un recorte de "En diseño" (los que tienen un rechazo
+  reciente sin corregir), no una sección nueva bajo "Todos".
+- **Nueva ejecución:** nueva prueba automática CP-92 (`tests/integracion/novedades.test.js`): con el
+  trabajo en `PENDIENTE_APROBACION`, Diseño sigue viendo el listado, el detalle y el historial.
+  96/96 pruebas en verde en la suite completa. Verificado también con peticiones HTTP reales contra la copia de la base
+  real: `GET /api/trabajos` como Valentina ya incluye el trabajo en `PENDIENTE_APROBACION`.
+- **Actualización (20-11-2026, segunda vuelta):** la usuaria reprodujo esta pantalla con un
+  navegador real contra el servidor de demostración (puerto 3000) y NO vio ni los filtros ni la
+  sección "Esperando aprobación". Causa real: ese servidor lleva corriendo desde antes de este
+  arreglo, y Node.js cachea en memoria los módulos de backend al arrancar (`require()`) — una
+  edición en disco de `servicioTrabajos.js` no la toma un proceso ya en marcha hasta reiniciarlo.
+  Reproducido y confirmado con un navegador real de verdad (Playwright/Chromium) contra una copia
+  desechable de la base real, con un proceso recién iniciado: las tres secciones y los cinco
+  filtros se ven y funcionan correctamente, sin errores de consola. **Para que se vea en el
+  servidor de demostración real, hace falta reiniciarlo** (parar `npm run demo` y volver a
+  ejecutarlo) después de aplicar estos cambios.
+  De paso, se amplió también a `EN_PRODUCCION` (filtro "Aprobados", nuevo): Diseño sigue viendo de
+  solo lectura una propuesta ya aprobada (no puede decidir: eso lo bloquea el permiso
+  `DISENO_APROBAR`, que Diseño nunca tuvo). Filtros finales, en el orden pedido: Todos, Por tomar,
+  En diseño, Esperando aprobación, Rechazados, Aprobados.
+- **Nueva ejecución (segunda vuelta):** capturas de pantalla reales (Playwright/Chromium, 1280 y
+  390px) de la bandeja completa, del filtro "Aprobados", y 0 errores de consola en las 16
+  combinaciones de pantalla/rol revisadas en esta vuelta. Prueba automática ampliada
+  (`tests/integracion/novedades.test.js`): tras aprobarse, Diseño sigue viendo el trabajo
+  (`EN_PRODUCCION`) y un intento de decidir devuelve 403; `tests/unit/dominio.test.js` fija que
+  `DISENO` nunca tiene el permiso `DISENO_APROBAR`. 96/96 pruebas en verde en la suite completa.
+- **Estado:** Corregido y verificado con navegador real (Playwright) contra una copia de la base
+  real; pendiente que se reinicie el servidor de demostración real para que tome el cambio.
+
+## DEF-43 — Cada pantalla con lista de trabajos tenía su propio control de orden (o ninguno), con nombres distintos, y uno de ellos ordenaba al revés de lo que decía su propia etiqueta
+
+- **Encontrado en:** capturas de la usuaria, 20-11-2026 (punto 3).
+- **Severidad:** Baja (no impedía usar la pantalla, pero confundía: el mismo concepto se veía y se
+  comportaba distinto según dónde se estuviera).
+- **Causa confirmada:** "Aprobaciones" (Producción) tenía un selector propio con las opciones "Más
+  urgentes primero" / "Más recientes primero"; "Mis solicitudes" (Vendedor), la bandeja de Diseño y
+  el Panel general no tenían ninguno. Además, "Más recientes primero" en Aprobaciones en realidad
+  ordenaba `enviado_en ASC` (las propuestas más ANTIGUAS primero) — lo contrario de lo que decía su
+  propia etiqueta.
+- **Corrección:** un solo componente reutilizable (`selectorOrden()` en `componentes.js`) con tres
+  opciones en todas las pantallas: "Entrega más próxima" (con una nota de ayuda que aclara que
+  ordena por fecha de entrega comprometida), "Más recientes" y "Más antiguos". Se agregó a Vendedor,
+  Diseño, Producción y Panel general; "Más recientes" en Aprobaciones ahora sí ordena `enviado_en
+  DESC`, corregido junto con la unificación. `GET /trabajos` aceptó el mismo parámetro `orden` que ya
+  tenía `GET /disenos/pendientes`. El Panel general ordena en el navegador (ya trae todos los datos
+  de una vez); el resto se lo pide al servidor.
+- **Nueva ejecución:** nueva prueba automática CP-93 (`tests/integracion/disenosPendientes.test.js`):
+  "recientes" y "antiguos" quedan en orden exactamente inverso entre sí, y "antiguos" trae primero lo
+  que se envió primero. 96/96 pruebas en verde en la suite completa. Verificado con peticiones HTTP reales contra la
+  copia de la base real.
+- **Actualización (20-11-2026, segunda vuelta):** verificado con un navegador real de verdad
+  (Playwright/Chromium) contra una copia de la base real, en las cuatro pantallas (Mis solicitudes,
+  Bandeja de diseño, Aprobaciones, Panel general): mismas tres opciones, mismo texto, misma nota de
+  ayuda. De paso se encontró y corrigió un desalineamiento visual del campo vecino (ver DEF-48).
+- **Estado:** Corregido y verificado con navegador real (Playwright) contra una copia de la base
+  real.
+
+## DEF-44 — Una versión de diseño rechazada mostraba el chip "Detenido" (vocabulario de otro estado) y el texto crudo "Decisión: RECHAZADO"
+
+- **Encontrado en:** capturas de la usuaria, 20-11-2026 (punto 4).
+- **Severidad:** Media (información incorrecta/confusa sobre una decisión ya tomada: "Detenido" es
+  el estado de un TRABAJO detenido por falta de materiales o similar, no el de una propuesta
+  rechazada — son conceptos distintos con la misma palabra prestada por error).
+- **Causa confirmada:** `detalleTrabajo.js` pintaba el chip de una versión de diseño con
+  `chipEstado()`, pensado para `trabajo.estado` (SOLICITADO/EN_DISENO/.../DETENIDO/TERMINADO),
+  traduciendo a mano "RECHAZADO → DETENIDO" y "APROBADO → TERMINADO" para reusar sus colores — una
+  versión de diseño tiene su propio estado (`PENDIENTE`/`APROBADO`/`RECHAZADO`, tabla `diseno`) que
+  nunca tuvo su propio vocabulario. La línea de abajo imprimía `d.decision` tal cual llega de la
+  API ("RECHAZADO"/"APROBADO"), sin traducir, y no mostraba quién decidió (el campo ni se pedía a
+  la base de datos). El mismo problema de texto crudo aparecía en "Decidir propuesta" (Producción)
+  al reabrir una versión ya decidida: "Esta versión ya tiene una decisión registrada (RECHAZADO)."
+- **Corrección:** vocabulario propio para la versión de diseño (`TEXTO_ESTADO_DISENO`/
+  `chipEstadoDiseno()` en `componentes.js`): Pendiente/Aprobada/Rechazada, con sus propios colores,
+  sin tomar nada prestado de `trabajo.estado`. `GET /trabajos/:codigo` ahora también entrega quién
+  decidió (`aprobador`, antes solo tenía `decidido_en` y `motivo`); `textoDecisionDiseno()` compone
+  "Rechazada por Marcela Fuentes el 17-11-2026 22:53. Motivo: …" a partir de eso. Se aplicó en las
+  dos pantallas (versiones de diseño del detalle, y el aviso de "Decidir propuesta").
+- **Nueva ejecución:** verificado con peticiones HTTP reales contra la copia de la base real: el
+  detalle de KT-2026-0003 ya entrega `aprobador: "Marcela Fuentes"` junto a `decision`, `motivo` y
+  `decidido_en` para cada versión. Nueva prueba automática `tests/unit/etiquetasEstado.test.js`
+  (pedido explícito de la usuaria): fija que `TEXTO_ESTADO` (trabajo) y `TEXTO_ESTADO_DISENO`
+  (versión de diseño) tengan, cada uno, una etiqueta propia por estado, sin duplicados y sin dejar
+  ningún valor crudo sin traducir, y específicamente que una versión rechazada/aprobada nunca
+  reutilice la etiqueta de un trabajo detenido/terminado. 96/96 pruebas en verde en la suite completa.
+- **Actualización (20-11-2026, segunda vuelta):** verificado con un navegador real de verdad
+  (Playwright/Chromium) contra una copia de la base real, sobre KT-2026-0003 (una versión
+  rechazada y una pendiente): la versión 1 muestra el chip "Rechazada" (rojo) con el texto
+  "Rechazada por Marcela Fuentes el 17-11-2026 19:53. Motivo: El tamaño del letrero supera el
+  ancho permitido por la fachada"; la versión 2 muestra "Pendiente", sin texto de decisión. 0
+  errores de consola.
+- **Estado:** Corregido, con prueba automática de etiquetas distintas y verificado con navegador
+  real (Playwright) contra una copia de la base real.
+
+## DEF-45 — El diálogo de confirmación de rechazo decía que se rechazaría a la persona que envió la propuesta, no la propuesta misma
+
+- **Encontrado en:** capturas de la usuaria, 20-11-2026 (punto 5).
+- **Severidad:** Baja (no cambiaba el resultado de la acción, solo cómo se explicaba antes de
+  confirmarla).
+- **Causa confirmada:** el mensaje decía textualmente "Se rechazará a Valentina Rojas (quien envió
+  esta versión); el trabajo de Jorge Saavedra vuelve a 'En diseño'...", con la diseñadora como
+  sujeto gramatical de "se rechazará" — como si el rechazo fuera contra ella, en vez de contra la
+  propuesta/versión que mandó.
+- **Corrección:** el sujeto de la frase pasa a ser la propuesta: "Se rechazará la versión N de
+  KT-2026-XXXX, enviada por Valentina Rojas; el trabajo vuelve a 'En diseño' para que Valentina
+  Rojas pueda retomarlo con una nueva versión. Motivo: '...'." — se mantiene toda la información
+  que ya daba el aviso (quién la envió, que el trabajo vuelve a "En diseño", que puede reintentar,
+  el motivo), solo cambia a quién/qué apunta la primera frase.
+- **Nueva ejecución:** revisión de código (es un diálogo del navegador, sin prueba automática de
+  backend que lo cubra).
+- **Actualización (20-11-2026, segunda vuelta):** verificado con un navegador real de verdad
+  (Playwright/Chromium) contra una copia de la base real, disparando el rechazo completo (motivo +
+  confirmación) sobre una propuesta real: el diálogo dice textualmente "Se rechazará la versión 2
+  de KT-2026-0003, enviada por Valentina Rojas; el trabajo vuelve a 'En diseño' para que Valentina
+  Rojas pueda retomarlo con una nueva versión. Motivo: 'Las medidas no coinciden con lo pedido'."
+- **Estado:** Corregido y verificado con navegador real (Playwright) contra una copia de la base
+  real.
+
+## DEF-46 — Convivían tres formatos de fecha/hora visualmente distintos en la aplicación (regresión parcial de DEF-38)
+
+- **Encontrado en:** capturas de la usuaria, 20-11-2026 (punto 6, segunda mitad). Ejemplos dados:
+  "19-11-26 10:41 p. m.", "12-11-2026", "20-12-2026".
+- **Severidad:** Baja (el dato era correcto en los tres casos; solo la forma de mostrarlo era
+  inconsistente).
+- **Causa confirmada:** DEF-38 (19-11-2026) unificó el formato de FECHA SOLA (`formatoFecha()`,
+  DD-MM-AAAA cada vez) pero no tocó el formato de fecha CON HORA (`formatoFechaHora()`), que seguía
+  delegando en `Date.prototype.toLocaleString('es-CL', ...)`: ese método entrega el año a 2 dígitos
+  y "a. m."/"p. m." con un espacio angosto que en algunas pantallas se ve pegado o distinto según
+  la fuente — "19-11-26 10:41 p. m." (2 dígitos de año) junto a "12-11-2026" (4 dígitos, de
+  `formatoFecha()`): dos formatos de fecha que no coincidían entre sí, visibles en la misma sesión.
+- **Corrección:** `formatoFechaHora()` ya no delega en `toLocaleString`: construye la fecha con el
+  mismo patrón DD-MM-AAAA (4 dígitos) que `formatoFecha()`, más la hora en formato 24 horas
+  (HH:MM), sin depender del locale que tenga configurado el navegador. Con esto hay un solo patrón
+  de fecha en toda la aplicación, con u sin hora según el dato lo tenga o no (p. ej.
+  `fecha_compromiso` es una columna `DATE`, sin hora: mostrarle una hora inventada habría sido
+  incorrecto, no más "consistente").
+- **Nueva ejecución:** revisión de código y de las llamadas existentes (no hay una prueba
+  automática de backend que cubra el formato de texto del navegador).
+- **Actualización (20-11-2026, segunda vuelta):** verificado con un navegador real de verdad
+  (Playwright/Chromium) contra una copia de la base real: Bitácora, Novedades y el historial del
+  detalle de un trabajo muestran "DD-MM-AAAA HH:MM" (por ejemplo "17-11-2026 19:53") de forma
+  consistente, sin el año a 2 dígitos ni "a. m./p. m." de antes.
+- **Estado:** Corregido y verificado con navegador real (Playwright) contra una copia de la base
+  real.
+
+## DEF-47 — El estado vacío de "Mis actividades" (Operario) no explicaba por qué no había nada
+
+- **Encontrado en:** capturas de la usuaria, 20-11-2026 (punto 7).
+- **Severidad:** Baja (no era un error; solo no explicaba la ausencia de datos de forma que no se
+  confundiera con una falla).
+- **Causa confirmada:** el mensaje era "No tienes actividades en curso en tu área por ahora." —
+  cierto, pero no decía cuándo o por qué iban a aparecer, lo que puede leerse como que algo no
+  está funcionando.
+- **Corrección:** el mensaje ahora explica la causa real (`actividadesDeMiArea()`: solo aparecen
+  etapas `EN_CURSO` de trabajos `EN_PRODUCCION` del área de quien pregunta): "No tienes actividades
+  en este momento. Aparecerán aquí apenas Producción apruebe un diseño cuya primera etapa sea de tu
+  área, o cuando te toque la etapa siguiente de un trabajo ya en curso."
+- **Nueva ejecución:** revisión de código contra la consulta real de `actividadesDeMiArea()` (la
+  explicación corresponde exactamente a cuándo aparece una fila). No verificado todavía con un
+  navegador real (ver limitación anotada en DEF-40).
+- **Estado:** Corregido en el código; verificación visual pendiente.
+
+## DEF-48 — "Filtrar por área"/"Filtrar por estado" quedaba más abajo que "Ordenar por" en todas las pantallas con ambos filtros
+
+- **Encontrado en:** captura real de la usuaria (Panel general, Producción), 20-11-2026 (punto 2,
+  segunda vuelta).
+- **Severidad:** Baja (ambos campos seguían funcionando; solo se veían desalineados).
+- **Causa confirmada:** `.filtros-lista` alinea sus campos por la base (`align-items: flex-end`).
+  `selectorOrden()` devolvía un `.campo` de TRES líneas (etiqueta, select y su propio texto de
+  ayuda), mientras que el campo vecino ("Filtrar por área"/"Filtrar por estado"/"Buscar por código")
+  tenía solo DOS (etiqueta y control) — al alinear por la base, el campo más corto quedaba empujado
+  hacia abajo para que ambos terminaran a la misma altura. Afectaba a Panel general y Aprobaciones
+  (Producción); Mis solicitudes (Vendedor) tenía el mismo defecto de fondo aunque no siempre se
+  notara según el ancho de pantalla.
+- **Corrección:** `selectorOrden()` ya no incluye su texto de ayuda dentro del `.campo` que
+  devuelve (queda solo etiqueta + control, igual que sus vecinos); el texto de ayuda se agrega
+  aparte, DEBAJO de toda la fila. Se creó `barraFiltros(...campos)` en `componentes.js`, una sola
+  envoltura reutilizable para la fila de filtros, usada ahora en las cuatro pantallas (Vendedor,
+  Diseño, Producción, Panel general) en vez de que cada una arme su propio `<div class="filtros-
+  lista">` a mano.
+- **Nueva ejecución:** capturas de pantalla reales (Playwright/Chromium) antes y después, a 1280px,
+  en Panel general y Aprobaciones: los dos campos quedan exactamente a la misma altura. Revisado
+  también Mis solicitudes y la bandeja de Diseño (que no tenían este defecto visible, pero ahora
+  comparten el mismo componente). 0 errores de consola. Sin prueba automática de backend (es
+  puramente de maquetación, en el navegador).
+- **Estado:** Corregido y verificado con navegador real (Playwright) a 1280px; verificación visual
+  de la propia usuaria, bienvenida para confirmar.
+
+## DEF-49 — Novedades no tenía filtros, agrupación, "marcar todas como leídas" ni forma de ver más de las últimas 30
+
+- **Encontrado en:** pedido explícito de la usuaria, 20-11-2026 (punto 3, segunda vuelta).
+- **Severidad:** Baja (la pantalla funcionaba; con pocas novedades alcanzaba, pero no escalaba).
+- **Causa confirmada:** `consultarNovedades()` traía como máximo 30 eventos, sin paginación, sin
+  indicar cuáles ya se habían visto individualmente (solo un contador total), y los marcaba TODOS
+  como vistos automáticamente con solo abrir la pantalla — sin esa marca automática no tendría
+  sentido un botón para hacerlo a mano, así que había que quitarla primero.
+- **Corrección:** `GET /auditoria/novedades` acepta `pagina`/`limite` (igual que el resto de la
+  app) y cada evento trae ahora `leida` (antes solo el total `noVistas`). La pantalla
+  (`novedades.js`) ya no marca como vistas al abrir: agrega un botón explícito "Marcar todas como
+  leídas", seis filtros (Todas, No leídas, Rechazos, Aprobados, En producción, Terminados —
+  calculados en el navegador a partir del tipo de evento, sin tocar el servidor), agrupación por
+  día ("Hoy", "Ayer", o la fecha) y un botón "Cargar más" mientras falten eventos por traer. Un
+  evento no leído se destaca además con un chip "Nueva" (mismo `filaEvento()` que ya usan Bitácora
+  e historial; el chip solo aparece donde el evento trae "leida", nunca en esas otras pantallas).
+- **Error encontrado y corregido en el camino:** al mover a una consulta de MongoDB la comparación
+  "¿es posterior a la última visita?", dejó de funcionar para quien nunca había visitado Novedades:
+  PostgreSQL entrega ese "nunca" (`-infinity`) como el número `-Infinity`, no como una fecha — en
+  JavaScript puro, comparar una fecha contra ese número con "mayor que" funciona bien (se convierte
+  solo), pero dentro de una consulta de MongoDB no, porque el motor compara por tipo de dato, no
+  convierte un número a fecha. Se corrigió reemplazando ese "nunca" por una fecha real (1970) antes
+  de usarla en cualquier consulta; sin este arreglo, el contador de no leídas daba 0 siempre (lo
+  detectó una prueba automática existente, CP-87, que empezó a fallar justo al hacer este cambio).
+- **Nueva ejecución:** 96/96 pruebas automáticas en verde en la suite completa (incluida CP-87, que
+  detectó el error de `-infinity` de camino). Capturas de pantalla reales (Playwright/Chromium,
+  1280 y 390px) de Novedades con filtros, agrupación por día y el botón de marcar todas, para
+  Diseño y Vendedor; 0 errores de consola.
+- **Estado:** Corregido y verificado con navegador real (Playwright) contra una copia de la base
+  real.
