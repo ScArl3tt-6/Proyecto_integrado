@@ -81,7 +81,7 @@ describe('Pruebas de seguridad: sesiones, cuentas y datos', () => {
     const { body: { codigo } } = await jorge.post('/api/trabajos', { idTipo: 1, descripcion: 'Gorros bordados para colegio', cantidad: 20, fechaCompromiso: fechaEnDias(8) });
     await valentina.post(`/api/trabajos/${codigo}/tomar-diseno`);
     const { body: { idDiseno } } = await valentina.post(`/api/disenos/trabajos/${codigo}`, {
-      archivos: [{ nombre: 'insignia.png', tipoMime: 'image/png', tamanoBytes: 52000, cabeceraBase64: CABECERAS.png }],
+      archivos: [{ nombre: 'insignia.png', tipoMime: 'image/png', contenidoBase64: CABECERAS.png }],
     });
     expect((await aprobar(`/api/disenos/${idDiseno}/decision`, { decision: 'APROBADO' })).status).toBe(200);
 
@@ -100,6 +100,41 @@ describe('Pruebas de seguridad: sesiones, cuentas y datos', () => {
     expect(typeof materiales.body[0].cantidad).toBe('number');
     expect((await camila.get(`/api/trabajos/${codigo}/materiales`)).status).toBe(403);
     expect((await koto.get(`/api/trabajos/${codigo}/materiales`)).status).toBe(200); // administración consulta cualquier trabajo
+  });
+
+  test('CP-60 cierre de sesión por inactividad real: sin ninguna solicitud autenticada en el límite, la sesión se revoca y queda en la bitácora', async () => {
+    const sesion = await ctx.iniciarSesion('luis');
+    expect((await sesion.get('/api/auth/sesion')).status).toBe(200);
+
+    // Simula que pasó más tiempo que el límite desde la última solicitud autenticada real
+    await ctx.pg.query(
+      "UPDATE sesion SET ultima_actividad = now() - interval '31 minutes' WHERE id_usuario = $1",
+      [ctx.usuarios.luis.idUsuario],
+    );
+
+    const inactiva = await sesion.get('/api/auth/sesion');
+    expect(inactiva.status).toBe(401);
+    expect(inactiva.body).toEqual({ error: expect.stringContaining('inactividad'), motivo: 'INACTIVIDAD' });
+
+    // La sesión queda revocada de verdad en el servidor: ni renovando el token de acceso vuelve a servir
+    const renovada = await sesion.agente.post('/api/auth/renovar').set('X-CSRF-Token', sesion.csrf);
+    expect(renovada.status).toBe(401);
+
+    const eventos = await ctx.mongoDb.collection('bitacora_eventos').find({ 'entidad.codigo': String(ctx.usuarios.luis.idUsuario) }).toArray();
+    expect(eventos.map((e) => e.tipo)).toContain('SESION_INACTIVIDAD');
+  });
+
+  test('CP-61 la actividad real mantiene la sesión viva aunque el total desde el inicio supere el límite de inactividad', async () => {
+    const sesion = await ctx.iniciarSesion('camila');
+    // Tres solicitudes: cada una queda dentro del límite respecto de la anterior, pero juntas suman
+    // más que el límite desde el inicio de sesión. No debe haber cierre: cada solicitud renueva la actividad.
+    for (let i = 0; i < 3; i += 1) {
+      await ctx.pg.query(
+        "UPDATE sesion SET ultima_actividad = now() - interval '20 minutes' WHERE id_usuario = $1",
+        [ctx.usuarios.camila.idUsuario],
+      );
+      expect((await sesion.get('/api/auth/sesion')).status).toBe(200);
+    }
   });
 });
 

@@ -3,7 +3,7 @@
 
 // Rutas donde un 401 es una respuesta de negocio (credenciales o contraseña actual incorrectas),
 // no una sesión expirada: en estas nunca se intenta renovar.
-const RUTAS_SIN_RENOVACION = new Set(['/auth/login', '/auth/renovar', '/auth/cambiar-contrasena']);
+const RUTAS_SIN_RENOVACION = new Set(['/auth/login', '/auth/login/verificar', '/auth/renovar', '/auth/cambiar-contrasena', '/auth/restablecer']);
 
 export class ApiError extends Error {
   constructor(status, cuerpo, retryAfter) {
@@ -17,6 +17,21 @@ export class ApiError extends Error {
 function leerCookie(nombre) {
   const coincidencia = document.cookie.match(`(?:^|; )${nombre}=([^;]*)`);
   return coincidencia ? decodeURIComponent(coincidencia[1]) : null;
+}
+
+// Punto A de la revisión del equipo (19-11-2026): si el servidor que responde cambió de versión a
+// mitad de sesión (por ejemplo, alguien lo reinició con código nuevo, o quedó uno viejo corriendo),
+// se avisa una sola vez con un evento; no interrumpe la acción en curso ni reintenta nada.
+let versionConocida = null;
+let avisoYaEmitido = false;
+function notarVersion(respuesta) {
+  const version = respuesta.headers.get('x-sst-version');
+  if (!version) return;
+  if (versionConocida === null) { versionConocida = version; return; }
+  if (version !== versionConocida && !avisoYaEmitido) {
+    avisoYaEmitido = true;
+    window.dispatchEvent(new CustomEvent('sst:version-nueva'));
+  }
 }
 
 async function intentarRenovar() {
@@ -52,6 +67,8 @@ async function solicitud(metodo, ruta, cuerpo, { reintentando = false } = {}) {
     throw new ApiError(0, { error: 'Sin conexión' });
   }
 
+  notarVersion(respuesta);
+
   if (respuesta.status === 204) return null;
 
   const tipo = respuesta.headers.get('content-type') || '';
@@ -60,11 +77,17 @@ async function solicitud(metodo, ruta, cuerpo, { reintentando = false } = {}) {
   if (respuesta.ok) return datos;
 
   if (respuesta.status === 401 && !RUTAS_SIN_RENOVACION.has(ruta)) {
-    if (!reintentando) {
-      const renovada = await intentarRenovar();
-      if (renovada) return solicitud(metodo, ruta, cuerpo, { reintentando: true });
+    // Un 401 por inactividad ya cerró la sesión en el servidor: no tiene sentido intentar renovarla
+    // (eso solo renovaría el token de acceso, no la actividad real), así que se avisa directamente.
+    if (datos?.motivo === 'INACTIVIDAD') {
+      window.dispatchEvent(new CustomEvent('sst:sesion-expirada', { detail: { motivo: 'INACTIVIDAD' } }));
+    } else {
+      if (!reintentando) {
+        const renovada = await intentarRenovar();
+        if (renovada) return solicitud(metodo, ruta, cuerpo, { reintentando: true });
+      }
+      window.dispatchEvent(new CustomEvent('sst:sesion-expirada'));
     }
-    window.dispatchEvent(new CustomEvent('sst:sesion-expirada'));
   }
 
   const retryAfter = Number(respuesta.headers.get('retry-after')) || undefined;

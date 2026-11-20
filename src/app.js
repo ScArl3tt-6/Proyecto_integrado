@@ -17,9 +17,10 @@ const { rutasTrabajos } = require('./modulos/trabajos/rutasTrabajos');
 const { rutasDisenos } = require('./modulos/disenos/rutasDisenos');
 const { rutasUsuarios, rutasAuditoria } = require('./modulos/usuarios/rutasUsuarios');
 const { rutasCatalogos } = require('./modulos/catalogos/rutasCatalogos');
+const { VERSION } = require('./version');
 
 function crearApp({ entorno, pg, mongoDb, registro = console }) {
-  const bitacora = crearServicioBitacora(mongoDb);
+  const bitacora = crearServicioBitacora(mongoDb, pg);
   const autenticacion = crearServicioAutenticacion({ pg, entorno, bitacora });
   const servicios = {
     bitacora,
@@ -27,7 +28,7 @@ function crearApp({ entorno, pg, mongoDb, registro = console }) {
     trabajos: crearServicioTrabajos({ pg, bitacora }),
     disenos: crearServicioDisenos({ pg, mongoDb, bitacora }),
     panel: crearServicioPanel({ pg }),
-    usuarios: crearServicioUsuarios({ pg, bitacora, autenticacion }),
+    usuarios: crearServicioUsuarios({ pg, bitacora, autenticacion, entorno }),
     catalogos: crearServicioCatalogos({ pg }),
   };
 
@@ -35,25 +36,36 @@ function crearApp({ entorno, pg, mongoDb, registro = console }) {
   app.disable('x-powered-by');
   app.set('trust proxy', 1); // detrás de Nginx
   app.use(helmet({
-    contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], objectSrc: ["'none'"], frameAncestors: ["'none'"] } },
+    // imgSrc admite "data:" para el código QR del segundo factor (Funcionalidad 5), que se genera
+    // en el servidor como una imagen incrustada, sin subirla a ningún lado
+    contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], imgSrc: ["'self'", 'data:'], objectSrc: ["'none'"], frameAncestors: ["'none'"] } },
     strictTransportSecurity: { maxAge: 31536000, includeSubDomains: true },
   }));
   // Las respuestas de la API contienen datos de sesión y de trabajos: no deben quedar en cachés del navegador ni de intermediarios
   app.use('/api', (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
+  // Punto A de la revisión del equipo (19-11-2026): si el servidor que de verdad está respondiendo
+  // quedó desactualizado respecto al código con el que se armó la pantalla (por ejemplo, alguien lo
+  // dejó corriendo antes de un cambio), el navegador lo nota solo y avisa en vez de fallar en
+  // silencio o confundir a quien prueba. Ver web/js/api.js (detección) y web/js/router.js (aviso).
+  app.use('/api', (req, res, next) => { res.set('X-SST-Version', VERSION); next(); });
   // Límite general por IP y minuto, contra abuso y denegación de servicio (el inicio de sesión tiene límites propios)
   app.use('/api', rateLimit({
     windowMs: 60 * 1000, limit: entorno.limiteGeneral, standardHeaders: 'draft-7', legacyHeaders: false,
     message: { error: 'Demasiadas solicitudes, intente nuevamente en un minuto' },
   }));
-  app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
 
-  const sesion = autenticar({ entorno, pg });
-  app.use('/api/auth', rutasAutenticacion({ autenticacion, entorno, autenticar: sesion, verificarCsrf }));
+  const sesion = autenticar({ entorno, pg, bitacora });
+  // Diseños sube archivos reales en base64 (hasta 15 MB cada uno, ver TAMANO_MAXIMO): necesita un
+  // límite de cuerpo mayor que el resto de la API. Se monta ANTES del express.json() genérico de
+  // abajo para que ese límite más chico no intercepte primero la solicitud (Express ya no vuelve
+  // a parsear un cuerpo que otro express.json() anterior marcó como leído).
+  app.use('/api/disenos', sesion, verificarCsrf, express.json({ limit: '65mb' }), rutasDisenos(servicios));
+  app.use(express.json({ limit: '100kb' }));
+  app.use('/api/auth', rutasAutenticacion({ autenticacion, entorno, autenticar: sesion, verificarCsrf, usuarios: servicios.usuarios }));
   app.use('/api/trabajos', sesion, verificarCsrf, rutasTrabajos(servicios));
-  app.use('/api/disenos', sesion, verificarCsrf, rutasDisenos(servicios));
   app.use('/api/usuarios', sesion, verificarCsrf, rutasUsuarios(servicios));
-  app.use('/api/auditoria', sesion, rutasAuditoria(servicios));
+  app.use('/api/auditoria', sesion, verificarCsrf, rutasAuditoria(servicios));
   app.use('/api/catalogos', sesion, rutasCatalogos(servicios));
   app.get('/api/panel', sesion, autorizar('PANEL_VER'), async (req, res) => res.json(await servicios.panel.resumen()));
 

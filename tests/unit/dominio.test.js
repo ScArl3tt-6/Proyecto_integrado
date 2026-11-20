@@ -54,6 +54,10 @@ describe('Pruebas unitarias - seguridad del dominio', () => {
   test('CP-06 la matriz RBAC deniega por defecto y separa funciones', () => {
     expect(tienePermiso('PRODUCCION', 'DISENO_APROBAR')).toBe(true);
     expect(tienePermiso('ADMINISTRADOR', 'DISENO_APROBAR')).toBe(false);
+    // Punto 1 de la revisión del equipo (20-11-2026, segunda vuelta): Diseño ve de solo lectura los
+    // trabajos pendientes de aprobación y ya aprobados (filtros "Esperando aprobación"/"Aprobados"),
+    // pero nunca puede decidir — ese permiso sigue siendo exclusivo de Producción/Administración.
+    expect(tienePermiso('DISENO', 'DISENO_APROBAR')).toBe(false);
     expect(tienePermiso('OPERARIO', 'TRABAJO_CREAR')).toBe(false);
     expect(tienePermiso('VENDEDOR', 'PANEL_VER')).toBe(false);
     expect(tienePermiso('ROL_INVENTADO', 'PANEL_VER')).toBe(false);
@@ -66,5 +70,10 @@ describe('Pruebas unitarias - seguridad del dominio', () => {
     expect(validarArchivoDiseno({ ...base, cabeceraBase64: CABECERAS.png }).errores).toContain('El contenido no corresponde al tipo declarado');
     expect(validarArchivoDiseno({ ...base, nombre: '../../etc/passwd.pdf' }).valido).toBe(false);
     expect(validarArchivoDiseno({ ...base, tamanoBytes: 16 * 1024 * 1024 }).valido).toBe(false);
+    // DEF-11: un nombre real con símbolos comunes (#, &, paréntesis, tilde) debe aceptarse;
+    // solo los caracteres de control y las barras (no es una ruta real) se rechazan.
+    expect(validarArchivoDiseno({ ...base, nombre: '#foto #1 (diseño) & boceto.pdf' }).valido).toBe(true);
+    expect(validarArchivoDiseno({ ...base, nombre: 'ruta/con/barra.pdf' }).valido).toBe(false);
+    expect(validarArchivoDiseno({ ...base, nombre: 'ruta\\con\\barra.pdf' }).valido).toBe(false);
   });
 });

@@ -16,10 +16,15 @@ h1, h2, h3 { color: var(--color-texto); margin: 0 0 var(--espacio-2); line-heigh
 h1 { font-size: var(--texto-28); }
 h2 { font-size: var(--texto-20); }
 h3 { font-size: var(--texto-16); }
+/* Separación de una sección de la anterior: solo cuando el título no es el primer elemento del
+   contenedor (un título de diálogo, por ejemplo, sigue sin margen superior). Sin esto, un título
+   quedaba pegado al botón o la lista de la sección de arriba — encontrado en el barrido visual a
+   390 px de "Mi cuenta" y presente en varias pantallas más (Usuarios, Detalle de trabajo, etc.). */
+* + h2, * + h3 { margin-top: var(--espacio-4); }
 p { margin: 0 0 var(--espacio-2); }
 
-a { color: var(--color-acento); }
-a:hover { color: var(--color-acento-hover); }
+a { color: var(--color-acento-texto-legible); }
+a:hover { color: var(--color-texto); }
 
 code, .codigo-trabajo { font-family: var(--fuente-codigo); letter-spacing: .02em; }
 
@@ -53,9 +58,12 @@ code, .codigo-trabajo { font-family: var(--fuente-codigo); letter-spacing: .02em
   white-space: nowrap;
 }
 
+/* Cabecera oscura (punto 12 de la revisión del equipo, 19-11-2026; CLAUDE.md §6.5: "cabecera
+   azul-950"): mismo lugar reservado para el logo completo de Kotoduo el día que se use la imagen
+   real; por ahora sigue con el texto "SST Kotoduo", en sus propios tonos claros (no los de
+   color-texto, pensados para fondo claro). */
 .cabecera {
-  background: var(--color-superficie);
-  border-bottom: 1px solid var(--color-borde);
+  background: var(--color-cabecera-fondo);
 }
 .cabecera-contenido {
   max-width: 1080px;
@@ -67,13 +75,22 @@ code, .codigo-trabajo { font-family: var(--fuente-codigo); letter-spacing: .02em
   gap: var(--espacio-2);
   flex-wrap: wrap;
 }
-.cabecera-marca { font-weight: 600; color: var(--color-acento); }
+.cabecera-marca { font-weight: 600; color: var(--color-cabecera-texto); }
 .cabecera-usuario {
   display: flex;
   align-items: center;
   gap: var(--espacio-2);
   font-size: var(--texto-14);
-  color: var(--color-texto-secundario);
+  color: var(--color-cabecera-texto-secundario);
+  max-width: 100%;
+}
+.cabecera-usuario a, .cabecera-usuario .boton-enlace { color: var(--color-cabecera-texto); }
+.cabecera-usuario a:hover, .cabecera-usuario .boton-enlace:hover { color: var(--color-cabecera-texto-secundario); }
+#texto-usuario {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 40vw;
 }
 
 .diseno-app { display: flex; align-items: flex-start; }
@@ -93,7 +110,10 @@ main#app { display: block; min-height: 60vh; flex: 1; min-width: 0; }
   align-self: flex-start;
 }
 .nav-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 10px 12px;
   border-radius: var(--radio-boton);
   color: var(--color-texto);
@@ -102,6 +122,7 @@ main#app { display: block; min-height: 60vh; flex: 1; min-width: 0; }
 }
 .nav-item:hover { background: var(--color-superficie-destacada); }
 .nav-item[aria-current="page"] { background: var(--color-acento); color: var(--color-acento-texto); }
+.nav-badge { flex-shrink: 0; }
 
 @media (max-width: 759px) {
   .contenedor { padding: var(--espacio-2); }

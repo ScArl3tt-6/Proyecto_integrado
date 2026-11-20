@@ -4,6 +4,7 @@ import { api } from './api.js';
 
 let sesionActual = null;
 let banderaSesionExpirada = false;
+let motivoSesionExpirada = null;
 
 export function obtenerSesion() {
   return sesionActual;
@@ -17,15 +18,19 @@ export function limpiarSesion() {
   sesionActual = null;
 }
 
-export function marcarSesionExpirada() {
+export function marcarSesionExpirada(motivo) {
   banderaSesionExpirada = true;
+  motivoSesionExpirada = motivo || null;
 }
 
-// Se consume una sola vez, para que el aviso solo aparezca en la primera pantalla de ingreso tras expirar
+// Se consume una sola vez, para que el aviso solo aparezca en la primera pantalla de ingreso tras
+// expirar. Devuelve null si no hay nada que avisar, o el motivo (puede ser null) si sí.
 export function consumirBanderaSesionExpirada() {
-  const valor = banderaSesionExpirada;
+  if (!banderaSesionExpirada) return null;
+  const motivo = motivoSesionExpirada;
   banderaSesionExpirada = false;
-  return valor;
+  motivoSesionExpirada = null;
+  return { motivo };
 }
 
 export async function cerrarSesion() {

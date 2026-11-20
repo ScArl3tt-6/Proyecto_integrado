@@ -15,8 +15,16 @@
     "db:reiniciar": "node scripts/db/reiniciar-base-postgres.js",
     "mongo:iniciar": "node scripts/db/mongo-iniciar.js",
     "mongo:crear-usuarios": "node scripts/db/mongo-crear-usuarios.js",
+    "mongo:actualizar-validador": "node scripts/db/mongo-actualizar-validador-disenos.js",
+    "mongo:limpiar-demo": "node scripts/db/mongo-limpiar-demo.js",
+    "db:limpiar-trabajos-prueba": "node scripts/db/limpiar-trabajos-prueba.js",
+    "db:agregar-ultima-actividad": "node scripts/db/agregar-ultima-actividad.js",
+    "db:agregar-restablecimiento": "node scripts/db/agregar-restablecimiento-contrasena.js",
+    "db:agregar-mfa": "node scripts/db/agregar-mfa.js",
+    "db:agregar-novedades-vistas": "node scripts/db/agregar-novedades-vistas.js",
     "verificar": "node scripts/verificar-entorno.js",
-    "docs:guia-bases": "node scripts/generar-guia-bases.js"
+    "docs:guia-bases": "node scripts/generar-guia-bases.js",
+    "entorno:verificacion": "node scripts/entorno-efimero.js"
   },
   "keywords": [],
   "author": "",
@@ -30,7 +38,9 @@
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "mongodb": "^7.7.0",
+    "otplib": "^13.6.0",
     "pg": "^8.23.1",
+    "qrcode": "^1.5.4",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -40,6 +50,7 @@
     "eslint-plugin-security": "^4.2.0",
     "globals": "^17.13.0",
     "jest": "^30.5.2",
+    "playwright": "^1.65.1",
     "supertest": "^7.3.1"
   },
   "jest": {

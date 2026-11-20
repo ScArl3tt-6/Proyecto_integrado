@@ -6,6 +6,7 @@ import {
 } from './estado.js';
 import { tieneAlgunPermiso, INICIO_POR_ROL, MENU_POR_ROL, ROL_TEXTO } from './permisos.js';
 import { renderIngreso } from './pantallas/ingreso.js';
+import { renderRestablecer } from './pantallas/restablecer.js';
 import { renderCuenta } from './pantallas/cuenta.js';
 import { renderProhibido, renderNoEncontrado } from './pantallas/errores.js';
 import { renderMisSolicitudes, renderNuevaSolicitud } from './pantallas/vendedor.js';
@@ -15,12 +16,15 @@ import { renderAprobaciones, renderDecidirDiseno } from './pantallas/produccion.
 import { renderMisActividades } from './pantallas/operario.js';
 import { renderPanel } from './pantallas/panel.js';
 import { renderUsuarios, renderBitacora } from './pantallas/admin.js';
+import { renderNovedades } from './pantallas/novedades.js';
 
 const main = document.getElementById('app');
 const cabecera = document.getElementById('cabecera');
 const navPrincipal = document.getElementById('nav-principal');
 const textoUsuario = document.getElementById('texto-usuario');
 const botonSalir = document.getElementById('boton-salir');
+const avisoVersion = document.getElementById('aviso-version');
+const botonRecargarVersion = document.getElementById('boton-recargar-version');
 
 const RUTAS_PUBLICAS = new Set(['#/ingreso']);
 
@@ -37,6 +41,7 @@ const RUTAS = [
   { patron: '#/panel', permiso: ['PANEL_VER'], render: (m, s) => renderPanel(m, s, irA) },
   { patron: '#/usuarios', permiso: ['USUARIO_GESTIONAR'], render: (m, s) => renderUsuarios(m, s, irA) },
   { patron: '#/bitacora', permiso: ['AUDITORIA_VER'], render: (m, s) => renderBitacora(m, s, irA) },
+  { patron: '#/novedades', permiso: ['NOVEDADES_VER'], render: (m) => renderNovedades(m) },
   { patron: '#/mi-cuenta', permiso: null, render: (m, s) => renderCuenta(m, s) },
 ];
 
@@ -76,9 +81,9 @@ async function sesionVigente() {
   }
 }
 
-function expirarSesion() {
+function expirarSesion(motivo) {
   limpiarSesion();
-  marcarSesionExpirada();
+  marcarSesionExpirada(motivo);
   if (location.hash === '#/ingreso') enrutar();
   else location.hash = '#/ingreso';
 }
@@ -90,12 +95,31 @@ function pintarMenu(sesion) {
   for (const item of MENU_POR_ROL[sesion.rol] || []) {
     const enlace = el('a', { href: item.ruta, class: 'nav-item', 'aria-current': hashActual === item.ruta ? 'page' : undefined }, item.texto);
     navPrincipal.appendChild(enlace);
+    if (item.ruta === '#/novedades') actualizarBadgeNovedades(enlace);
   }
+}
+
+// Contador de "Novedades" en el menú: pintarMenu ya se repinta en cada navegación (enrutar), así
+// que visitar la pantalla y volver ya alcanza para que el número baje, sin ningún mecanismo aparte.
+function actualizarBadgeNovedades(enlace) {
+  api.get('/auditoria/novedades').then(({ noVistas }) => {
+    if (noVistas > 0) enlace.appendChild(el('span', { class: 'chip chip-aviso nav-badge' }, String(noVistas)));
+  }).catch(() => { /* el contador es una ayuda visual; si falla, el enlace sigue funcionando igual */ });
 }
 
 async function enrutar() {
   const hash = location.hash || '#/ingreso';
   vaciar(main);
+
+  // Pública y con parámetro: no calza con RUTAS_PUBLICAS (comparación exacta), así que se revisa aparte
+  const parametrosRestablecer = emparejar('#/restablecer/:token', hash);
+  if (parametrosRestablecer) {
+    cabecera.hidden = true;
+    navPrincipal.hidden = true;
+    renderRestablecer(main, irA, parametrosRestablecer.token);
+    enfocarTitulo();
+    return;
+  }
 
   if (RUTAS_PUBLICAS.has(hash)) {
     cabecera.hidden = true;
@@ -114,7 +138,9 @@ async function enrutar() {
   }
 
   cabecera.hidden = false;
-  textoUsuario.textContent = ROL_TEXTO[sesion.rol] || sesion.rol;
+  const primerNombre = sesion.nombre ? sesion.nombre.trim().split(/\s+/)[0] : null;
+  textoUsuario.textContent = primerNombre ? `Hola, ${primerNombre}` : (ROL_TEXTO[sesion.rol] || sesion.rol);
+  textoUsuario.title = `${sesion.nombre || ''} · ${ROL_TEXTO[sesion.rol] || sesion.rol}`.trim();
   pintarMenu(sesion);
 
   if (hash === '#/' || hash === '') {
@@ -140,12 +166,18 @@ async function enrutar() {
 }
 
 window.addEventListener('hashchange', enrutar);
-window.addEventListener('sst:sesion-expirada', expirarSesion);
+window.addEventListener('sst:sesion-expirada', (ev) => expirarSesion(ev.detail?.motivo));
 botonSalir.addEventListener('click', cerrarSesion);
 
+// No interrumpe lo que la persona esté haciendo: solo un aviso persistente y amable (punto A).
+window.addEventListener('sst:version-nueva', () => { avisoVersion.hidden = false; });
+botonRecargarVersion.addEventListener('click', () => location.reload());
+
+// Aviso temprano en el cliente (sin esperar la próxima llamada a la API): el servidor cierra la
+// sesión de verdad con el mismo límite (entorno.minutosInactividad) apenas llegue esa llamada.
 iniciarVigilanciaInactividad(async () => {
   try { await api.post('/auth/logout', {}); } catch { /* se limpia igual */ }
-  expirarSesion();
+  expirarSesion('INACTIVIDAD');
 });
 
 if ('serviceWorker' in navigator) {

@@ -15,7 +15,7 @@ describe('Pruebas de seguridad (amenazas de la sección 7.4)', () => {
     codigoBordado = (await jorge.post('/api/trabajos', { idTipo: 1, descripcion: 'Gorros bordados colegio', cantidad: 60, fechaCompromiso: fechaEnDias(8) })).body.codigo;
     await valentina.post(`/api/trabajos/${codigoBordado}/tomar-diseno`);
     const { body: { idDiseno } } = await valentina.post(`/api/disenos/trabajos/${codigoBordado}`, {
-      archivos: [{ nombre: 'insignia.png', tipoMime: 'image/png', tamanoBytes: 52000, cabeceraBase64: CABECERAS.png }],
+      archivos: [{ nombre: 'insignia.png', tipoMime: 'image/png', contenidoBase64: CABECERAS.png }],
     });
     await marcela.post(`/api/disenos/${idDiseno}/decision`, { decision: 'APROBADO' });
   });
@@ -99,7 +99,7 @@ describe('Pruebas de seguridad (amenazas de la sección 7.4)', () => {
     await valentina.post(`/api/trabajos/${codigo}/tomar-diseno`);
     const carga = '<img src=x onerror="alert(document.cookie)">';
     const envio = await valentina.post(`/api/disenos/trabajos/${codigo}`, {
-      archivos: [{ nombre: 'pendon.pdf', tipoMime: 'application/pdf', tamanoBytes: 1200000, cabeceraBase64: CABECERAS.pdf }], comentario: carga,
+      archivos: [{ nombre: 'pendon.pdf', tipoMime: 'application/pdf', contenidoBase64: CABECERAS.pdf }], comentario: carga,
     });
     const detalle = await marcela.get(`/api/disenos/${envio.body.idDiseno}`);
     expect(detalle.headers['content-type']).toMatch(/application\/json/);
@@ -112,9 +112,9 @@ describe('Pruebas de seguridad (amenazas de la sección 7.4)', () => {
   test('CP-26 carga de archivos: se rechazan SVG y archivos con firma falsa', async () => {
     const codigo = (await jorge.post('/api/trabajos', { idTipo: 4, descripcion: 'Trofeos grabados', cantidad: 12, fechaCompromiso: fechaEnDias(9) })).body.codigo;
     await valentina.post(`/api/trabajos/${codigo}/tomar-diseno`);
-    const svg = await valentina.post(`/api/disenos/trabajos/${codigo}`, { archivos: [{ nombre: 'logo.svg', tipoMime: 'image/svg+xml', tamanoBytes: 3000, cabeceraBase64: CABECERAS.svg }] });
+    const svg = await valentina.post(`/api/disenos/trabajos/${codigo}`, { archivos: [{ nombre: 'logo.svg', tipoMime: 'image/svg+xml', contenidoBase64: CABECERAS.svg }] });
     expect(svg.status).toBe(400);
-    const falso = await valentina.post(`/api/disenos/trabajos/${codigo}`, { archivos: [{ nombre: 'trofeo.pdf', tipoMime: 'application/pdf', tamanoBytes: 3000, cabeceraBase64: CABECERAS.png }] });
+    const falso = await valentina.post(`/api/disenos/trabajos/${codigo}`, { archivos: [{ nombre: 'trofeo.pdf', tipoMime: 'application/pdf', contenidoBase64: CABECERAS.png }] });
     expect(falso.status).toBe(400);
     expect(falso.body.error).toMatch(/no corresponde al tipo declarado/);
   });

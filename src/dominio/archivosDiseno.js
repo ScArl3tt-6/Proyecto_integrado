@@ -14,7 +14,11 @@ function validarArchivoDiseno({ nombre, tipoMime, tamanoBytes, cabeceraBase64 })
   const regla = FIRMAS.get(tipoMime);
   if (!regla) return { valido: false, errores: ['Tipo de archivo no permitido'] };
 
-  if (!/^[\w\- áéíóúñÁÉÍÓÚÑ().]{1,100}$/.test(nombre) || nombre.includes('..')) errores.push('Nombre de archivo inválido');
+  // Lista negra en vez de blanca: un nombre de archivo real puede traer casi cualquier símbolo
+  // ("#foto #1.jpg", "diseño (v2).pdf", "logo & boceto.png"); lo único que de verdad hace falta
+  // rechazar son los caracteres de control, las barras (no es una ruta real) y "..". DEF-11:
+  // la lista blanca anterior rechazaba nombres reales comunes con un error poco claro.
+  if (nombre.length < 1 || nombre.length > 100 || /[\u0000-\u001f\u007f/\\]/.test(nombre) || nombre.includes('..')) errores.push('Nombre de archivo inválido');
   const extension = nombre.split('.').pop().toLowerCase();
   if (!regla.extension.includes(extension)) errores.push('La extensión no coincide con el tipo declarado');
   if (!Number.isInteger(tamanoBytes) || tamanoBytes <= 0 || tamanoBytes > TAMANO_MAXIMO) errores.push('Tamaño fuera de rango');

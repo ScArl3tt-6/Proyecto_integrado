@@ -2,6 +2,8 @@
 // Verifica que el entorno esté listo: versiones, conexión con el rol de aplicación a ambas bases,
 // que ese rol NO tenga privilegios de esquema (mínimo privilegio) y un ciclo real de escritura,
 // lectura y limpieza con un registro marcado DEMO. Es la evidencia del indicador 3.1.4.7.
+const fs = require('node:fs');
+const path = require('node:path');
 const { execSync } = require('node:child_process');
 const { Client } = require('pg');
 const { MongoClient } = require('mongodb');
@@ -78,6 +80,78 @@ async function verificarPostgres() {
   }
 }
 
+// Columnas que src/db/esquema.sql declara por tabla. Es la misma fuente que usa una base nueva
+// (crear-base-postgres.js) o efímera (entorno-efimero.js): si una base YA existía antes de agregar
+// una columna, se queda atrás hasta que alguien corra a mano el "scripts/db/agregar-*.js"
+// correspondiente (ver DEF-40: "novedades_vistas_en" faltaba en la base real porque esquema.sql se
+// actualizó pero nadie corrió "npm run db:agregar-novedades-vistas" contra ella). Esta verificación
+// detecta ese desvío automáticamente, en vez de descubrirlo cuando una pantalla ya falla en producción.
+const PALABRA_RESTRICCION = /^(PRIMARY|UNIQUE|CHECK|FOREIGN|CONSTRAINT)\b/i;
+
+function dividirPorComaDeNivel0(texto) {
+  const partes = [];
+  let actual = '';
+  let profundidad = 0;
+  for (const c of texto) {
+    if (c === '(') profundidad++;
+    else if (c === ')') profundidad--;
+    if (c === ',' && profundidad === 0) { partes.push(actual); actual = ''; }
+    else actual += c;
+  }
+  if (actual.trim()) partes.push(actual);
+  return partes;
+}
+
+function columnasEsperadasPorTabla() {
+  const sql = fs.readFileSync(path.join(__dirname, '..', 'src', 'db', 'esquema.sql'), 'utf8').replace(/--.*$/gm, '');
+  const tablas = {};
+  const re = /CREATE TABLE\s+(\w+)\s*\(/gi;
+  let coincidencia;
+  while ((coincidencia = re.exec(sql))) {
+    let profundidad = 0;
+    let i = coincidencia.index + coincidencia[0].length - 1;
+    for (; i < sql.length; i++) {
+      if (sql[i] === '(') profundidad++;
+      else if (sql[i] === ')') { profundidad--; if (profundidad === 0) break; }
+    }
+    const cuerpo = sql.slice(coincidencia.index + coincidencia[0].length, i);
+    tablas[coincidencia[1]] = dividirPorComaDeNivel0(cuerpo)
+      .map((seg) => seg.trim())
+      .filter((seg) => seg && !PALABRA_RESTRICCION.test(seg))
+      .map((seg) => seg.split(/\s+/)[0]);
+  }
+  return tablas;
+}
+
+async function verificarEsquema() {
+  if (!process.env.SST_PG_URL) return; // ya se reportó más arriba en verificarPostgres()
+  const esperadas = columnasEsperadasPorTabla();
+  const cliente = new Client({ connectionString: process.env.SST_PG_URL });
+  try {
+    await cliente.connect();
+    const faltantes = [];
+    for (const [tabla, columnas] of Object.entries(esperadas)) {
+      const { rows } = await cliente.query(
+        'SELECT column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2',
+        ['public', tabla],
+      );
+      const existentes = new Set(rows.map((r) => r.column_name));
+      for (const columna of columnas) {
+        if (!existentes.has(columna)) faltantes.push(`${tabla}.${columna}`);
+      }
+    }
+    registrar(
+      'PostgreSQL: columnas de esquema.sql presentes en esta base',
+      faltantes.length === 0,
+      faltantes.length ? `faltan ${faltantes.join(', ')} — revisa si corresponde ejecutar algún "npm run db:agregar-*"` : '',
+    );
+  } catch (err) {
+    registrar('PostgreSQL: columnas de esquema.sql presentes en esta base', false, err.message);
+  } finally {
+    await cliente.end();
+  }
+}
+
 async function verificarMongo() {
   if (!process.env.SST_MONGO_URI) { registrar('MongoDB: SST_MONGO_URI en .env', false, 'ejecuta "npm run mongo:iniciar"'); return; }
   const cliente = new MongoClient(process.env.SST_MONGO_URI, { serverSelectionTimeoutMS: 4000 });
@@ -108,6 +182,7 @@ async function principal() {
   console.log('=== Verificación del entorno SST Kotoduo ===\n');
   verificarVersiones();
   await verificarPostgres();
+  await verificarEsquema();
   await verificarMongo();
 
   console.log('\n=== Resumen ===');

@@ -10,6 +10,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+  text-decoration: none; /* DEF-13: un <a class="boton"> heredaba el subrayado del navegador */
 }
 .boton:disabled { opacity: .6; cursor: not-allowed; }
 
@@ -27,7 +28,7 @@
   background: none;
   border: none;
   padding: 0;
-  color: var(--color-acento);
+  color: var(--color-acento-texto-legible);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -50,12 +51,19 @@
 }
 .campo input:focus-visible, .campo select:focus-visible { outline-offset: 0; }
 .campo input[aria-invalid="true"] { border-color: var(--error-tx); }
+
+/* Selector de archivos: el botón nativo ("Choose Files") no se puede traducir ni pintar con el
+   estilo de la app (punto 11 de la revisión del equipo, 19-11-2026); se reemplaza por un botón
+   normal que dispara el campo real, oculto con ".visualmente-oculto". */
+.campo-archivo { display: flex; align-items: center; gap: var(--espacio-2); flex-wrap: wrap; }
+.campo-archivo .boton[aria-invalid="true"] { border-color: var(--error-tx); color: var(--error-tx); }
 .campo-error { color: var(--error-tx); font-size: var(--texto-14); margin: 0; }
 .campo-ayuda { color: var(--color-texto-secundario); font-size: var(--texto-14); margin: 0; }
+.campo-opcional { color: var(--color-texto-secundario); font-weight: 400; }
 
 .campo select {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%236F4E3C'%3E%3Cpath d='M5.5 7.5l4.5 4.5 4.5-4.5' stroke='%236F4E3C' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%232C4B73'%3E%3Cpath d='M5.5 7.5l4.5 4.5 4.5-4.5' stroke='%232C4B73' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 36px;
@@ -88,7 +96,10 @@
 .tabla-simple .celda-acciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
 .filtros-lista { display: flex; flex-wrap: wrap; gap: var(--espacio-2); align-items: flex-end; margin-bottom: var(--espacio-2); }
-.filtros-lista .campo { margin-bottom: 0; min-width: 180px; }
+/* DEF-19: con min-width: 180px, un placeholder o una opción de select un poco largos no cabían
+   (texto cortado en el buscador, la flecha del select tapando la última letra). flex-grow deja
+   que cada campo use el espacio disponible en vez de quedarse en el mínimo. */
+.filtros-lista .campo { margin-bottom: 0; flex: 1 1 240px; min-width: 0; }
 
 .campo-contrasena { position: relative; display: flex; }
 .campo-contrasena input { flex: 1; padding-right: 72px; }
@@ -119,6 +130,20 @@
 .aviso-error { background: var(--error-bg); color: var(--error-tx); }
 .aviso-exito { background: var(--ok-bg); color: var(--ok-tx); }
 .aviso-info { background: var(--aviso-bg); color: var(--aviso-tx); }
+
+.aviso-version {
+  background: var(--aviso-bg);
+  color: var(--aviso-tx);
+  padding: var(--espacio-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+  font-size: var(--texto-14);
+  text-align: center;
+}
+.aviso-version[hidden] { display: none; }
 
 .chip {
   display: inline-flex;
@@ -165,12 +190,60 @@ dialog.dialogo {
   width: calc(100% - 32px);
   background: var(--color-superficie);
   color: var(--color-texto);
-  box-shadow: 0 8px 24px rgba(62, 44, 34, .25);
+  box-shadow: 0 8px 24px rgba(9, 19, 43, .25);
 }
-dialog.dialogo::backdrop { background: rgba(62, 44, 34, .45); }
+/* Punto 11 de la revisión del equipo (19-11-2026): a .45 de opacidad, este mismo café oscuro
+   sobre el fondo rosa claro de la app no se veía como un fondo oscurecido a propósito, sino como
+   un lavado grisáceo parejo sobre toda la pantalla (confirmado con captura real). Más opaco (.7)
+   sí oscurece de verdad, sin salirse de la paleta del proyecto (sigue siendo --cafe-900, no un
+   gris fuera de la paleta). */
+dialog.dialogo::backdrop { background: rgba(9, 19, 43, .7); }
 .dialogo-acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: var(--espacio-3); }
 .sugerencias-motivo { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .boton-chip { padding: 6px 12px; min-height: auto; font-size: var(--texto-14); }
+
+/* Menú de acciones secundarias: <details>/<summary> nativo (punto 10, "una acción principal
+   visible, el resto en un menú"; punto 11, "controles nativos"). */
+.menu-acciones { position: relative; display: inline-block; }
+.menu-acciones > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--texto-20);
+  line-height: 1;
+  padding: 10px 16px;
+}
+.menu-acciones > summary::-webkit-details-marker { display: none; }
+.menu-acciones > summary::marker { content: ''; }
+.menu-acciones[open] > summary { background: var(--color-superficie-destacada); }
+.menu-acciones-lista {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 190px;
+  padding: 6px;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-tarjeta);
+  box-shadow: 0 8px 24px rgba(9, 19, 43, .2);
+}
+.menu-acciones-item {
+  text-align: left;
+  background: none;
+  border: none;
+  font: inherit;
+  padding: 10px 12px;
+  border-radius: var(--radio-boton);
+  color: var(--color-texto);
+  cursor: pointer;
+}
+.menu-acciones-item:hover { background: var(--color-superficie-destacada); }
+.menu-acciones-item-peligro { color: var(--error-tx); }
 
 /* Encabezado de pantalla con acción a la derecha */
 .encabezado-pantalla {
@@ -198,7 +271,8 @@ dialog.dialogo::backdrop { background: rgba(62, 44, 34, .45); }
   margin: var(--espacio-1) 0;
 }
 .etapa-destacada-etiqueta { display: block; font-size: var(--texto-12); color: var(--color-texto-secundario); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
-.etapa-destacada-nombre { display: block; font-size: var(--texto-20); font-weight: 700; color: var(--color-acento); }
+.etapa-destacada-fila { display: flex; align-items: center; gap: var(--espacio-2); flex-wrap: wrap; }
+.etapa-destacada-nombre { display: block; font-size: var(--texto-20); font-weight: 700; color: var(--color-acento-texto-legible); }
 .tarjeta-actividad .boton-grande { margin-top: var(--espacio-2); }
 .materiales-contenedor { margin: var(--espacio-1) 0; }
 
@@ -206,21 +280,52 @@ dialog.dialogo::backdrop { background: rgba(62, 44, 34, .45); }
 .lista-etapas { list-style: none; margin: 0 0 var(--espacio-2); padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .etapa-item {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 4px;
   padding: 10px 12px;
   border-radius: var(--radio-boton);
   border: 1px solid var(--color-borde);
   background: var(--color-superficie);
 }
 .etapa-item.etapa-completada { border-color: var(--ok-tx); }
+.etapa-item-encabezado { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .etapa-nombre { font-weight: 600; }
 .etapa-area { color: var(--color-texto-secundario); font-size: var(--texto-14); }
+
+/* Quién tiene tomada la etapa ahora: tan visible como el chip de estado, no texto chico aparte (punto B3) */
+.chip-responsable { background: var(--aviso-bg); color: var(--aviso-tx); gap: 4px; align-items: center; }
+.icono-responsable {
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='6.2' r='3.2'/%3E%3Cpath d='M3 17c0-3.9 3.1-6.3 7-6.3s7 2.4 7 6.3'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='6.2' r='3.2'/%3E%3Cpath d='M3 17c0-3.9 3.1-6.3 7-6.3s7 2.4 7 6.3'/%3E%3C/svg%3E") center / contain no-repeat;
+}
 .detalle-encabezado { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .detalle-encabezado h1 { margin-bottom: 0; }
 .lista-versiones { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .acciones-decision { display: flex; gap: 8px; margin-top: var(--espacio-2); }
+
+/* DEF-20: el paginador (Anterior/Página N/Siguiente) no tenía ninguna regla propia; como el()
+   arma el DOM sin nodos de texto en blanco entre hijos, quedaba sin espacio real entre el botón
+   "Anterior" y "Página N", pegados. */
+.paginador { display: flex; align-items: center; gap: var(--espacio-2); margin-top: var(--espacio-2); }
+
+/* Archivo de una propuesta de diseño: nombre/tipo/tamaño, botón para verlo y vista previa en la misma pantalla */
+.tarjeta-archivo {
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-tarjeta);
+  padding: var(--espacio-2);
+  margin-bottom: var(--espacio-2);
+  background: var(--color-superficie);
+}
+.tarjeta-archivo-datos { display: flex; align-items: center; justify-content: space-between; gap: var(--espacio-2); flex-wrap: wrap; margin-bottom: var(--espacio-2); }
+.tarjeta-archivo-nombre { font-weight: 600; }
+.tarjeta-archivo-meta { color: var(--color-texto-secundario); font-size: var(--texto-14); }
+.vista-previa-archivo { display: block; width: 100%; max-height: 420px; border: 1px solid var(--color-borde); border-radius: var(--radio-boton); background: var(--color-superficie-destacada); }
+.vista-previa-archivo.vista-previa-imagen { max-height: 420px; width: auto; max-width: 100%; object-fit: contain; }
+.vista-previa-archivo.vista-previa-pdf { height: 420px; }
 
 /* Panel general: tarjetas por estado */
 .panel-tiles { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: var(--espacio-2); }
@@ -256,4 +361,16 @@ dialog.dialogo::backdrop { background: rgba(62, 44, 34, .45); }
   .tabla-simple, .tabla-simple tbody, .tabla-simple tr, .tabla-simple td { display: block; width: 100%; }
   .tabla-simple tr { margin-bottom: var(--espacio-2); border: 1px solid var(--color-borde); border-radius: var(--radio-tarjeta); padding: var(--espacio-1); }
   .tabla-simple td { border-bottom: none; padding: 6px 8px; }
+  /* Punto 10: al ocultar el encabezado, cada tarjeta necesita decir qué es cada dato (no solo el
+     valor suelto); "data-label" lo trae de vuelta como una etiqueta chica, solo en celular. */
+  .tabla-simple td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: var(--texto-12);
+    color: var(--color-texto-secundario);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+  }
+  .tabla-simple .celda-acciones { justify-content: flex-start; }
 }

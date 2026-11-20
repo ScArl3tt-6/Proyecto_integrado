@@ -1,0 +1,50 @@
+=== Entorno de verificación aislado: demostración de que no toca la base real ===
+
+Script: scripts/entorno-efimero.js ("npm run entorno:verificacion"). Reutiliza el mismo mecanismo
+que ya usa la suite de Jest (tests/contexto.js): crea su propia base de PostgreSQL y su propia
+base de MongoDB con el rol sst_pruebas (CREATEDB), nunca toca "sst_kotoduo", y las destruye al
+cerrarse. Sirve un servidor HTTP real (puerto 3100 por defecto) para poder usarlo con un navegador
+real (Playwright u otro), con seis trabajos de ejemplo en distintos estados (igual que
+scripts/sembrar-demo.js) y las seis cuentas de siempre.
+
+--- Conteo de la base REAL (sst_kotoduo) ANTES de usar el entorno efímero ---
+{
+  "pg": { "trabajo": 28, "diseno": 24, "etapa_trabajo": 8, "usuario": 6 },
+  "mongo": { "propuestas_diseno": 24, "bitacora_eventos": 164, "disenos.files": 20 }
+}
+
+--- Ejecución completa realizada ---
+1. npm run entorno:verificacion -> "Entorno de verificación listo en http://localhost:3100"
+2. Navegador real (Playwright): inicio de sesión como jorge, navegación a "Mis solicitudes",
+   confirmado que la pantalla responde con datos reales (KT-2026-0001 del entorno efímero, no de
+   la base real).
+3. Cierre del entorno (señal de cierre): "Cerrando y destruyendo el entorno de verificación...
+   Listo. No quedó ningún dato en la base real."
+
+--- Conteo de la base REAL (sst_kotoduo) DESPUÉS de cerrar el entorno efímero ---
+{
+  "pg": { "trabajo": 28, "diseno": 24, "etapa_trabajo": 8, "usuario": 6 },
+  "mongo": { "propuestas_diseno": 24, "bitacora_eventos": 164, "disenos.files": 20 }
+}
+
+Idéntico al conteo de antes, en las 7 métricas. Se confirmó además, con un script aparte, que no
+quedó ninguna base temporal huérfana en Postgres ni en MongoDB tras el cierre.
+
+--- Nota honesta sobre un intento anterior en esta misma sesión ---
+En el primer intento de probar este entorno, un cierre forzado del proceso (por una limitación de
+cómo esta sesión maneja procesos en segundo plano en Windows, no del código) dejó una base
+temporal huérfana de cada motor (sst_prueba_b117cb79 en Postgres, sst_prueba_587c1a9b en Mongo).
+Se detectaron y se borraron con un script de limpieza aparte antes de repetir la demostración de
+arriba. Por eso scripts/entorno-efimero.js además de la señal de Ctrl+C, acepta un archivo señal
+para pedir el cierre de forma confiable aunque no haya una terminal interactiva.
+
+--- Los 14 trabajos de prueba que SÍ quedaron en la base real (de antes de que este entorno existiera) ---
+Confirmado con "npm run db:limpiar-trabajos-prueba" (sin --si, solo vista previa, no borra nada):
+
+  KT-2026-0007, 0008, 0009 (GridFS), 0018, 0019 (DEF-11), 0020 a 0028 (vista previa UX):
+  14 de 14 encontrados, cada uno con 1 diseño, 0 etapas, 1 archivo en GridFS, 3 eventos de
+  bitácora.
+
+El procedimiento para borrar SOLO estos 14 (sin tocar KT-2026-0010 ni nada del equipo) está listo
+en scripts/db/limpiar-trabajos-prueba.js. NO se ejecutó con --si: queda a la espera de la orden
+explícita del equipo ("npm run db:limpiar-trabajos-prueba -- --si").

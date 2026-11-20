@@ -6,7 +6,7 @@ const { crearApp } = require('./app');
 
 async function iniciar() {
   const entorno = cargarEntorno();
-  const pg = await crearBaseRelacional(entorno.pgDirectorio);
+  const pg = await crearBaseRelacional(entorno.pgUrl);
   const { db: mongoDb } = await crearBaseDocumental(entorno.mongoUri, entorno.mongoBase);
   const { app } = crearApp({ entorno, pg, mongoDb });
   app.listen(entorno.puerto, () => console.log(`SST Kotoduo API escuchando en el puerto ${entorno.puerto}`));

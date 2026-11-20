@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { el, vaciar } from '../ui.js';
-import { estadoVacio, estadoCarga, estadoError, chipEstado } from '../componentes.js';
+import { estadoVacio, estadoCarga, estadoError, chipEstado, selectorOrden, ordenarPorOpcion, barraFiltros, AYUDA_ORDEN } from '../componentes.js';
 
 const GRUPOS = [
   { clave: 'ATRASADO', titulo: 'Atrasados' },
@@ -13,9 +13,14 @@ export function renderPanel(main, sesion, irA) {
   const contenedor = el('section', { class: 'contenedor' }, el('h1', {}, 'Panel general'));
   const tilesNodo = el('div', { class: 'panel-tiles' });
   const filtroArea = el('select', { id: 'filtro-area' }, el('option', { value: '' }, 'Todas las áreas'));
+  let orden = 'entrega_proxima';
   const listaNodo = el('div', { class: 'lista-trabajos' });
   contenedor.appendChild(tilesNodo);
-  contenedor.appendChild(el('div', { class: 'campo' }, el('label', { for: 'filtro-area' }, 'Filtrar por área'), filtroArea));
+  contenedor.appendChild(barraFiltros(
+    el('div', { class: 'campo' }, el('label', { for: 'filtro-area' }, 'Filtrar por área'), filtroArea),
+    selectorOrden({ id: 'orden-panel', valor: orden, alCambiar: (v) => { orden = v; pintarLista(); } }),
+  ));
+  contenedor.appendChild(el('p', { class: 'campo-ayuda' }, AYUDA_ORDEN));
   contenedor.appendChild(listaNodo);
   main.appendChild(contenedor);
 
@@ -65,6 +70,7 @@ export function renderPanel(main, sesion, irA) {
     vaciar(listaNodo);
     let filas = panel.grupos[grupoActivo] || [];
     if (filtroArea.value) filas = filas.filter((t) => t.area_responsable === filtroArea.value);
+    filas = ordenarPorOpcion(filas, orden, { entrega: (t) => t.fecha_compromiso, creacion: (t) => t.creado_en });
     if (!filas.length) {
       listaNodo.appendChild(estadoVacio('No hay trabajos en este grupo.'));
       return;
@@ -72,11 +78,11 @@ export function renderPanel(main, sesion, irA) {
     listaNodo.appendChild(el('table', { class: 'tabla-simple' },
       el('thead', {}, el('tr', {}, el('th', {}, 'Código'), el('th', {}, 'Tipo'), el('th', {}, 'Estado'), el('th', {}, 'Área'), el('th', {}, 'Días en etapa'), el('th', {}))),
       el('tbody', {}, ...filas.map((t) => el('tr', {},
-        el('td', {}, el('span', { class: 'codigo-trabajo' }, t.codigo)),
-        el('td', {}, t.tipo),
-        el('td', {}, chipEstado(t.estado)),
-        el('td', {}, t.area_responsable || '—'),
-        el('td', {}, String(t.dias_en_etapa ?? '—')),
+        el('td', { 'data-label': 'Código' }, el('span', { class: 'codigo-trabajo' }, t.codigo)),
+        el('td', { 'data-label': 'Tipo' }, t.tipo),
+        el('td', { 'data-label': 'Estado' }, chipEstado(t.estado)),
+        el('td', { 'data-label': 'Área' }, t.area_responsable || '—'),
+        el('td', { 'data-label': 'Días en etapa' }, String(t.dias_en_etapa ?? '—')),
         el('td', {}, el('a', { class: 'boton boton-secundario', href: `#/trabajos/${t.codigo}` }, 'Ver detalle')),
       ))),
     ));

@@ -1,0 +1,53 @@
+=== Fase 1 — Archivos reales de diseño con GridFS: evidencia de pruebas automáticas y manual (PM-10) ===
+
+--- Pruebas automáticas (CP-52 a CP-54, y CP-15/CP-16 actualizadas) ---
+$ node --experimental-vm-modules node_modules/jest/bin/jest.js tests/integracion/archivosDiseno.test.js tests/integracion/flujoTrabajo.test.js --runInBand --verbose
+
+Test Suites: 2 passed, 2 total
+Tests:       12 passed, 12 total
+
+Pruebas nuevas o modificadas que forman parte de ese resultado (nombres tomados tal cual de los
+archivos de prueba, no son una transcripción literal de la consola):
+  (archivosDiseno.test.js) CP-52 producción descarga el archivo real y su contenido coincide byte a byte con lo subido por diseño
+  (archivosDiseno.test.js) CP-53 rechaza descargar sin el permiso, un archivo de otro diseño, un diseño inexistente y un id con formato inválido
+  (archivosDiseno.test.js) CP-54 (borde) si el trabajo no existe, no queda ningún archivo huérfano en GridFS
+  (flujoTrabajo.test.js)   CP-15 integración PostgreSQL-MongoDB: detalle del diseño y bitácora del trabajo (ahora exige idDiseno)
+  (flujoTrabajo.test.js)   CP-16 si MongoDB falla al guardar la propuesta, PostgreSQL revierte la transacción y no quedan archivos huérfanos en GridFS
+
+--- Suite completa tras el cambio ---
+Test Suites: 13 passed, 13 total
+Tests:       53 passed, 53 total
+Statements   : 94.46% ( 649/687 )
+Branches     : 80.13% ( 234/292 )
+Functions    : 93.33% ( 140/150 )
+Lines        : 98.3%  ( 581/591 )
+
+--- PM-10, verificación manual con navegador real (Playwright, headless, contra npm run demo) ---
+
+Primer intento (encontró DEF-10, registrado en evidencias/defectos.md): el enlace "Ver archivo"
+apuntaba a /api/disenos/undefined/archivos/..., porque detalle(idDiseno) no traía el campo
+idDiseno en la respuesta. Literal:
+  Enlace "Ver archivo" encontrado: /api/disenos/undefined/archivos/6afcf4f77dbff5bb75711f26
+  Status descarga: 400
+  Content-Type: application/json; charset=utf-8
+  Coincide byte a byte: false
+
+Con el fix aplicado (alias "idDiseno" en la consulta), se repitió el flujo completo desde cero:
+  1) jorge (Vendedor) crea KT-2026-0009.
+  2) valentina (Diseño) toma la solicitud y envía la propuesta adjuntando un archivo PDF real de
+     10 409 bytes (no solo la cabecera) a través del formulario real del navegador
+     (input[type=file] con setInputFiles, igual que lo haría una persona).
+  3) marcela (Producción) abre "Aprobaciones" → "Ver y decidir" y pide el enlace "Ver archivo".
+
+Resultado real:
+  Enlace "Ver archivo" encontrado: /api/disenos/8/archivos/6afcf585d3b3d88c67ec02d6
+  Status descarga: 200
+  Content-Type: application/pdf
+  Tamaño descargado: 10409 | Tamaño original: 10409
+  Coincide byte a byte: true
+
+Qué queda demostrado: el archivo que Diseño adjunta se guarda completo en GridFS (bucket
+"disenos", colecciones disenos.files/disenos.chunks dentro de sst_kotoduo), no solo sus primeros
+bytes como antes de esta fase; y Producción puede ver/descargar ese archivo real desde la pantalla
+antes de aprobar o rechazar, que era justo la brecha señalada en CLAUDE.md
+("Producción aprueba diseños que nunca puede ver").

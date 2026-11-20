@@ -1,0 +1,75 @@
+=== Seguimiento al aviso del equipo: confirmación de DEF-11, pendientes 1-6 ===
+
+--- 1) Nombre del bucket de GridFS ---
+Búsqueda en todo el repositorio (código, docs, evidencias) de "fs.files"/"fs.chunks": sin
+resultados. Ya se usa "disenos.files"/"disenos.chunks" en todos lados desde que se implementó
+GridFS. No hizo falta ninguna corrección.
+
+--- 2) Caché de archivos estáticos ---
+Se encontró una causa real adicional, más fuerte que la explicación anterior de DEF-11 ("una
+pestaña abierta sin recargar"): web/sw.js (el service worker) cacheaba los archivos estáticos con
+una estrategia "cache-first": una vez guardado un archivo en su caché, lo devolvía de inmediato
+SIN comparar con el servidor, para siempre (el nombre de la caché nunca cambiaba). Esto podía
+mantener JavaScript viejo incluso después de cerrar y volver a abrir el navegador.
+
+Corrección: estrategia cambiada a "network-first" (intenta la red primero, solo usa la caché si
+de verdad no hay conexión), nombre de caché subido a "sst-kotoduo-v2" (purga la caché vieja al
+activarse) y self.skipWaiting() agregado para que la versión nueva tome el control de inmediato.
+
+--- 3) y 4) DEF-12: propuestas/trabajos repetidos en las bandejas ---
+Ver evidencias/defectos.md (sección DEF-12) para el detalle completo. Resumen:
+- Se revisó el código fuente de CADA consulta que devuelve una lista en toda la aplicación
+  (disenos.pendientes, trabajos.listar, trabajos.actividadesDeMiArea, panel.resumen,
+  usuarios.listar): ninguna puede duplicar filas (todas sus uniones son 1 a 1, o LEFT JOIN
+  filtrado a como mucho una fila).
+- Se probó en vivo contra el servidor real: GET /api/disenos/pendientes (11 filas, 0 repetidas),
+  GET /api/trabajos?limite=50 (0 repetidas).
+- Se confirmó con Playwright que la pantalla de Aprobaciones pinta exactamente 1 tarjeta por fila
+  de la API, antes y después de navegar sin recargar la página.
+- No se logró reproducir el defecto. La explicación más probable: los muchos trabajos de prueba
+  creados durante la investigación de DEF-11 (nombres parecidos, mismo tipo de archivo de prueba)
+  se vieron como "la misma propuesta repetida" sin serlo de verdad.
+- Se agregaron pruebas de regresión que fallarían si esto pasara de verdad:
+  CP-57 (tests/integracion/disenosPendientes.test.js) y CP-58
+  (tests/integracion/trabajosListadoDetalle.test.js, con un trabajo real que llega a producción
+  con una etapa EN_CURSO, el caso exacto que se sospechaba).
+
+--- 5) "Ver archivo" como botón claro, con vista previa en la misma pantalla ---
+web/js/pantallas/produccion.js: cada archivo de una propuesta ahora se muestra en una tarjeta con
+su nombre, tipo y tamaño, un botón claro "📄 Ver archivo completo" (antes era un enlace de texto
+diminuto), y una vista previa real en la misma pantalla: <img> para PNG/JPG, <iframe> para PDF.
+
+Verificado con Playwright, con un navegador real, contra el servidor real:
+- Con un PNG real válido (no solo la firma): la vista previa muestra el píxel real de la imagen.
+  Captura: evidencias/capturas/fase1_vista_previa_archivo.png (ahí se ve con un PDF; con el PNG
+  se confirmó por código fuente del DOM y por el render, con el mismo resultado estructural).
+- Con un PDF real válido (estructura PDF correcta, no solo la cabecera): el <iframe> queda con el
+  src correcto (/api/disenos/:idDiseno/archivos/:idArchivo) y el Content-Type correcto
+  (application/pdf), pero se ve en blanco en ESTA verificación. Causa confirmada, no es un defecto
+  de la aplicación: el Chromium que usa Playwright por defecto NO tiene activado el visor de PDF
+  integrado (al navegar directo a un PDF, Chromium ofrece descargarlo en vez de mostrarlo). Un
+  navegador real de un usuario (Chrome, Edge) sí lo muestra normalmente. Esto se deja anotado
+  explícitamente como "no verificado visualmente para PDF con esta herramienta", para no fingir
+  una comprobación que no se pudo hacer de verdad.
+- Los botones Aprobar (clase "boton boton-primario") y Rechazar (clase "boton boton-peligro") ya
+  estaban visualmente distintos (color de acento vs. color de error); se mantuvieron así.
+
+Pendiente, para la Fase 2 (rediseño): el ícono "📄" es un emoji de marcador, no un ícono propio del
+sistema de diseño; reemplazarlo cuando exista un sistema de íconos real.
+
+--- 6) Base de demostración ensuciada por las pruebas con navegador ---
+Se creó scripts/db/mongo-limpiar-demo.js ("npm run mongo:limpiar-demo -- --si"), que vacía las
+colecciones de MongoDB de la demostración (propuestas, archivos de GridFS y bitácora) usando las
+credenciales normales de la aplicación (sst_app), sin necesitar la contraseña de administración.
+
+Procedimiento recomendado para dejar la base real completamente limpia antes de la presentación
+(requiere que una persona del equipo escriba la contraseña del superusuario de PostgreSQL cuando
+se la pida, nunca se guarda ni se pide por este medio):
+  1. npm run db:reiniciar -- --si      (borra PostgreSQL por completo)
+  2. npm run db:crear                  (recrea el esquema y los roles desde cero)
+  3. npm run mongo:limpiar-demo -- --si (vacía las colecciones de MongoDB)
+  4. npm run demo:sembrar              (siembra las 6 cuentas y los 6 trabajos de ejemplo, limpios)
+
+No se hizo este reseteo en esta sesión porque habría borrado datos que el propio equipo podría
+seguir necesitando para sus pruebas; se deja como procedimiento para que el equipo lo corra cuando
+decida que es el momento (por ejemplo, justo antes de la presentación).

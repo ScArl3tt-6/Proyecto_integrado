@@ -11,18 +11,31 @@
 .tarjeta-ingreso h1 { font-size: var(--texto-20); margin-bottom: 4px; }
 .tarjeta-ingreso .subtitulo { color: var(--color-texto-secundario); margin-bottom: var(--espacio-3); font-size: var(--texto-14); }
 
-.mfa-proximamente {
-  max-width: 380px;
-  width: 100%;
-  text-align: center;
-  color: var(--color-texto-secundario);
-  font-size: var(--texto-14);
-  margin: 0;
-}
-
 .seccion-cuenta { max-width: 480px; }
+/* La regla general "* + h2" (base.css) no alcanza al título de "Verificación en dos pasos": queda
+   anidado dentro de su propio contenedor, así que no tiene un hermano anterior directo. Selector
+   de descendiente para que de todas formas quede separado de la sección de arriba. */
+.seccion-cuenta h2 { margin-top: var(--espacio-4); }
 .lista-reglas { margin: 0 0 var(--espacio-2); padding-left: var(--espacio-3); color: var(--color-texto-secundario); font-size: var(--texto-14); }
 .lista-reglas li { margin-bottom: 4px; }
+/* Punto 14 de la revisión del equipo (19-11-2026): un aviso de materiales faltantes (punto 2)
+   quedaba con el topo de viñeta de la lista justo al lado de la caja del aviso, como si fuera un
+   error de maquetación. Sin viñeta cuando el contenido ya es su propio recuadro. */
+.lista-reglas li:has(.aviso) { list-style: none; }
+
+.lista-datos-cuenta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px var(--espacio-2);
+  margin: 0 0 var(--espacio-3);
+  font-size: var(--texto-14);
+}
+.lista-datos-cuenta dt { color: var(--color-texto-secundario); }
+.lista-datos-cuenta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
 
 @media (max-width: 759px) {
   .pantalla-ingreso { padding: var(--espacio-2); align-items: flex-start; padding-top: var(--espacio-5); }

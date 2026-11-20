@@ -18,13 +18,26 @@ const esquemaPaginacion = z.strictObject({
   pagina: z.coerce.number().int().min(1).max(500).default(1),
   limite: z.coerce.number().int().min(1).max(50).default(20),
 });
+// Mismo orden en todas las listas de trabajos de la app (punto 3 de la revisión del equipo,
+// 20-11-2026): "entrega_proxima" por fecha_compromiso, "recientes"/"antiguos" por creado_en.
+const ordenes = z.enum(['entrega_proxima', 'recientes', 'antiguos']);
 const esquemaListado = z.strictObject({
   estado: estados.optional(),
   area: areas.optional(),
+  busqueda: z.string().trim().min(1).max(60).optional(),
+  orden: ordenes.default('entrega_proxima'),
   pagina: z.coerce.number().int().min(1).max(500).default(1),
   limite: z.coerce.number().int().min(1).max(50).default(20),
+  // Línea de tiempo de etapas por trabajo (punto 9 de la revisión del equipo, 19-11-2026): opcional
+  // porque solo "Mis solicitudes" la necesita; para el resto es peso de más en la respuesta.
+  conEtapas: z.coerce.boolean().optional(),
 });
 const esquemaMotivo = z.strictObject({ motivo: z.string().trim().min(5).max(300) });
+const esquemaMaterial = z.strictObject({
+  idMaterial: z.number().int().positive(),
+  cantidad: z.number().positive().max(100000),
+  medida: z.string().trim().min(1).max(60).optional(),
+});
 const esquemaParamsTrabajo =z.strictObject({ codigo: codigoTrabajo });
 const esquemaParamsEtapa = z.strictObject({ codigo: codigoTrabajo, orden: z.coerce.number().int().min(1).max(20) });
 const PERMISOS_VER_TRABAJOS = ['TRABAJO_VER_PROPIOS', 'TRABAJO_VER_DISENO', 'TRABAJO_VER_TODOS'];
@@ -48,6 +61,13 @@ function rutasTrabajos({ trabajos }) {
     res.json(await trabajos.detalle(req.usuario, req.datos.params.codigo));
   });
 
+  // Punto 2 de la revisión del equipo (19-11-2026): historial humano dentro del detalle de un
+  // trabajo; también accesible a Operario (acotado a su área, ver historialDeTrabajo), que no tiene
+  // ruta al detalle general.
+  r.get('/:codigo/historial', autorizarAlguno(...PERMISOS_VER_TRABAJOS, 'TRABAJO_VER_AREA'), validar(esquemaParamsTrabajo, 'params'), async (req, res) => {
+    res.json(await trabajos.historialDeTrabajo(req.usuario, req.datos.params.codigo));
+  });
+
   r.post('/:codigo/detener', autorizar('TRABAJO_DETENER'), validar(esquemaParamsTrabajo, 'params'), validar(esquemaMotivo), async (req, res) => {
     res.json(await trabajos.detener(req.usuario, req.datos.params.codigo, req.datos.body.motivo));
   });
@@ -60,13 +80,27 @@ function rutasTrabajos({ trabajos }) {
     res.json(await trabajos.tomarParaDiseno(req.usuario, req.datos.params.codigo));
   });
 
+  r.post('/:codigo/etapas/:orden/comenzar', autorizar('ETAPA_AVANZAR'), validar(esquemaParamsEtapa, 'params'), async (req, res) => {
+    const { codigo, orden } = req.datos.params;
+    res.json(await trabajos.comenzarEtapa(req.usuario, codigo, orden));
+  });
+
   r.post('/:codigo/etapas/:orden/completar', autorizar('ETAPA_AVANZAR'), validar(esquemaParamsEtapa, 'params'), async (req, res) => {
     const { codigo, orden } = req.datos.params;
     res.json(await trabajos.completarEtapa(req.usuario, codigo, orden));
   });
 
+  r.post('/:codigo/etapas/:orden/liberar', autorizar('ETAPA_LIBERAR'), validar(esquemaParamsEtapa, 'params'), async (req, res) => {
+    const { codigo, orden } = req.datos.params;
+    res.json(await trabajos.liberarEtapa(req.usuario, codigo, orden));
+  });
+
   r.get('/:codigo/materiales', autorizar('MATERIAL_VER'), validar(esquemaParamsTrabajo, 'params'), async (req, res) => {
     res.json(await trabajos.materiales(req.usuario, req.datos.params.codigo));
+  });
+
+  r.post('/:codigo/materiales', autorizar('MATERIAL_REGISTRAR'), validar(esquemaParamsTrabajo, 'params'), validar(esquemaMaterial), async (req, res) => {
+    res.status(201).json(await trabajos.registrarMaterial(req.usuario, req.datos.params.codigo, req.datos.body));
   });
 
   return r;

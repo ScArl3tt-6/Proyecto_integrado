@@ -14,6 +14,37 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 | PM-06 | Formularios con campos vacíos, textos largos, caracteres especiales y `<script>`: se muestran como texto y los errores aparecen junto al campo | |
 | PM-07 | Uso en celular (390 px): botones, lectura y la pantalla del operario | |
 | PM-08 | Cambio de contraseña y cierre de las otras sesiones | |
+| PM-09 | Producción registra materiales de un trabajo; otros perfiles solo los consultan | |
+| PM-10 | Diseño adjunta el archivo real de una propuesta y Producción puede verlo/descargarlo antes de decidir | |
+| PM-11 | Cierre de sesión por inactividad real: sin usar el sistema durante el límite, la próxima acción vuelve a Ingreso con el aviso correcto | |
+| PM-12 | Restablecimiento de contraseña: Administración genera el enlace y la persona lo usa, sin sesión, para crear una contraseña nueva | |
+| PM-13 | Verificación en dos pasos (MFA): activar con un código real, ingresar con el segundo paso, y desactivarla (propia y desde Administración) | |
+| PM-14 | Administración crea una cuenta nueva desde "Usuarios": aparece en el listado, puede ingresar con lo que se le entregó, y un correo repetido se rechaza con un aviso claro | |
+| PM-15 | "Comenzar etapa": dos operarios del área ven la misma actividad; solo uno puede tomarla, el otro la ve "En curso por &lt;nombre&gt;"; solo quien la tomó puede completarla | |
+| PM-16 | Bitácora: texto humano (no códigos), nombre y rol de quién hizo cada cosa, detalle útil, últimos eventos visibles sin buscar, y elegir un trabajo de una lista con búsqueda | |
+| PM-17 | Si el servidor queda desactualizado respecto a la pantalla, aparece un aviso amable para recargar, sin interrumpir lo que se estaba haciendo | |
+| PM-18 | "Liberar etapa": quien la tomó puede soltarla; Producción y Administración también pueden soltar la de otra persona; un operario ajeno no puede | |
+| PM-19 | Saludo personalizado ("Hola, &lt;nombre&gt;") en el encabezado y en "Mi cuenta" (con rol, área y correo), sin desbordes en celular | |
+| PM-20 | Historial humano dentro del detalle de un trabajo, visible según el rol (Vendedor, Diseño, Producción, Operario); etapa actual/siguiente en lenguaje claro; falta de materiales destacada | |
+| PM-21 | Aprobar/rechazar una propuesta: la pantalla dice a quién corresponde, el diálogo dice la consecuencia (etapa que sigue, o a qué estado vuelve y quién lo retoma), y tras confirmar se ve el resultado en el detalle del trabajo | |
+| PM-22 | Novedades (Vendedor y Diseño): contador, filtros, agrupación por día, "Marcar todas como leídas" y "Cargar más"; Diseño se entera incluso de propuestas que ya no puede ver en detalle | |
+| PM-23 | Vista previa de un PDF o imagen de una propuesta, dentro de la misma pantalla de "Decidir propuesta" (sin el ícono de contenido bloqueado) | |
+| PM-24 | La URL base de los enlaces de primer acceso/restablecimiento es configurable (`SST_URL_BASE`), no queda fija en "localhost" | |
+| PM-25 | "Mis solicitudes" (Vendedor): línea de tiempo de etapas, motivo del atraso, y etapa actual/siguiente en lenguaje claro, en cada tarjeta | |
+| PM-26 | Tabla de Usuarios: una acción principal visible y el resto en un menú "⋯", alineados; en celular, tarjetas con etiqueta antes de cada dato | |
+| PM-27 | Fondo oscuro de los modales (no un lavado gris) y selector de archivos con el estilo y el idioma de la app (el calendario de fecha se deja nativo, justificado) | |
+| PM-28 | Paleta azul pastel derivada del logo de Kotoduo, coherente en toda la app; contraste medido con herramienta (axe-core) en 1280 y 390px, no heredado de la paleta anterior | |
+| PM-29 | Un solo formato de fecha y hora ("Compromiso" y Bitácora/historial) en toda la app, en 24 horas y año a 4 dígitos | |
+| PM-30 | Espaciado: ningún título pegado al elemento anterior ni viñeta de lista pegada a una caja de aviso, en las pantallas revisadas | |
+| PM-31 | Novedades funciona contra la base real, con el esquema al día (`npm run verificar` detecta columnas faltantes) | |
+| PM-32 | Bandeja de Diseño: secciones "Esperando aprobación" y "Aprobados" (el trabajo ya no desaparece al enviar ni al aprobarse) y 6 filtros; Diseño ve de solo lectura, nunca puede decidir | |
+| PM-33 | Un solo selector de orden ("Entrega más próxima" / "Más recientes" / "Más antiguos") en Mis solicitudes, Bandeja de diseño, Aprobaciones y Panel general | |
+| PM-34 | Una versión de diseño rechazada/aprobada/pendiente muestra su propia etiqueta ("Rechazada"/"Aprobada"/"Pendiente"), con quién decidió, cuándo y el motivo | |
+| PM-35 | La confirmación de rechazo habla de la propuesta/versión que se rechaza, no de la persona que la envió | |
+| PM-36 | Bitácora e historial muestran el nombre real de la etapa ("Bordado de prendas"), no "Etapa n.º 2", en las cuatro vistas que las usan | |
+| PM-37 | "Mis actividades" (Operario) explica, cuando no hay nada, cuándo van a aparecer actividades | |
+| PM-38 | Una sola barra de filtros reutilizable, con los campos alineados (Panel general, Aprobaciones, Mis solicitudes, Bandeja de diseño) | |
+| PM-39 | Novedades: 6 filtros, agrupación por día, chip "Nueva", "Marcar todas como leídas" (manual, ya no automático) y "Cargar más" | |
 
 ## Pasos detallados
 
@@ -21,7 +52,7 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 1. Ve a `#/ingreso`. Escribe un correo que no existe (`nadie@kotoduo.test`) y cualquier contraseña. Ingresar.
 2. Repite con un correo real de `.demo-credenciales.txt` pero con la contraseña cambiada.
 3. **Esperado:** en ambos casos aparece el mismo aviso: «Correo o contraseña incorrectos. Si fallas 5 veces, tu cuenta se bloquea 15 minutos por seguridad.». Nada en la pantalla ni en la pestaña de Red del navegador distingue un caso del otro.
-4. Tras el segundo intento fallido con el mismo correo debe aparecer además «¿Olvidaste tu contraseña? Pídele a Administración que revise tu cuenta.».
+4. Tras el segundo intento fallido con el mismo correo debe aparecer además «¿Olvidaste tu contraseña? Una persona de Administración puede generarte un enlace para crear una nueva (pantalla "Usuarios" → "Generar enlace"). Ábrelo apenas te lo entregue: vence en 30 minutos y sirve una sola vez.».
 
 ### PM-02 — Bloqueo por intentos (429)
 1. Con un correo de prueba, envía la contraseña incorrecta repetidamente (10 veces en 15 minutos agota el límite de intentos por cuenta).
@@ -66,3 +97,291 @@ demostración). Usa las cuentas y los códigos de `.demo-credenciales.txt`, gene
 2. En uno de los dos, ve a «Mi cuenta» y cambia la contraseña (cumpliendo la política mostrada en pantalla).
 3. **Esperado:** aparece «Listo. Cerramos tus otras sesiones por seguridad.»; en el otro navegador, la próxima acción devuelve a la pantalla de ingreso.
 4. Verifica que con la contraseña antigua ya no se puede ingresar, y que con la nueva sí.
+
+### PM-09 — Registrar materiales de un trabajo (RF-08)
+1. Ingresa como `marcela` (Producción) y abre el detalle de un trabajo en producción (por ejemplo `KT-2026-0005`).
+2. En la sección «Materiales», completa el formulario: elige un material del listado, escribe una cantidad y, si quieres, una medida (por ejemplo un color), y presiona «Registrar material».
+3. **Esperado:** el material aparece de inmediato en la lista de arriba, con su unidad.
+4. Vuelve a registrar el mismo material con otra cantidad u otra medida. **Esperado:** la lista sigue mostrando una sola fila para ese material, con los valores nuevos (no se duplica).
+5. Intenta registrar con la cantidad en 0 o en blanco: el formulario muestra el error antes de llamar a la API.
+6. Ingresa como `koto` (Administrador) o `luis` (Operario de esa área, desde «Mis actividades» → «Ver materiales y medidas») y confirma que ambos ven la lista de materiales, pero ninguno tiene el formulario para registrar uno nuevo.
+
+### PM-10 — Ver el archivo real de una propuesta de diseño (RF-02 con GridFS)
+1. Ingresa como `valentina` (Diseño), toma una solicitud y en «Enviar propuesta» adjunta un archivo PDF, PNG o JPG real (no de prueba vacío) junto con la técnica y las medidas.
+2. Ingresa como `marcela` (Producción), ve a «Aprobaciones» → «Ver y decidir» sobre esa propuesta.
+3. **Esperado:** junto al nombre, el tipo y el tamaño del archivo aparece un enlace «Ver archivo». Al hacer clic, se abre en una pestaña nueva y el navegador muestra el PDF o la imagen real que Diseño adjuntó (no un error ni una página en blanco).
+4. Ingresa como `jorge` (Vendedor) o cualquier perfil sin el permiso `DISENO_VER` y confirma que no puede llegar a esa pantalla ni al enlace (403 si se intenta a mano por la API).
+
+### PM-11 — Cierre de sesión por inactividad real (RNF, Funcionalidad 3)
+1. Ingresa con cualquier cuenta y no toques nada (ni clics, ni teclado, ni scroll) durante 30 minutos reales.
+2. Pasado ese tiempo, intenta cualquier acción (por ejemplo abrir un enlace del menú).
+3. **Esperado:** la pantalla vuelve a `#/ingreso` con el aviso «Tu sesión se cerró por inactividad. Ingresa de nuevo.» (distinto del aviso genérico de PM-03). La sesión queda cerrada de verdad en el servidor, no solo en esta pestaña: si quedó abierta en otra pestaña o dispositivo, la siguiente acción ahí también la cierra.
+4. Para no esperar 30 minutos reales al probar esto: lanza el entorno aislado con un límite corto, por ejemplo `SST_MINUTOS_INACTIVIDAD=0.2 node scripts/entorno-efimero.js` (12 segundos), nunca contra `npm run demo` ni la base real.
+5. Nota aparte: usar el sistema con normalidad (ir cambiando de pantalla, registrar algo) antes de los 30 minutos no debe cerrar la sesión aunque pase mucho tiempo total desde el ingreso — cada acción real reinicia el conteo.
+
+### PM-12 — Restablecimiento de contraseña por enlace (Funcionalidad 4)
+1. Ingresa como `koto` (Administrador), ve a «Usuarios» y presiona «Generar enlace» en la fila de cualquier cuenta activa.
+2. **Esperado:** se abre un diálogo con el enlace completo (se puede copiar con «Copiar enlace») y el aviso «Vence en 30 minutos y sirve una sola vez. Entrégaselo a [nombre] de forma segura…».
+3. Copia el enlace y ábrelo en una ventana nueva (o en modo incógnito) **sin haber iniciado sesión**. **Esperado:** aparece «Crear una contraseña nueva» con las mismas reglas que en «Mi cuenta».
+4. Escribe una contraseña nueva válida y repítela. **Esperado:** «Contraseña actualizada. Ya puedes ingresar con tu contraseña nueva.» y un botón «Ir a Ingresar».
+5. Ingresa con la cuenta y la contraseña nueva: debe funcionar. Con la contraseña antigua ya no debe entrar.
+6. Intenta abrir el mismo enlace otra vez y guardar otra contraseña. **Esperado:** «Este enlace ya no es válido: venció, ya se usó o no existe. Una persona de Administración puede generarte uno nuevo.».
+7. Genera un enlace nuevo para la misma cuenta sin usar el anterior: el enlace viejo debe dejar de servir apenas se genera el nuevo.
+8. Si la cuenta tenía otra sesión abierta en otro navegador, confirma que esa sesión también se cierra al completar el restablecimiento (igual que al cambiar la contraseña desde «Mi cuenta»).
+
+### PM-13 — Verificación en dos pasos por TOTP (Funcionalidad 5)
+1. Ingresa como `marcela` (Producción) o `koto` (Administrador) y ve a «Mi cuenta» → «Activar verificación en dos pasos».
+2. **Esperado:** aparece un código QR y, debajo, la clave en texto para ingresarla a mano si no se puede escanear. Escanéalo con Google Authenticator, Authy o similar (o calcula el código a mano con la clave).
+3. Escribe el código de 6 dígitos que muestra la aplicación y presiona «Confirmar y activar». **Esperado:** «Verificación en dos pasos activada.» y el estado pasa a mostrar el chip «Activada».
+4. Cierra sesión e ingresa de nuevo con el mismo correo y contraseña. **Esperado:** después de la contraseña correcta aparece un segundo paso, «Escribe el código de 6 dígitos de tu aplicación de verificación», sin entrar todavía a ninguna pantalla interna.
+5. Escribe un código incorrecto. **Esperado:** aviso claro de código incorrecto, sigue en el segundo paso (no vuelve a pedir la contraseña). Repetir 5 veces en total (contraseña + códigos) bloquea la cuenta 15 minutos, igual que con la contraseña (PM-02).
+6. Escribe el código real de la aplicación. **Esperado:** entra con normalidad a la pantalla de inicio de su rol.
+7. Intenta entrar con un correo o perfil que no tenga permiso de MFA (por ejemplo `jorge`, Vendedor): en «Mi cuenta» no debe aparecer la opción de activarlo.
+8. Vuelve a «Mi cuenta» y presiona «Desactivar verificación en dos pasos»: pide la contraseña actual; con la incorrecta no desactiva, con la correcta sí, y el ingreso vuelve a ser directo (sin segundo paso).
+9. Como `koto` (Administrador), activa el MFA de otra cuenta de prueba, ve a «Usuarios»: la fila debe mostrar el chip «2FA» y un botón «Desactivar 2FA» que no pide ninguna contraseña (para cubrir el caso de alguien que perdió su aplicación de autenticación). Tras usarlo, esa persona vuelve a ingresar directo.
+
+**Confirmado por el equipo, 18-11-2026:** prueba real con un teléfono físico (no solo con una librería calculando el código). El bloqueo tras equivocarse y el ingreso con el segundo paso funcionaron como se esperaba.
+
+### PM-14 — Crear una cuenta nueva desde "Usuarios" (primer acceso, punto 7 de la revisión del equipo, 19-11-2026)
+1. Ingresa como `koto` (Administrador), ve a «Usuarios» y completa «Crear cuenta» con un nombre, un correo que no exista todavía y un rol. **Esperado:** el formulario NO pide ninguna contraseña — Administración no debe fijarla ni conocerla.
+2. **Esperado:** «Cuenta creada. Copia el enlace de primer acceso que se abre a continuación y entrégaselo a la persona.», la cuenta aparece de inmediato en la lista de abajo con el rol y el área correctos, y se abre un diálogo "Enlace de primer acceso para &lt;nombre&gt;" con el enlace completo, un botón «Copiar enlace», y el aviso de que vence en un tiempo limitado y sirve una sola vez.
+3. Copia el enlace y ábrelo en una ventana nueva (o incógnito) **sin haber iniciado sesión**. **Esperado:** se abre "Crear una contraseña nueva" (la misma pantalla que un restablecimiento).
+4. Crea una contraseña válida. **Esperado:** confirmación, y puedes ingresar con el correo de la cuenta nueva y la contraseña QUE ACABAS DE ELEGIR (nunca una que haya escrito Administración).
+5. Vuelve a crear una cuenta con el mismo correo que ya usaste. **Esperado:** aviso claro de que el correo ya está registrado, sin crear una segunda cuenta.
+6. Revisa que la URL del enlace corresponda al dominio real de la aplicación (configurable con `SST_URL_BASE`), no a "localhost" si el servidor está desplegado en otro lugar.
+
+**Confirmado, 19-11-2026:** verificado de punta a punta con un navegador real contra el entorno aislado: el formulario sin campo de contraseña, el diálogo con el enlace, abrir ese enlace sin sesión, crear la contraseña, e ingresar con ella. El enlace usó la URL base configurada del servidor (no "localhost:3000" por defecto), ver PM-24.
+
+### PM-15 — "Comenzar etapa": reclamo y quién la está trabajando
+1. Crea (o usa) dos cuentas Operario de la misma área (por ejemplo, Bordado) y abre sesión con cada una en una ventana distinta del navegador.
+2. Con un trabajo en producción en esa etapa, ambas cuentas deben ver la misma actividad en «Mis actividades», sin responsable asignado, con un botón «Comenzar etapa».
+3. Presiona «Comenzar etapa» en la primera ventana. **Esperado:** pasa a mostrar «Completar etapa» solo en esa ventana.
+4. Refresca (o vuelve a entrar a) la segunda ventana. **Esperado:** ya no ve «Comenzar etapa»; ve «En curso por <nombre de la primera persona>», sin botón para completarla.
+5. Si la segunda persona llega a presionar «Comenzar etapa» casi al mismo tiempo que la primera (dos clics simultáneos, por ejemplo abriendo la red lenta del navegador para alcanzar a hacer ambos clics), solo una de las dos debe quedar como responsable; la otra recibe un aviso de que la etapa ya no está disponible para tomar, sin error feo ni pantalla rota.
+6. Con una tercera cuenta Operario recién creada (que nunca tomó esta etapa), intenta completarla llamando directamente a la pantalla de esa actividad: no debe poder completarla.
+7. La persona que sí tomó la etapa la completa con normalidad; el trabajo avanza a la siguiente etapa como siempre.
+8. Como `marcela` (Producción), confirma que puede completar una etapa que nadie ha tomado aún, sin necesidad de "Comenzar etapa" primero (atajo para el caso de que alguien olvide tomarla).
+
+**Confirmado, 19-11-2026:** verificado también a nivel de API con dos solicitudes HTTP disparadas en paralelo (`Promise.all`) contra el mismo endpoint, repetido 3 veces sin fallas: siempre gana exactamente una.
+
+**Confirmado por el equipo, 19-11-2026:** probado a mano con dos cuentas reales tras reiniciar el servidor (el intento anterior había corrido contra un servidor viejo, levantado antes de este cambio, de ahí la discrepancia). Con el servidor actualizado, el segundo operario ve "En curso por Luis Cárdenas" y las etapas completadas se reflejan en ambas cuentas. Ver punto A más abajo: a partir de ahora el propio sistema avisa cuando el servidor quedó desactualizado respecto a la pantalla, para que este tipo de confusión no se repita.
+
+### PM-16 — Bitácora con texto humano y búsqueda de trabajo
+1. Ingresa como `koto` (Administrador) y ve a «Bitácora». **Esperado:** sin escribir nada, ya se ven los últimos eventos de todos los trabajos (no una pantalla vacía pidiendo buscar primero).
+2. Revisa esos eventos: no debe aparecer ningún código interno (`DISENO_APROBADO`, `TRABAJO_CREADO`, etc.); en su lugar, frases en español («Diseño aprobado», «Solicitud creada»...), la fecha en formato legible, y quién lo hizo (nombre y rol), no un identificador numérico.
+3. En el campo de búsqueda escribe parte de un código o descripción de un trabajo (por ejemplo `KT-2026` o una palabra de la descripción). **Esperado:** aparece una lista para elegir (sin tener que memorizar el código exacto) y, al elegir uno, la bitácora se filtra a los eventos de ese trabajo solamente.
+4. Escribe el código completo de un trabajo de una sola vez (pegarlo, o escribirlo muy rápido). **Esperado:** filtra igual, sin necesidad de elegirlo de la lista.
+5. Con un trabajo filtrado, presiona «Ver los últimos eventos de todos». **Esperado:** vuelve a la vista general sin filtro.
+6. Revisa un evento de "Etapa de producción tomada" o completada: el detalle debe nombrar la etapa con su nombre real (por ejemplo "Preparación de matriz de bordado"), no solo un número de orden.
+7. Revisa un evento de un rechazo: el detalle debe mostrar «Motivo: …» con el texto completo, no solo "Diseño rechazado".
+
+**Confirmado, 19-11-2026:** verificado en el entorno aislado con navegador real (Playwright): búsqueda progresiva, pegado del código completo, botón para quitar el filtro, ausencia de códigos internos, formato «Nombre · Rol», y el detalle de etapa y de motivo de rechazo, todos correctos.
+
+### PM-17 — Aviso de versión nueva del servidor
+1. Con la aplicación abierta y con sesión iniciada, en otra terminal detén el servidor y vuelve a levantarlo (por ejemplo, tras aplicar una corrección).
+2. Sigue navegando con normalidad (sin recargar la página a mano). **Esperado:** en la primera acción que llame a la API después de que el servidor nuevo esté arriba, aparece un aviso fijo y discreto: «Hay una versión nueva. Recarga la página para ver los últimos cambios.» con un botón «Recargar».
+3. Verifica que el aviso NO interrumpe nada: la pantalla donde estabas sigue funcionando con normalidad (se puede seguir escribiendo, navegando, etc.) mientras el aviso está visible.
+4. Presiona «Recargar». **Esperado:** la página se recarga y, si la sesión sigue vigente, vuelve a la misma pantalla con normalidad.
+5. Si el servidor NO cambió de versión durante toda la sesión, el aviso nunca debe aparecer (no es un aviso que salga "por las dudas" cada cierto tiempo).
+
+**Confirmado, 19-11-2026:** verificado con un navegador real contra el entorno aislado, interceptando una respuesta para simular el cambio de versión (`X-SST-Version` distinta): el aviso aparece una sola vez, la pantalla sigue funcionando, y "Recargar" funciona. Esta corrección nace de una confusión real del equipo al probar PM-15 contra un servidor que no se había reiniciado (ver nota en PM-15).
+
+### PM-18 — "Liberar etapa"
+1. Como un operario que ya tomó una etapa (ver PM-15), en "Mis actividades" debe aparecer, junto a "Completar etapa", un botón "Liberar etapa".
+2. Presiónalo y confirma en el diálogo. **Esperado:** la etapa queda disponible de nuevo: "Mis actividades" ahora muestra "Comenzar etapa" otra vez (para ti y para cualquier otro operario del área).
+3. Intenta liberar una etapa que nadie ha tomado (por ejemplo, llamando a la acción cuando ya está libre): debe avisar con claridad que no hay nada que liberar, no un error confuso.
+4. Con dos cuentas Operario del área: que una tome la etapa y la otra intente liberarla. **Esperado:** no puede (solo quien la tomó, o Producción, puede liberarla).
+5. Como `marcela` (Producción), en el detalle de un trabajo con una etapa tomada por un operario, debe aparecer un botón "Liberar [nombre de la etapa]". Úsalo. **Esperado:** la etapa queda disponible de nuevo para cualquiera del área.
+6. Revisa la Bitácora de ese trabajo: debe aparecer un evento "Etapa liberada (queda disponible para tomar de nuevo)".
+
+**Confirmado, 19-11-2026:** verificado a nivel de API con tres escenarios (CP-81, CP-82, CP-83): nadie puede liberar una etapa sin tomar, un operario ajeno no puede liberar la de otro, y quien la tomó (o Producción) sí puede, quedando realmente disponible después. Verificado también con navegador real (pasos 1 a 6 de arriba): en esa verificación se encontró y corrigió DEF-28 (el botón no aparecía para Producción por un permiso que faltaba sincronizar en el cliente).
+
+### PM-19 — Saludo personalizado
+1. Ingresa con cualquier cuenta. **Esperado:** el encabezado, donde antes solo decía el rol (por ejemplo "Operario"), ahora dice «Hola, &lt;primer nombre&gt;» (por ejemplo «Hola, Luis»).
+2. Ve a «Mi cuenta». **Esperado:** el título dice «Hola, &lt;nombre completo&gt;», y debajo se ve el Rol, el Área (si corresponde) y el Correo con claridad.
+3. Con una cuenta sin área asignada (por ejemplo Producción), confirma que "Mi cuenta" simplemente no muestra la fila de Área, sin espacios en blanco raros ni errores.
+4. A 390 px de ancho, confirma que ni el encabezado ni "Mi cuenta" producen scroll horizontal, incluso con un nombre o correo largos.
+
+**Confirmado, 19-11-2026:** verificado con un navegador real a 1280 y 390 px.
+
+### PM-20 — Historial humano en el detalle de un trabajo
+1. Como `jorge` (Vendedor), entra al detalle de una de tus solicitudes. **Esperado:** bajo la descripción aparece una línea en lenguaje claro con la etapa actual y la siguiente (o "ya terminó", o "todavía no entra a producción"); más abajo, una sección "Historial" con eventos en texto humano (no códigos), con fecha, quién lo hizo y detalle útil — igual que la Bitácora de Administración, pero acotado a este trabajo.
+2. Como `valentina` (Diseño), en «Bandeja de diseño» → "En diseño", debe aparecer un botón "Ver detalle e historial" junto a "Enviar propuesta". Úsalo: debe mostrar el mismo historial mientras el trabajo sigue en diseño.
+3. Como `marcela` (Producción) o `koto` (Administración), en el detalle de cualquier trabajo el historial debe incluir también los eventos de diseño (propuesta enviada, aprobada o rechazada), que Operario no ve.
+4. Como un operario (por ejemplo `luis`), en «Mis actividades» debe aparecer, junto a "Ver materiales y medidas", un botón "Ver historial". Úsalo: debe mostrar el historial de ESE trabajo, acotado (sin eventos de diseño), sin salir de "Mis actividades".
+5. Intenta ver el historial de un trabajo de OTRA área o de otra persona vendedora (si puedes forzar la URL o la llamada): debe rechazarse igual que el resto del detalle.
+6. En un trabajo ya en producción que todavía no tiene materiales registrados, la sección "Materiales" debe destacar esa falta con un aviso visible, no solo una línea de texto más.
+
+**Confirmado, 19-11-2026:** verificado con navegador real en los cuatro roles con acceso (Vendedor, Diseño, Producción, Operario) contra el entorno aislado, y con 1 prueba automática (CP-84) que cubre los límites de alcance por rol.
+
+### PM-21 — Aprobar/rechazar con trazabilidad completa
+1. Como `marcela` (Producción), entra a «Aprobaciones» → «Ver y decidir» sobre cualquier propuesta pendiente. **Esperado:** bajo el título aparece «Solicitó: &lt;nombre&gt; (Vendedor) · Propuesta enviada por: &lt;nombre&gt; (Diseño)».
+2. Presiona «Aprobar». **Esperado:** el diálogo dice la etapa que sigue y el área (por ejemplo: «Pasa a producción: empieza la etapa "Impresión en papel transfer" (área Sublimación), visible para esa área en "Mis actividades".»). Confírmalo.
+3. **Esperado tras confirmar:** la pantalla va directo al detalle del trabajo (no a la lista de aprobaciones); ahí se ve de inmediato «Diseño aprobado» en el Historial y la nueva etapa actual en lenguaje claro.
+4. Con otra propuesta pendiente, presiona «Rechazar», escribe (o elige) un motivo, y confirma ese primer paso. **Esperado:** aparece un segundo diálogo de confirmación que dice a quién se rechaza (quien envió la versión), que el trabajo de quien lo solicitó vuelve a "En diseño", quién puede retomarlo, y repite el motivo escrito.
+5. Confirma el rechazo. **Esperado:** la pantalla va al detalle del trabajo; el Historial muestra «Diseño rechazado» con «Motivo: …» completo.
+
+**Confirmado, 19-11-2026:** verificado con navegador real (aprobación y rechazo completos, revisando el texto exacto de ambos diálogos) y con prueba automática (CP-85).
+
+### PM-22 — Novedades para Vendedor y Diseño (actualizado 20-11-2026, ver DEF-49)
+1. Como `marcela` (Producción), aprueba o rechaza una propuesta pendiente.
+2. Como `jorge` (Vendedor, quien registró esa solicitud), ingresa o navega a cualquier pantalla. **Esperado:** en el menú, junto a "Novedades", aparece un número (el contador de novedades sin ver).
+3. Entra a «Novedades». **Esperado:** aparece un resumen ("N novedades nuevas…") y, en la lista, el evento humano correspondiente ("Diseño aprobado" o "Diseño rechazado", con fecha y detalle), igual de legible que la Bitácora de Administración; los eventos quedan agrupados por día ("Hoy", "Ayer", o la fecha), y cada uno sin leer muestra un chip "Nueva".
+4. Vuelve a mirar el menú sin hacer nada más. **Esperado (cambió respecto a antes):** el número sigue apareciendo — ya no se marca como vista solo con abrir la pantalla.
+5. En «Novedades», presiona "Marcar todas como leídas". **Esperado:** el chip "Nueva" desaparece de todas, el resumen pasa a "No tienes novedades nuevas…", y el contador del menú baja a 0.
+6. Prueba los filtros (Todas, No leídas, Rechazos, Aprobados, En producción, Terminados). **Esperado:** cada uno muestra solo lo que le corresponde (algunos pueden salir vacíos según el rol: por ejemplo, Diseño no recibe avisos de etapas intermedias, solo el término).
+7. Si hay más de 20 novedades, presiona "Cargar más" al final de la lista. **Esperado:** se agregan más sin perder lo ya cargado ni el filtro activo.
+8. Como `valentina` (Diseño, quien envió esa propuesta), entra a «Novedades». **Esperado:** ve el mismo aviso de aprobación o rechazo de SU propuesta (y de ninguna otra que no haya enviado ella).
+9. Avanza un trabajo hasta que termine todas sus etapas de producción. **Esperado:** tanto Vendedor como Diseño ven en Novedades que ese trabajo terminó.
+
+**Confirmado, 19-11-2026:** verificado con 4 pruebas automáticas (CP-86 a CP-89: sin permiso para otros roles, contador correcto, aislamiento entre personas, aviso de término) y con navegador real (contador en el menú, lista, y que baja a 0 tras visitarla — este último punto cambió, ver abajo).
+
+**Actualizado, 20-11-2026 (DEF-49):** se quitó el marcado automático al abrir la pantalla (ahora es manual, con el botón del paso 5) y se agregaron filtros, agrupación por día, chip "Nueva" y "Cargar más". Verificado con 96/96 pruebas automáticas en verde y con navegador real (Playwright/Chromium, 1280 y 390px) contra una copia de la base real: filtros, agrupación, botón de marcar todas y paginación funcionan sin errores de consola, para Diseño y Vendedor.
+
+### PM-23 — Vista previa de PDF/imagen sin bloqueo (punto 6)
+1. Como `valentina` (Diseño), envía una propuesta real con un archivo PDF (uno de verdad, no solo texto con la extensión .pdf).
+2. Como `marcela` (Producción), entra a «Aprobaciones» → «Ver y decidir» sobre esa propuesta. **Esperado:** bajo "Ver archivo completo" aparece el PDF renderizado dentro de la misma pantalla, SIN el ícono de "contenido bloqueado" del navegador.
+3. Repite con una propuesta que adjunte una imagen (PNG o JPG): también debe verse la vista previa, sin bloqueo.
+4. Con las herramientas de desarrollador del navegador (pestaña Red), confirma que la respuesta de `/api/disenos/.../archivos/...` trae `Content-Security-Policy: frame-ancestors 'self'` (no `'none'`) y `X-Frame-Options: SAMEORIGIN` (no `DENY`).
+
+**Confirmado, 19-11-2026 (parcial):** verificado con certeza a nivel de protocolo HTTP (prueba automática CP-52 extendida, y una llamada directa desde el navegador contra el servidor real: el encabezado cambió de `'none'` a `'self'`, que es la regla exacta que controla si el navegador bloquea el `<iframe>`). **No pude confirmar el paso 2 con una captura de pantalla** porque el navegador sin interfaz (headless) que uso para verificar no renderiza el PDF dentro del `<iframe>` de ninguna manera en esta automatización (se ve igual de vacío con el encabezado roto o corregido): es una limitación de automatizar este caso puntual, no de la corrección en sí. Pido que alguien del equipo haga el paso 2 y 3 a mano, con un navegador normal, para la confirmación visual final.
+
+### PM-24 — URL base configurable de los enlaces
+1. En `.env`, define `SST_URL_BASE=https://ejemplo-de-dominio-real.cl` (sin "/" al final) y reinicia el servidor.
+2. Como Administración, genera un enlace de primer acceso (PM-14) o de restablecimiento (PM-12). **Esperado:** el enlace completo empieza con `https://ejemplo-de-dominio-real.cl/#/restablecer/…`, sin importar en qué URL tenga Administración abierto el navegador en ese momento (por ejemplo, podría estar usando un túnel o una IP interna distinta).
+3. Sin definir `SST_URL_BASE` (quitarla de `.env` y reiniciar), genera otro enlace. **Esperado:** usa el valor por defecto `http://localhost:<SST_PUERTO>`.
+
+**Confirmado, 19-11-2026:** verificado con prueba automática (CP-90, con una URL base distinta configurada en el entorno de prueba) y con navegador real contra el entorno aislado (que fija `SST_URL_BASE` a su propio puerto 3100): el enlace generado usó ese puerto, no el 3000 por defecto.
+
+### PM-25 — "Mis solicitudes" con línea de tiempo (punto 9)
+1. Como `jorge` (Vendedor), ve a «Mis solicitudes». **Esperado:** ya no es una lista plana: cada tarjeta con etapas de producción (trabajos en producción, detenidos o terminados) muestra la línea de tiempo completa (una fila por etapa, con su estado y quién la tiene, igual que en el detalle del trabajo).
+2. En un trabajo "Atrasado", revisa la tarjeta. **Esperado:** aparece «Debía estar listo el &lt;fecha de compromiso&gt; y todavía no termina.», no solo el chip "Atrasado" sin contexto.
+3. En un trabajo en producción, revisa la línea antes de la línea de tiempo. **Esperado:** dice en lenguaje claro la etapa actual (y quién la tiene, o que nadie la ha tomado) y cuál sigue, o que es la última etapa.
+4. En un trabajo que aún no entra a producción (en diseño o esperando aprobación), confirma que dice "Todavía no entra a producción…", sin mostrar una línea de tiempo vacía.
+5. A 390px de ancho, confirma que las tarjetas con línea de tiempo no producen scroll horizontal.
+6. Confirma que "Novedades" sigue siendo accesible desde el menú (con su contador) sin que "Mis solicitudes" repita la misma lista.
+
+**Confirmado, 19-11-2026:** verificado con prueba automática (CP-91: por defecto el listado no trae la línea de tiempo; con `conEtapas=true` la trae completa, con el mismo contenido que el detalle) y con navegador real a 1280 y 390px.
+
+### PM-26 — Tabla de Usuarios ordenada (punto 10)
+1. Como `koto` (Administrador), ve a «Usuarios». **Esperado:** cada fila tiene exactamente un botón visible ("Cambiar rol o área") y un botón "⋯" junto a él, alineados; ninguna fila se ve más alta que otra por tener más botones.
+2. Presiona "⋯" en cualquier fila. **Esperado:** se abre un menú con "Generar enlace" (si la cuenta está activa), "Desactivar 2FA" (si tiene activada la verificación en dos pasos) y "Desactivar/Activar cuenta" (salvo en tu propia fila).
+3. Sin cerrar el menú, haz clic en cualquier otra parte de la pantalla. **Esperado:** el menú se cierra solo.
+4. Navega el menú con el teclado (Tab hasta el botón "⋯", Enter para abrir, flechas o Tab para moverte entre las opciones, Escape para cerrar). **Esperado:** funciona sin usar el mouse.
+5. Elige cualquier acción del menú. **Esperado:** se cierra el menú y se abre el diálogo correspondiente (o se ejecuta la acción), igual que antes.
+6. A 390px de ancho, revisa la lista de cuentas. **Esperado:** cada cuenta es una tarjeta con el nombre de cada dato (NOMBRE, CORREO, ROL, ÁREA, ESTADO, ÚLTIMO ACCESO) antes de su valor, no solo el valor suelto; los dos botones de acción siguen alineados igual que en escritorio.
+
+**Confirmado, 19-11-2026:** verificado con navegador real: 2 botones alineados por fila (antes hasta 4), el menú abre con las acciones correctas y se cierra al hacer clic afuera, y las tarjetas de celular muestran la etiqueta de cada dato, sin scroll horizontal.
+
+### PM-27 — Controles nativos con el estilo de la app (punto 11)
+1. Abre cualquier diálogo de confirmación (por ejemplo, "Cambiar rol o área" en Usuarios). **Esperado:** el fondo detrás del diálogo se ve claramente oscurecido, no como un velo gris parejo sobre toda la pantalla.
+2. Como `valentina` (Diseño), ve a enviar una propuesta. **Esperado:** el campo de archivos muestra un botón "Elegir archivos" con el mismo estilo que el resto de los botones de la app (no el botón gris del sistema operativo en inglés), y junto a él dice "Ningún archivo elegido".
+3. Elige un archivo real. **Esperado:** el texto cambia al nombre del archivo (o "N archivos elegidos" si eliges varios).
+4. Navega el formulario solo con el teclado (Tab). **Esperado:** el foco llega al botón "Elegir archivos" (no a un campo invisible); Enter o Espacio sobre él abre el selector de archivos del sistema con normalidad.
+5. Intenta enviar sin elegir ningún archivo. **Esperado:** el error aparece junto al botón, igual que en el resto de los campos.
+6. Abre el calendario del campo "Fecha comprometida" (Nueva solicitud). **Esperado (documentado, no es un defecto):** el calendario se ve con el estilo del sistema operativo, no con el de la app — es una decisión deliberada (ver DEF-36): no existe forma de repintarlo con CSS en ningún navegador, y el texto en español depende del idioma del navegador de quien lo use, no de la página.
+7. A 390px de ancho, repite los pasos 2 a 4. **Esperado:** mismo comportamiento, sin scroll horizontal.
+
+**Confirmado, 19-11-2026:** verificado con navegador real: el fondo del modal computa `rgba(9, 19, 43, 0.7)` (actualizado al tono azul-950 de la paleta nueva, ver PM-28); el selector de archivos funciona con mouse y teclado, en español, con el estilo de la app; se intentó (y no se pudo) traducir o repintar el calendario nativo, confirmando que la decisión de dejarlo nativo es necesaria, no solo preferida.
+
+### PM-28 — Paleta azul pastel derivada del logo (punto 12)
+1. Revisa cualquier pantalla (Panel general, Usuarios, Bitácora, Mis solicitudes, Nueva solicitud, Ingreso). **Esperado:** tonos azules pastel en todas, coherentes entre sí; la cabecera (franja superior con "SST Kotoduo") se ve en azul oscuro, con el texto en blanco/claro, legible.
+2. Abre cualquier diálogo (confirmación, "Cambiar rol o área", etc.). **Esperado:** el fondo detrás se ve oscurecido de verdad (azul oscuro), no un velo gris.
+3. Navega con el teclado (Tab) por cualquier formulario. **Esperado:** el foco es un anillo azul bien visible, tanto sobre fondo blanco como sobre el fondo celeste de la página.
+4. Revisa que los colores de estado (verde = éxito, ámbar = aviso, rojo = error: chips, avisos, botón "Desactivar") sigan siendo los mismos de siempre, sin mezclarse con el azul nuevo.
+5. Repite los pasos 1 a 3 a 390px de ancho.
+6. Con una herramienta de auditoría de accesibilidad (axe-core u otra), corre un análisis de contraste sobre varias pantallas reales, en 1280 y 390px. **Esperado:** 0 violaciones de `color-contrast`.
+
+**Confirmado, 19-11-2026:** paleta nueva (`--azul-50` a `--azul-950`) con 3 tonos tomados muestreando los píxeles reales de `web/img/logo-kotoduo-original.png` (no a ojo). Auditoría con `@axe-core/playwright` contra 8 pantallas reales (Panel general, Usuarios, Bitácora, Mi cuenta, Aprobaciones, Mis solicitudes, Nueva solicitud, Ingreso) en 1280 y 390px: **0 violaciones de `color-contrast` y 0 violaciones totales de WCAG 2 A/AA** en las 16 combinaciones. El foco de teclado mejoró de 2.04:1 a 6.08:1 contra blanco (no heredado de la paleta anterior, que fallaba el 3:1 exigido). Verificado visualmente con capturas reales a ambos anchos.
+
+### PM-29 — Un solo formato de fecha y hora (actualizado 20-11-2026, ver DEF-46)
+1. Como `jorge` (Vendedor), anota la fecha de compromiso de cualquier solicitud en «Mis solicitudes» (por ejemplo "28-11-2026").
+2. Entra al detalle de esa misma solicitud. **Esperado:** la fecha de compromiso se ve exactamente igual ("28-11-2026"), nunca en otro orden ("2026-11-28") ni con año a 2 dígitos.
+3. Revisa cualquier evento de la Bitácora o del Historial de un trabajo. **Esperado:** la fecha con hora sigue un solo formato en TODA la app: "DD-MM-AAAA HH:MM" en 24 horas, con año a 4 dígitos (por ejemplo "20-11-2026 14:05") — ya no "DD-MM-AA h:mm a. m./p. m." (año a 2 dígitos, 12 horas).
+4. Compara una fecha de compromiso (sin hora) con la fecha de un evento de bitácora (con hora) en la misma pantalla. **Esperado:** el mismo patrón día-mes-año en ambas, la segunda con ", HH:MM" además.
+
+**Confirmado, 19-11-2026:** verificado con navegador real: el mismo trabajo mostró "28-11-2026" tanto en la tarjeta como en el detalle (antes del arreglo, el detalle mostraba "2026-11-28").
+
+**Actualizado, 20-11-2026 (DEF-46):** la usuaria encontró un tercer formato en uso ("19-11-26 10:41 p. m.", año a 2 dígitos) que convivía con el de 4 dígitos de este mismo PM. `formatoFechaHora()` ya no delega en `toLocaleString` (dependía del locale del navegador); ahora construye el texto a mano con el mismo patrón de `formatoFecha()`. Verificado por código y por los datos que entrega la API contra una copia de la base real; **verificación visual con navegador real pendiente** (no disponible en este entorno — ver DEF-40).
+
+### PM-30 — Espaciado consistente (punto 14)
+1. Recorre varias pantallas (Mi cuenta, Bitácora, Novedades, Nueva solicitud, Mis actividades, detalle de un trabajo) a 1280 y 390px. **Esperado:** ningún título queda pegado al botón o la lista de la sección anterior (continuación de DEF-20/DEF-21); los botones que van en pareja (por ejemplo "Ver materiales y medidas" / "Ver historial") se ven alineados y con el mismo espacio entre sí en toda la app.
+2. En el detalle de un trabajo EN_PRODUCCION que todavía no tiene materiales registrados, revisa la sección "Materiales". **Esperado:** el aviso "Todavía no hay materiales registrados…" se ve como una caja completa, sin ninguna viñeta de lista pegada a su borde.
+
+**Confirmado, 19-11-2026:** barrido con navegador real en 6 pantallas × 2 anchos; se encontró y corrigió DEF-39 (viñeta pegada a un aviso) durante este mismo barrido, verificado antes y después del cambio.
+
+### PM-31 — Novedades funciona contra la base real, con el esquema al día (punto 1, ver DEF-40)
+1. En la base REAL (no la efímera de pruebas), ejecuta `npm run verificar`. **Esperado (antes de aplicar la migración):** aparece `[FALLA] PostgreSQL: columnas de esquema.sql presentes en esta base — faltan usuario.novedades_vistas_en`.
+2. Ejecuta `npm run db:agregar-novedades-vistas` contra la base real. **Esperado:** "Columna "novedades_vistas_en" lista en "usuario"." (no borra ni modifica ningún dato: solo agrega la columna con un valor por defecto).
+3. Repite `npm run verificar`. **Esperado:** esa verificación ya aparece en `[ OK ]`.
+4. Como `jorge` (Vendedor) y como `valentina` (Diseño), entra a «Novedades». **Esperado:** ya no aparece "No pudimos cargar las novedades…"; aparece el resumen y la lista (rechazo, aprobación, etapa siguiente o terminado), con el contador de no vistas.
+
+**Confirmado, 20-11-2026 (parcial):** causa y corrección verificadas de punta a punta con peticiones HTTP reales (equivalentes a las del navegador) contra una COPIA desechable de la base real, con sus datos de demostración reales: antes de la migración, `GET /api/auditoria/novedades` devolvía 500 para Jorge y Valentina; después de aplicar `npm run db:agregar-novedades-vistas` en esa copia, ambos reciben 200 con sus novedades reales. `npm run verificar` (nuevo chequeo de esquema) detectó la columna faltante correctamente contra la base real. **Pendiente:** que la usuaria ejecute el paso 2 contra la base real (no se tocó la base real directamente, solo la copia) y confirme el paso 4 con un navegador real — este entorno no tiene uno disponible.
+
+### PM-32 — Bandeja de Diseño con "Esperando aprobación", "Aprobados" y filtros (punto 2, ver DEF-29/DEF-42)
+1. Como `valentina` (Diseño), envía una propuesta para un trabajo. **Esperado:** el trabajo YA NO desaparece de la bandeja: aparece en una nueva sección "Esperando aprobación".
+2. Con el filtro "Todos" (por defecto), confirma que se ven las cuatro secciones, en este orden: "Por tomar", "En diseño", "Esperando aprobación" y "Aprobados".
+3. Cambia el filtro a cada uno de los seis: Todos, Por tomar, En diseño, Esperando aprobación, Rechazados, Aprobados. **Esperado:** cada uno muestra solo su sección correspondiente ("Rechazados" es un recorte de "En diseño", no una sección nueva bajo "Todos").
+4. Desde "Esperando aprobación", abre "Ver detalle e historial" del trabajo. **Esperado:** ya no da error de permisos.
+5. Como `marcela` (Producción), aprueba esa misma propuesta. Como `valentina`, vuelve a la bandeja y filtra por "Aprobados". **Esperado:** el trabajo aparece ahí (ya en producción), de solo lectura.
+6. Como `valentina`, intenta decidir una propuesta (por ejemplo, llamando a la acción de aprobar/rechazar de otra forma). **Esperado:** 403 — Diseño nunca tiene el permiso para decidir, solo para ver.
+
+**Confirmado, 20-11-2026 (segunda vuelta):** verificado con un navegador real de verdad (Playwright/Chromium, 1280 y 390px) contra una copia desechable de la base real, con un proceso del servidor recién iniciado (el servidor de demostración real necesita un reinicio para tomar estos cambios: Node cachea los módulos de backend en memoria). Las seis secciones/filtros se ven y funcionan correctamente, incluido "Aprobados"; 0 errores de consola. Prueba automática ampliada (CP-92 + nueva verificación de visibilidad tras aprobar) y `tests/unit/dominio.test.js` (Diseño sin permiso para decidir). 96/96 pruebas en verde.
+
+### PM-33 — Un solo selector de orden en toda la app (punto 3, ver DEF-43)
+1. En «Mis solicitudes» (Vendedor), «Bandeja de diseño» (Diseño), «Aprobaciones» (Producción) y «Panel general», busca el selector "Ordenar por". **Esperado:** las mismas tres opciones, con el mismo texto, en las cuatro pantallas: "Entrega más próxima", "Más recientes", "Más antiguos", con una nota de ayuda bajo el selector.
+2. Elige "Entrega más próxima". **Esperado:** la lista queda ordenada por la fecha de entrega comprometida, la más próxima primero.
+3. Elige "Más recientes" en «Aprobaciones». **Esperado:** la propuesta enviada más recientemente aparece primero (antes de este arreglo, "Más recientes primero" en realidad mostraba la más ANTIGUA primero).
+4. Elige "Más antiguos" en la misma pantalla. **Esperado:** el orden queda exactamente invertido respecto al de "Más recientes".
+
+**Confirmado, 20-11-2026 (parcial):** nueva prueba automática CP-93 (`disenosPendientes.test.js`): "recientes" y "antiguos" quedan en orden inverso exacto entre sí, y "antiguos" trae primero lo que se envió primero. Verificado también con peticiones HTTP reales contra la copia de la base real.
+
+**Actualizado, 20-11-2026 (segunda vuelta):** verificado con navegador real de verdad (Playwright/Chromium, 1280 y 390px) contra una copia de la base real, en las cuatro pantallas. De paso se encontró y corrigió un desalineamiento del campo vecino (ver PM-38/DEF-48).
+
+### PM-34 — Etiquetas propias para cada estado de una versión de diseño (punto 4, ver DEF-44)
+1. Rechaza una propuesta con un motivo. Como Vendedor, Diseño o Producción, entra al detalle del trabajo y revisa "Versiones de diseño". **Esperado:** el chip de esa versión dice "Rechazada" (no "Detenido"), y debajo aparece "Rechazada por &lt;nombre de quien decidió&gt; el &lt;fecha y hora&gt;. Motivo: &lt;el motivo&gt;" (no "Decisión: RECHAZADO").
+2. Aprueba otra propuesta. **Esperado:** el chip dice "Aprobada" (no "Terminado"), con "Aprobada por &lt;nombre&gt; el &lt;fecha y hora&gt;" (sin motivo).
+3. Una versión recién enviada, todavía sin decisión: **Esperado:** el chip dice "Pendiente", sin ninguna línea de decisión debajo.
+4. Como Producción, intenta reabrir "Decidir propuesta" sobre una versión ya decidida. **Esperado:** el aviso dice "...ya tiene una decisión registrada (Rechazada)." o "(Aprobada)", nunca el valor crudo "(RECHAZADO)"/"(APROBADO)".
+
+**Confirmado, 20-11-2026 (parcial):** nueva prueba automática `tests/unit/etiquetasEstado.test.js`: cada estado (de trabajo y de versión de diseño) tiene su propia etiqueta, sin duplicados, nunca el valor interno sin traducir, y específicamente una versión rechazada/aprobada nunca comparte etiqueta con un trabajo detenido/terminado. Verificado con peticiones HTTP reales contra la copia de la base real que la API ya entrega quién decidió (`aprobador`).
+
+**Actualizado, 20-11-2026 (segunda vuelta):** verificado con navegador real de verdad (Playwright/Chromium) contra una copia de la base real, sobre KT-2026-0003: versión 1 con chip "Rechazada" y "Rechazada por Marcela Fuentes el 17-11-2026 19:53. Motivo: El tamaño del letrero supera el ancho permitido por la fachada"; versión 2 con chip "Pendiente", sin línea de decisión.
+
+### PM-35 — La confirmación de rechazo habla de la propuesta, no de la persona (punto 5, ver DEF-45)
+1. Como `marcela` (Producción), abre "Rechazar" sobre cualquier propuesta pendiente e ingresa un motivo.
+2. Lee el diálogo de confirmación. **Esperado:** dice "Se rechazará la versión N de KT-2026-XXXX, enviada por &lt;diseñador/a&gt;; el trabajo vuelve a 'En diseño' para que &lt;diseñador/a&gt; pueda retomarlo con una nueva versión. Motivo: '...'." — nunca "Se rechazará a &lt;nombre&gt;" como sujeto de la frase.
+
+**Confirmado, 20-11-2026 (parcial):** verificado por revisión de código (es un diálogo del navegador sin cobertura de prueba automática de backend).
+
+**Actualizado, 20-11-2026 (segunda vuelta):** verificado con navegador real de verdad (Playwright/Chromium) contra una copia de la base real, completando el flujo de rechazo real: el diálogo dijo exactamente "Se rechazará la versión 2 de KT-2026-0003, enviada por Valentina Rojas; el trabajo vuelve a 'En diseño' para que Valentina Rojas pueda retomarlo con una nueva versión. Motivo: 'Las medidas no coinciden con lo pedido'."
+
+### PM-36 — Nombre real de la etapa en Bitácora e historial (punto 6, primera mitad, ver DEF-41)
+1. Como Administración, entra a «Bitácora» sin filtrar por ningún trabajo (vista "recientes", varios trabajos a la vez). **Esperado:** los eventos de etapa dicen "Etapa: &lt;nombre real, por ejemplo "Bordado de prendas"&gt;", nunca "Etapa n.º 2".
+2. Como Operario, revisa el historial dentro de "Mis actividades". **Esperado:** mismo nombre real, no un número.
+3. Compara con la Bitácora filtrada a un solo trabajo, y con el historial del detalle de un trabajo (los dos casos que ya funcionaban bien). **Esperado:** el mismo nombre en los cuatro lugares.
+
+**Confirmado, 20-11-2026 (parcial):** 96/96 pruebas en verde en la suite completa (ver resumen final). Verificado con peticiones HTTP reales contra la copia de la base real: la respuesta de `/api/auditoria/novedades` ya incluye `"nombreEtapa": "Preparación de matriz de bordado"`, etc.
+
+**Actualizado, 20-11-2026 (segunda vuelta):** verificado con navegador real de verdad (Playwright/Chromium) contra una copia de la base real: "Mis solicitudes" y "Mis actividades" muestran el nombre real de la etapa.
+
+### PM-37 — Estado vacío explicativo en "Mis actividades" (punto 7, ver DEF-47)
+1. Como un Operario sin ninguna etapa `EN_CURSO` en su área en este momento, entra a «Mis actividades». **Esperado:** en vez de solo "No tienes actividades...", explica cuándo van a aparecer (apenas Producción apruebe un diseño cuya primera etapa sea de su área, o cuando le toque la etapa siguiente de un trabajo ya en curso).
+
+**Confirmado, 20-11-2026 (parcial):** verificado por revisión de código contra la consulta real de `actividadesDeMiArea()` (la explicación corresponde exactamente a cuándo aparece una fila). **No verificado todavía con un navegador real** que el mensaje se vea así cuando la lista está realmente vacía — este entorno ya tiene navegador (Playwright) pero el operario de la copia de la base real usada en esta vuelta sí tenía una actividad en curso.
+
+### PM-38 — Una sola barra de filtros, con los campos alineados (punto 2, segunda vuelta, ver DEF-48)
+1. En «Panel general» y «Aprobaciones» (Producción), a 1280px, compara la base de los campos "Filtrar por área"/"Buscar por código o descripción" contra "Ordenar por". **Esperado:** ambos quedan exactamente a la misma altura (antes, "Ordenar por" empujaba al otro campo hacia abajo).
+2. Confirma que el texto de ayuda del orden ("Entrega más próxima ordena...") aparece UNA vez, debajo de toda la fila de filtros, no pegado a un solo campo.
+3. Repite en «Mis solicitudes» (Vendedor) y la bandeja de Diseño.
+4. A 390px, confirma que los filtros se acomodan en columna sin scroll horizontal.
+
+**Confirmado, 20-11-2026:** verificado con navegador real de verdad (Playwright/Chromium, 1280 y 390px) contra una copia de la base real, antes y después del cambio: en Panel general y Aprobaciones, "Filtrar por área"/"Buscar..." y "Ordenar por" quedan a la misma altura; 0 errores de consola.
+
+### PM-39 — Novedades: filtros, agrupación por día, "Marcar todas como leídas" y "Cargar más" (punto 3, segunda vuelta, ver DEF-49)
+1. Como `jorge` o `valentina`, entra a «Novedades» con varias novedades acumuladas de distintos días. **Esperado:** aparecen agrupadas bajo encabezados "Hoy", "Ayer" o la fecha; cada novedad sin leer muestra un chip "Nueva".
+2. Prueba los 6 filtros (Todas, No leídas, Rechazos, Aprobados, En producción, Terminados). **Esperado:** cada uno acota la lista ya cargada a lo que corresponde.
+3. Presiona "Marcar todas como leídas". **Esperado:** desaparecen los chips "Nueva", el resumen pasa a "No tienes novedades nuevas…" y el contador del menú baja a 0 — y esto YA NO pasa solo con abrir la pantalla (antes sí).
+4. Si hay más de 20, presiona "Cargar más". **Esperado:** se agregan sin perder el filtro activo.
+
+**Confirmado, 20-11-2026:** verificado con navegador real de verdad (Playwright/Chromium, 1280 y 390px) contra una copia de la base real, para Diseño y Vendedor: agrupación por día, filtros, botón de marcar todas y el cambio de comportamiento (ya no se marca solo con abrir). 96/96 pruebas automáticas en verde, incluida una que detectó y permitió corregir un error real (`-infinity` mal comparado en MongoDB) introducido al mover el cálculo de "no leídas" al servidor.

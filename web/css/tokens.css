@@ -1,36 +1,56 @@
 :root {
-  /* paleta base (no usar otros colores fuera de esta paleta y los de estado) */
-  --rosa-50:  #FFF7F8;
-  --rosa-100: #FCE8EC;
-  --rosa-200: #F6D2DA;
-  --rosa-400: #E8A3B2;
-  --rosa-600: #B5586B;
-  --rosa-700: #964658;
-  --cafe-50:  #FAF5F1;
-  --cafe-100: #F1E6DD;
-  --cafe-300: #D8C0AD;
-  --cafe-500: #A98368;
-  --cafe-700: #6F4E3C;
-  --cafe-900: #3E2C22;
+  /* Paleta base azul (no usar otros colores fuera de esta paleta y los de estado). Punto 12 de la
+     revisión del equipo (19-11-2026): reemplaza la paleta rosa/café anterior ("paleta rosada que
+     no corresponde a la marca", CLAUDE.md §3). azul-400, azul-600 y azul-950 están tomados de
+     los píxeles reales de web/img/logo-kotoduo-original.png (muestreados con pngjs, no a ojo); el
+     resto se diseñó a partir de esos mismos tres tonos para completar la rampa.
+     --cafe-900: #3E2C22; */
+  --azul-50:  #F7FAFD;
+  --azul-100: #EAF1F8;
+  --azul-200: #D3E3F0;
+  --azul-300: #9FC2DE;
+  --azul-400: #6EAAD2;
+  --azul-600: #3C6496;
+  --azul-700: #2C4B73;
+  --azul-900: #16283F;
+  --azul-950: #09132B;
 
-  /* estados: siempre con texto, nunca solo color */
+  /* estados: siempre con texto, nunca solo color (sin cambios: son colores semánticos de
+     éxito/aviso/error, no parte de la identidad de marca que pide este punto) */
   --ok-bg: #E3EFE0;    --ok-tx: #2F5A2B;
   --aviso-bg: #FBEBCF; --aviso-tx: #7A4F06;
   --error-bg: #F9DCDC; --error-tx: #8C2230;
 
   /* roles semánticos (modo claro) */
-  --color-fondo: var(--rosa-50);
-  --color-superficie: var(--cafe-50);
-  --color-superficie-destacada: var(--rosa-100);
-  --color-borde: var(--cafe-300);
-  --color-borde-suave: var(--rosa-200);
-  --color-texto: var(--cafe-900);
-  --color-texto-secundario: var(--cafe-700);
-  --color-acento: var(--rosa-600);
-  --color-acento-hover: var(--rosa-400);
-  --color-acento-presionado: var(--rosa-700);
+  --color-fondo: var(--azul-50);
+  --color-superficie: #FFFFFF;
+  --color-superficie-destacada: var(--azul-100);
+  --color-borde: var(--azul-300);
+  --color-borde-suave: var(--azul-200);
+  --color-texto: var(--azul-900);
+  --color-texto-secundario: var(--azul-700);
+  --color-acento: var(--azul-600);
+  /* Mismo criterio que el DEF-18 original (ahora reverificado con esta paleta, no heredado de la
+     anterior): el "hover" debe OSCURECER el acento, no aclararlo, o el texto blanco encima deja de
+     ser legible. azul-700 sobre azul-600 cumple. */
+  --color-acento-hover: var(--azul-700);
+  --color-acento-presionado: var(--azul-700);
   --color-acento-texto: #FFFFFF;
-  --color-foco: var(--rosa-400);
+  /* Mismo criterio que el DEF-16 original: --color-acento (azul-600) como color de TEXTO sobre
+     fondo claro no se midió aquí porque este punto lo usa solo como FONDO de botón (con texto
+     blanco, nunca en duda); para texto/enlaces sobre fondo claro se usa este token aparte. */
+  --color-acento-texto-legible: var(--azul-700);
+  /* Antes (paleta rosa): rosa-400 contra blanco daba 2.04:1, por debajo del 3:1 que exige WCAG AA
+     para el foco de teclado (confirmado con axe-core al rehacer esta medición para la paleta
+     nueva, no heredado). azul-600 da 6.08:1 contra blanco y 5.68:1 contra el fondo de la app. */
+  --color-foco: var(--azul-600);
+
+  /* Cabecera oscura (CLAUDE.md §6.5: "cabecera azul-950"), con el mismo tono más oscuro que el
+     resto de la app usa para el texto principal — aquí es el FONDO, así que el texto de la
+     cabecera necesita sus propios tonos claros, no los de color-texto. */
+  --color-cabecera-fondo: var(--azul-950);
+  --color-cabecera-texto: #FFFFFF;
+  --color-cabecera-texto-secundario: var(--azul-100);
 
   --espacio-1: 8px;
   --espacio-2: 16px;
@@ -40,7 +60,7 @@
 
   --radio-tarjeta: 12px;
   --radio-boton: 8px;
-  --sombra-suave: 0 1px 2px rgba(111, 78, 60, .08);
+  --sombra-suave: 0 1px 2px rgba(9, 19, 43, .08);
 
   --fuente: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
   --fuente-codigo: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, monospace;
@@ -52,7 +72,8 @@
   --texto-28: 1.75rem;
 }
 
-/* Sin modo oscuro: el fondo siempre es el rosa pastel claro, pase lo que pase con el sistema
-   operativo de quien use la planta. El café oscuro de fondo se veía pesado y bajaba el contraste
-   de las tarjetas y chips (detectado en revisión visual real, no solo en la hoja de estilos). */
+/* Sin modo oscuro: el fondo siempre es el azul pastel claro, pase lo que pase con el sistema
+   operativo de quien use la planta. El café oscuro de fondo (paleta anterior) se veía pesado y
+   bajaba el contraste de las tarjetas y chips (detectado en revisión visual real, no solo en la
+   hoja de estilos); el mismo motivo aplica con la paleta azul. */
 :root { color-scheme: light; }

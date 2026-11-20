@@ -23,18 +23,44 @@ CREATE TABLE usuario (
   id_area           SMALLINT REFERENCES area(id_area) ON UPDATE CASCADE ON DELETE RESTRICT,
   activo            BOOLEAN NOT NULL DEFAULT TRUE,
   mfa_habilitado    BOOLEAN NOT NULL DEFAULT FALSE,
+  -- Secreto TOTP (RFC 6238), en claro: hay que poder volver a calcular el código, no solo
+  -- comparar un hash (a diferencia de la contraseña). La protección es el acceso a la base, igual
+  -- que para el resto de columnas sensibles de esta tabla. Ver Funcionalidad 5.
+  mfa_secreto       VARCHAR(64),
+  -- Último paso de 30 segundos ya usado para iniciar sesión o activar el MFA: evita reutilizar el
+  -- mismo código dos veces (p. ej. si alguien lo interceptó) dentro de su propia ventana de validez.
+  mfa_ultimo_paso   BIGINT,
   intentos_fallidos SMALLINT NOT NULL DEFAULT 0 CHECK (intentos_fallidos >= 0),
   bloqueado_hasta   TIMESTAMPTZ,
-  creado_en         TIMESTAMPTZ NOT NULL DEFAULT now()
+  creado_en         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Última vez que la persona abrió "Novedades" (Vendedor/Diseño): cuenta qué eventos de la
+  -- bitácora son nuevos desde entonces, sin tocar la bitácora (solo inserción, nunca edición).
+  novedades_vistas_en TIMESTAMPTZ NOT NULL DEFAULT '-infinity'
 );
 
 CREATE TABLE sesion (
-  id_sesion     UUID PRIMARY KEY,
-  id_usuario    INTEGER NOT NULL REFERENCES usuario(id_usuario) ON DELETE CASCADE,
-  hash_token    CHAR(64) NOT NULL UNIQUE,
-  expira_en     TIMESTAMPTZ NOT NULL,
-  revocada      BOOLEAN NOT NULL DEFAULT FALSE,
-  creada_en     TIMESTAMPTZ NOT NULL DEFAULT now()
+  id_sesion         UUID PRIMARY KEY,
+  id_usuario        INTEGER NOT NULL REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+  hash_token        CHAR(64) NOT NULL UNIQUE,
+  expira_en         TIMESTAMPTZ NOT NULL,
+  revocada          BOOLEAN NOT NULL DEFAULT FALSE,
+  creada_en         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Última solicitud autenticada real (no la renovación del token): permite cerrar la sesión por
+  -- inactividad aunque el token de acceso se siga renovando solo. Ver Funcionalidad 3.
+  ultima_actividad  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Enlaces de un solo uso, generados por Administración, para que una persona que olvidó su
+-- contraseña pueda crear una nueva sin conocer la anterior. Ver Funcionalidad 4. El token real
+-- nunca se guarda, solo su hash (mismo patrón que "sesion.hash_token").
+CREATE TABLE restablecimiento_contrasena (
+  id_restablecimiento  UUID PRIMARY KEY,
+  id_usuario           INTEGER NOT NULL REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+  hash_token           CHAR(64) NOT NULL UNIQUE,
+  expira_en            TIMESTAMPTZ NOT NULL,
+  usado                BOOLEAN NOT NULL DEFAULT FALSE,
+  creado_por           INTEGER NOT NULL REFERENCES usuario(id_usuario),
+  creado_en            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE tipo_trabajo (
